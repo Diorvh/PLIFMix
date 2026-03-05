@@ -1,6 +1,13 @@
 import tkinter as tk
 from tkinter import ttk, filedialog
 import os
+def select_folder():
+    root = tk.Tk()
+    root.withdraw()
+    folder_path = filedialog.askdirectory()
+    root.destroy()
+    return folder_path
+
 def select_multiple_folders():
     root = tk.Tk()
     root.title("多选文件夹")

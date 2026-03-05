@@ -7,6 +7,8 @@ from lib.lib_5 import shift_image
 from lib.lib_cv import *
 from lib.lib_histogram_frame import *
 
+QUAD = [{'x': 100, 'y': 200}, {'x': 100, 'y': 500}, {'x': 700, 'y': 500}, {'x': 700, 'y': 200}]
+
 class TabEditor(ttk.Notebook):
     def __init__(self, root):
         super().__init__(root)
@@ -47,7 +49,7 @@ class FileSelectFrame(ttk.Frame):
         self.filename = None
 
     def file_select(self):
-        self.filename = filedialog.askopenfilename(filetypes=[("图像矩阵", " *.npy"), ("图像文件", "*.tif")])
+        self.filename = filedialog.askopenfilename()
         self.lbl_path.config(text=self.filename)
         self.root.root.load_image()
     
@@ -75,11 +77,13 @@ class ImageProcessorApp(ttk.Frame):
         self.gain = 1
         self.shift = 0
         self.zoom_out = 1
-        self.center = (0, 0)
+        self.center = (100, 100)
         self.selecting_center = False
         self.crosshair = False
         self.ellipse = (100, 100)
         self.show_ellipse = False
+        self.quad = None
+        self.show_quad = False
         self.save_cbar = tk.BooleanVar()
 
     def setup_ui(self):
@@ -95,7 +99,7 @@ class ImageProcessorApp(ttk.Frame):
 
         self.notebook = TabEditor(self)
         self.notebook.pack(fill=tk.X)
-        for _ in range(33):
+        for _ in range(10):
             tab = FileSelectFrame(self.notebook)
             self.notebook.add(tab, text=f"实验编号{_}")
         self.root.bind("<Left>", self.notebook.prev_tab)  # 绑定左键[2](@ref)
@@ -137,7 +141,7 @@ class ImageProcessorApp(ttk.Frame):
         frm4.pack(fill=tk.X)
         ttk.Label(frm4, text='线宽：').pack(side=tk.LEFT)
         self.ent_line_width = ttk.Entry(frm4, width=5)
-        self.ent_line_width.insert(0, "3")
+        self.ent_line_width.insert(0, "1")
         self.ent_line_width.pack(side=tk.LEFT)
         ttk.Label(frm4, text="中心点坐标：").pack(side=tk.LEFT)
         self.ent_cx = ttk.Entry(frm4, width=5)
@@ -162,6 +166,20 @@ class ImageProcessorApp(ttk.Frame):
         self.ent_minor.bind('<Return>', self.update_ellipse)
         self.btn_ellipse = ttk.Button(frm4, text="显示椭圆", command=self.toggle_ellipse)
         self.btn_ellipse.pack(side=tk.LEFT)
+
+        # 第五行：四边形区域划定
+        frm5 = ttk.Frame(self)
+        frm5.pack(fill=tk.X)
+        ttk.Label(frm5, text='四边形区域：').pack(side=tk.LEFT)
+        for i in range(1,5):
+            ttk.Label(frm5, text=f'点{i}:').pack(side=tk.LEFT)
+            for j in ['x', 'y']:
+                setattr(self, f'ent_p{i}{j}', ttk.Entry(frm5, width=5))
+                getattr(self, f'ent_p{i}{j}').pack(side=tk.LEFT)
+                getattr(self, f'ent_p{i}{j}').insert(0, str(QUAD[i-1][j]))
+                getattr(self, f'ent_p{i}{j}').bind('<Return>', self.update_quad)
+        self.btn_quad = ttk.Button(frm5, text='显示四边形', command=self.toggle_quad)
+        self.btn_quad.pack(side=tk.LEFT)
 
         # 第六行：状态信息
         frm6 = ttk.Frame(self)
@@ -199,7 +217,7 @@ class ImageProcessorApp(ttk.Frame):
             tab.filename = os.path.join(folder, f)
             tab.lbl_path.config(text=tab.filename)
 
-    def load_image(self, event = None):
+    def load_image(self, event = None):# 读取图像，统一为16bit单通道图像int/float
         path = self.notebook.get_current_tab_widget().get_filename()# 获取当前tab的filename
         if path == None:
             return
@@ -209,11 +227,11 @@ class ImageProcessorApp(ttk.Frame):
             img = cv2.imdecode(np.fromfile(path, np.uint8), cv2.IMREAD_UNCHANGED)
             if img.dtype==np.uint8:
                 img=img.astype(np.uint16)*256
-        if len(img.shape) == 3: img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+        if len(img.shape) == 3: 
+            img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
         self.original = img # 读入后处理为16单通道作为原始图像
         self.image_path = path
         self.update_display()
-        self.histogram.update_image(self.original)
 
     def update_display(self):
         if self.original is None: return
@@ -226,7 +244,7 @@ class ImageProcessorApp(ttk.Frame):
         # 处理伪彩图或直接转三通道
         if self.is_pseudo:
             img = np.clip(img, 0, self.cmap_max) / self.cmap_max * 255
-            img = cv2.applyColorMap(img.astype(np.uint8), get_modified_jet())
+            img = cv2.applyColorMap(img.astype(np.uint8), BlackedJet_colormap())
         else:
             img = cv2.cvtColor(img,cv2.COLOR_GRAY2BGR)
         # 处理平移
@@ -237,6 +255,8 @@ class ImageProcessorApp(ttk.Frame):
             cv2.line(img, (0, self.center[1]), (img.shape[1], self.center[1]), (0,0,255), int(self.ent_line_width.get()))
         if self.show_ellipse:
             cv2.ellipse(img, self.center, (int(self.ellipse[0]), int(self.ellipse[1])),0, 0, 360, (0,0,255), int(self.ent_line_width.get()))
+        if self.show_quad:
+            cv2.polylines(img, [self.quad], isClosed=True, color=(0, 0, 255), thickness=int(self.ent_line_width.get()))
         self.display = img
 
         # 处理缩放
@@ -249,6 +269,7 @@ class ImageProcessorApp(ttk.Frame):
         
         # 显示图像
         self.show_image(img)
+        self.histogram.update_image(self.original.copy(), self.quad)
 
     def show_image(self, img):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -271,7 +292,7 @@ class ImageProcessorApp(ttk.Frame):
 
     # 缩放控制功能
     def toggle_zoom(self, event):
-        self.zoom_out = int(self.ent_zoom.get())
+        self.zoom_out = float(self.ent_zoom.get())
         self.update_display()
 
     # 中心点选择功能
@@ -296,6 +317,22 @@ class ImageProcessorApp(ttk.Frame):
         major = int(self.ent_major.get())
         minor = int(self.ent_minor.get())
         self.ellipse = (major, minor)
+        self.update_display()
+
+    # 四边形控制
+    def toggle_quad(self):
+        self.show_quad = not self.show_quad
+        self.btn_quad.config(text="关闭四边形" if self.show_quad else "显示四边形")
+        self.update_display()
+
+    # 四边形控制
+    def update_quad(self, event):
+        points_list = []
+        for i in range(1, 5):
+            x = int(getattr(self, f'ent_p{i}x').get())
+            y = int(getattr(self, f'ent_p{i}y').get())
+            points_list.append([x, y])
+        self.quad = np.array(points_list)
         self.update_display()
 
     # 颜色映射上限更新
