@@ -6,9 +6,9 @@ import os
 from lib.lib_cv import *
 import openpyxl
 
-folder_path = r'D:\工作文件同步\20250826孔径比影响\处理图像\2-减底噪图'
-correction_matrix_folder = r'D:\工作文件同步\20250826孔径比影响\处理图像\3.2-相增强器修正减底噪'
-xlsx_path = r'D:\工作文件同步\20250826孔径比影响\20250820孔径比影响-正式-工况总结.xlsx'
+folder_path = r'D:\工作文件同步\20260416MMHNTO模拟液雾化混合-3\图像处理\1-去底噪平均图-4'
+correction_matrix_folder = r'D:\工作文件同步\20260416MMHNTO模拟液雾化混合-3\图像处理\2.1像增强器修正矩阵'
+xlsx_path = r'D:\工作文件同步\20260416MMHNTO模拟液雾化混合-3\20260416MMHNTO模拟液雾化混合-3-流量数据总结.xlsx'
 
 if __name__ == "__main__":
     wb = openpyxl.load_workbook(xlsx_path)

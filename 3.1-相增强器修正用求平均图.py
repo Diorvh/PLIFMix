@@ -2,7 +2,7 @@ from lib.lib_avg_img import *
 import os
 
 if __name__ == '__main__':
-    main_folder = r'D:\实验数据\20260209MMHNTO混合\像增强器标定'
+    main_folder = r'E:\实验数据\20260416MMHNTO模拟液雾化混合-3\像增强器标定'
     for folder_name in os.listdir(main_folder):
         folder_path = os.path.join(main_folder, folder_name)
         

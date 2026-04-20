@@ -3,7 +3,7 @@ from tkinter import ttk
 import cv2
 import numpy as np
 from PIL import Image, ImageTk
-from lib.lib_5 import *
+from lib.lib_5_coeff import *
 from lib.lib_cv import *
 
 class ImageDisplay(ttk.Frame):
@@ -34,14 +34,12 @@ class ImageDisplay(ttk.Frame):
         self.canvas.pack(side=tk.LEFT, expand=False, fill='none')
         self.canvas.bind("<Motion>", self.update_mouse_info)
     
-    def update(self, image, gain = 1, colormap = None, zoom = 1, crosshair = None, ellipse = None, denoise = 0, save_name_suffix='', special_points = []):
+    def update(self, image, gain = 1, colormap = None, zoom = 1, crosshair = None, denoise = 0, save_name_suffix=''):
         self.image = image
         self.gain = gain
         self.crosshair = crosshair
-        self.ellipse = ellipse
         self.denoise = denoise
         self.save_name_suffix = save_name_suffix
-        self.special_points = special_points
         img = self.image[:]
         # 处理增益
         if self.gain == 0:
@@ -57,18 +55,11 @@ class ImageDisplay(ttk.Frame):
             img = img
         else:
             img = cv2.applyColorMap(img, colormap)
-        # 处理边界点
-        if self.special_points != []:
-            y, x = self.special_points
-            img[y, x] = [255, 255, 255]
         # 绘制图形
         if crosshair:
             x, y, LINE_WIDTH = crosshair
             cv2.line(img, (x, 0), (x, img.shape[0]), (0,0,255), LINE_WIDTH)
             cv2.line(img, (0, y), (img.shape[1], y), (0,0,255), LINE_WIDTH)
-        if ellipse:
-            x, y, a, b, LINE_WIDTH = ellipse
-            cv2.ellipse(img, (x, y), (a, b),0, 0, 360, (0,0,255), LINE_WIDTH)
         self.display = img
         # 处理缩放
         h, w = img.shape[:2]
@@ -102,7 +93,5 @@ class ImageDisplay(ttk.Frame):
             name += f"-增益{self.gain}"
         if self.crosshair:
             name += f"-十字线{self.crosshair}"
-        if self.ellipse:
-            name += f"-椭圆{self.ellipse}"
         name += f'-降噪{self.denoise}'
         cvimsave(self.display, os.path.join(self.save_dir+f'\\{self.name}', f"{name}.tif"))

@@ -48,5 +48,29 @@ def process_images():# 把图片从文件夹里提取出来并重命名
             img = img.astype(np.float64) / gain
             np.save(os.path.join(folder_a, f'{i.split('-')[0]}.npy'), img)
 
+def process_images_2():
+    folder_a = select_folder()
+    for file_name in os.listdir(folder_a):
+        name = ''
+        for p in file_name.split('_'):
+            if '实验编号' in p:
+                name = p
+                break
+        src_path = os.path.join(folder_a, file_name)
+        dest_path = os.path.join(folder_a, name+'.tif') # 实验编号XX-GAINXX.tif
+        try:
+            # 移动文件并重命名
+            os.rename(src_path, dest_path)
+            print(f"已移动：{src_path} → {dest_path}")
+        except Exception as e:
+            print(f"操作失败：{str(e)}")
+    for i in os.listdir(folder_a):
+        if 'GAIN' in i and '实验编号' in i and os.path.isfile(os.path.join(folder_a, i)):
+            img = cvimread(os.path.join(folder_a, i))
+            gain = int(os.path.splitext(i)[0].split('GAIN')[1])
+            img = img.astype(np.float64) / gain
+            np.save(os.path.join(folder_a, f'{i.split('-')[0]}.npy'), img)
+
 if __name__ == "__main__":
-    process_images()
+    # process_images()
+    process_images_2()

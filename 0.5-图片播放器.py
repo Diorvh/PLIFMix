@@ -49,7 +49,7 @@ class ImageViewer:
         tk.Button(root, text="前进", command=lambda: self.start_play(1)).grid(row=4, column=4, padx=5, pady=5)
         
         # 第六行：画布
-        self.canvas = tk.Canvas(root, width=800, height=600, bg='white')
+        self.canvas = tk.Canvas(root, width=650, height=850, bg='white')
         self.canvas.grid(row=5, column=0, columnspan=4, padx=5, pady=5)
 
     def select_folder(self):
