@@ -6,7 +6,7 @@ import os
 from lib.lib_cv import *
 import openpyxl
 
-folder_path = r'D:\工作文件同步\20260416MMHNTO模拟液雾化混合-3\图像处理\1-去底噪平均图-4'
+folder_path = r'D:\工作文件同步\20260416MMHNTO模拟液雾化混合-3\图像处理\1-去底噪平均图-12'
 correction_matrix_folder = r'D:\工作文件同步\20260416MMHNTO模拟液雾化混合-3\图像处理\2.1像增强器修正矩阵'
 xlsx_path = r'D:\工作文件同步\20260416MMHNTO模拟液雾化混合-3\20260416MMHNTO模拟液雾化混合-3-流量数据总结.xlsx'
 

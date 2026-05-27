@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # Ensure Axes3D is imported for 3D plotting
 from multiprocessing import Pool, Manager
 from lib.lib_cv import *
-from lib.lib_5_coeff import *
+from lib.lib_5 import *
 from lib.lib_ConfigManager import ConfigManager
 
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei']
@@ -69,10 +69,30 @@ class App(ttk.Frame):
         self.o_max = ttk.Entry(frm2, width=7)
         self.ConfigManager.register_entry('o_max', self.o_max)
         self.o_max.pack(side='left')
-        ttk.Label(frm2, text="去噪阈值：").pack(side=tk.LEFT)
-        self.ent_denoise = ttk.Entry(frm2, width=5)
-        self.ConfigManager.register_entry('denoise', self.ent_denoise)
-        self.ent_denoise.pack(side='left')
+
+        # 第三行：椭圆形计算范围
+        frm3 = ttk.Frame(self.root)
+        frm3.pack(anchor='w')
+
+        ttk.Label(frm3, text="混合效率椭圆形计算范围圆心:").pack(side='left')
+        self.ellipse_x = ttk.Entry(frm3, width=7)
+        self.ConfigManager.register_entry('ellipse_x', self.ellipse_x)
+        self.ellipse_x.pack(side='left')
+
+        ttk.Label(frm3, text=",").pack(side='left')
+        self.ellipse_y = ttk.Entry(frm3, width=7)
+        self.ConfigManager.register_entry('ellipse_y', self.ellipse_y)
+        self.ellipse_y.pack(side='left')
+
+        ttk.Label(frm3, text="长轴:").pack(side='left')
+        self.major_axis = ttk.Entry(frm3, width=7)
+        self.ConfigManager.register_entry('major_axis', self.major_axis)
+        self.major_axis.pack(side='left')
+
+        ttk.Label(frm3, text="短轴:").pack(side='left')
+        self.minor_axis = ttk.Entry(frm3, width=7)
+        self.ConfigManager.register_entry('minor_axis', self.minor_axis)
+        self.minor_axis.pack(side='left')
 
         # 第四行：进程数、开始计算按钮
         frm4 = ttk.Frame(self.root)
@@ -133,16 +153,18 @@ class App(ttk.Frame):
         path.set(filedialog.askdirectory())
 
     def start_process(self):
-        # 读取图像
-        fo_img = cvimread(self.base_folder.get()+f'\\实验编号{self.ent_fo_num.get()}.npy').astype(np.float64)
-        f_img = cvimread(self.base_folder.get()+f'\\实验编号{self.ent_f_num.get()}.npy').astype(np.float64)
-        o_img = cvimread(self.base_folder.get()+f'\\实验编号{self.ent_o_num.get()}.npy').astype(np.float64)
-        images = (f_img, o_img, fo_img)
+        # 数据提取
+        fo_path = self.base_folder.get()+f'\\实验编号{self.ent_fo_num.get()}.npy'
+        f_path = self.base_folder.get()+f'\\实验编号{self.ent_f_num.get()}.npy'
+        o_path = self.base_folder.get()+f'\\实验编号{self.ent_o_num.get()}.npy'
+        # images = cvimread_list(exp_plus(fo_path, 8), exp_plus(fo_path, 16), fo_path)
+        images = cvimread_list(f_path, o_path, fo_path)
         f_range = (int(self.f_min.get()), int(self.f_max.get())+1)
         o_range = (int(self.o_min.get()), int(self.o_max.get())+1)
+        ellipse = (int(self.ellipse_x.get()), int(self.ellipse_y.get()), int(self.major_axis.get()), int(self.minor_axis.get()))
         processes = int(self.process_num.get())
         global_mix_ratio = float(self.ent_globalof.get()) / (1 + float(self.ent_globalof.get()))
-        params={'images': images, 'f_range': f_range, 'o_range': o_range, 'processes': processes, 'global_mix_ratio': global_mix_ratio, 'denoise': float(self.ent_denoise.get())}
+        params={'images': images, 'f_range': f_range, 'o_range': o_range, 'ellipse': ellipse, 'processes': processes, 'global_mix_ratio': global_mix_ratio}
         results = calculate_matrices(params)
         """更新3D图表"""
         abs_matrix, me_ptp_matrix, me1_matrix, me2_matrix, me3_matrix = results

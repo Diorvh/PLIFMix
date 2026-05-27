@@ -13,7 +13,7 @@ def average_img(file_chunk): # 取绿色通道
         工业相机专用去底噪
         '''
         # print(np.sum(img==2))
-        img[img<=4] = 0
+        img[img<=2] = 0
         # print(np.sum(img==2))
         # os.system('pause')
 

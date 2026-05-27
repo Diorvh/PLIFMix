@@ -78,12 +78,6 @@ class MeasureSheet(ttk.Frame):
         self.ent_edge_thres = ttk.Entry(frm1, width=5, textvariable=self.edge_thres)
         self.ent_edge_thres.pack(side=tk.LEFT)
 
-        ttk.Label(frm1, text='像素尺寸um/pix').pack(side=tk.LEFT)
-        self.pix_size = tk.DoubleVar()
-        self.ConfigManager.register_var('pix_size', self.pix_size)
-        self.ent_pix_size = ttk.Entry(frm1, width=5, textvariable=self.pix_size)
-        self.ent_pix_size.pack(side=tk.LEFT)
-
         ttk.Button(frm1, text='自动计算', command=self.auto_process_edge).pack(side=tk.LEFT)
 
         #第二行：参数展示
@@ -266,7 +260,7 @@ class MeasureSheet(ttk.Frame):
         
         wb_target = openpyxl.Workbook()
         ws_target = wb_target.active
-        title = [os.path.basename(self.img_folder.get()), '起始编号', self.image_no_min, '结束编号', self.image_no_max, '边界阈值', self.edge_thres.get(), '像素尺寸um/pix', self.pix_size.get(), '提取点坐标', f'({self.pt_x.get()},{self.pt_y.get()})']
+        title = [os.path.basename(self.img_folder.get()), '起始编号', self.image_no_min, '结束编号', self.image_no_max, '边界阈值', self.edge_thres.get(), '提取点坐标', f'({self.pt_x.get()},{self.pt_y.get()})']
         for ni, i in enumerate(title):
             ws_target.cell(1, ni+1, i)
         title = ['图像编号', '左线', '右线', '中线']
@@ -277,15 +271,7 @@ class MeasureSheet(ttk.Frame):
             ws_target.cell(ni+3, 2, left_edge[ni])
             ws_target.cell(ni+3, 3, right_edge[ni])
             ws_target.cell(ni+3, 4, middle[ni])
-        ws_target.cell(3, 5, np.std(middle, ddof=1))
-        ws_target.cell(4, 5, np.std(middle, ddof=1) * self.pix_size.get())
-        for ni, i in enumerate(range(self.image_no_min, self.image_no_max+1)):
-            res = middle[ni] - float(self.ent_pt_x.get())
-            ws_target.cell(ni+3, 6, res)
-            ws_target.cell(ni+3, 7, res * self.pix_size.get() * 1e-3)
-            ws_target.cell(ni+3, 8, res * self.pix_size.get() * 1e-3 / 0.5075)
         wb_target.save(os.path.join(self.res_folder.get(), f'{os.path.basename(self.img_folder.get())}射流振荡信息.xlsx'))
-        os.system(f'start excel "{os.path.join(self.res_folder.get(), f'{os.path.basename(self.img_folder.get())}射流振荡信息.xlsx')}"')
 def on_close():
     app.ConfigManager.save_config()
     root.destroy()

@@ -8,6 +8,7 @@ from lib.lib_cv import *
 from lib.lib_histogram_frame import *
 
 QUAD = [{'x': 100, 'y': 200}, {'x': 100, 'y': 500}, {'x': 700, 'y': 500}, {'x': 700, 'y': 200}]
+COLORMAP = BlackedJet_colormap()#BlueWhiteRed_colormap()
 
 class TabEditor(ttk.Notebook):
     def __init__(self, root):
@@ -75,6 +76,8 @@ class ImageProcessorApp(ttk.Frame):
         self.is_pseudo = False
         self.cmap_max = 255
         self.gain = 1
+        self.denoise = 0
+        self.rotate_angle = 0
         self.shift = 0
         self.zoom_out = 1
         self.center = (100, 100)
@@ -134,6 +137,16 @@ class ImageProcessorApp(ttk.Frame):
         self.ent_zoom.pack(side=tk.LEFT)
         self.ent_zoom.insert(0,"1")
         self.ent_zoom.bind('<Return>', self.toggle_zoom)
+        ttk.Label(frm3, text="去噪阈值：").pack(side=tk.LEFT)
+        self.ent_denoise = ttk.Entry(frm3, width=5)
+        self.ent_denoise.pack(side=tk.LEFT)
+        self.ent_denoise.insert(0,"0")
+        self.ent_denoise.bind('<Return>', self.update_denoise)
+        ttk.Label(frm3, text="旋转角度：").pack(side=tk.LEFT)
+        self.ent_rotate = ttk.Entry(frm3, width=5)
+        self.ent_rotate.pack(side=tk.LEFT)
+        self.ent_rotate.insert(0,"0")
+        self.ent_rotate.bind('<Return>', self.update_rotate)
         frm3.pack(fill=tk.X)
 
         # 第四行：中心线与椭圆控制
@@ -228,23 +241,52 @@ class ImageProcessorApp(ttk.Frame):
             if img.dtype==np.uint8:
                 img=img.astype(np.uint16)*256
         if len(img.shape) == 3: 
-            img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+            # img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+            img = img[:,:,1] # 直接取中间通道当作单通道图像
         self.original = img # 读入后处理为16单通道作为原始图像
         self.image_path = path
         self.update_display()
 
+    def rotate_img(self, img, angle):
+        # 获取图像尺寸
+        h, w = img.shape[:2]
+        center = (w // 2, h // 2)
+
+        # 顺时针旋转：OpenCV 中旋转矩阵默认逆时针为正，因此传入 -angle
+        rot_mat = cv2.getRotationMatrix2D(center, -angle, 1.0)
+
+        # 计算旋转后新画布大小（避免裁剪）
+        cos = np.abs(rot_mat[0, 0])
+        sin = np.abs(rot_mat[0, 1])
+        new_w = int((h * sin) + (w * cos))
+        new_h = int((h * cos) + (w * sin))
+
+        # 调整旋转矩阵的平移部分，使图像居中
+        rot_mat[0, 2] += (new_w / 2) - center[0]
+        rot_mat[1, 2] += (new_h / 2) - center[1]
+
+        # 执行仿射变换
+        img = cv2.warpAffine(img, rot_mat, (new_w, new_h),
+                                flags=cv2.INTER_LINEAR,
+                                borderMode=cv2.BORDER_CONSTANT,
+                                borderValue=(0, 0, 0, 0))  # 对于带透明通道的图像用全0填充
+        return img
     def update_display(self):
         if self.original is None: return
         img = self.original.copy()
         # 不是8位就转换8位
         if img.dtype != np.uint8:
             img = img / 256
+        img[img<self.denoise] = 0 # 简单的去噪处理
+        img = self.rotate_img(img, -self.rotate_angle)
         # 处理增益
+        if self.gain == 0:
+            self.gain = 256 / img.max()
         img = np.clip(img*self.gain, 0, 255).astype(np.uint8)
         # 处理伪彩图或直接转三通道
         if self.is_pseudo:
             img = np.clip(img, 0, self.cmap_max) / self.cmap_max * 255
-            img = cv2.applyColorMap(img.astype(np.uint8), BlackedJet_colormap())
+            img = cv2.applyColorMap(img.astype(np.uint8), COLORMAP)
         else:
             img = cv2.cvtColor(img,cv2.COLOR_GRAY2BGR)
         # 处理平移
@@ -258,6 +300,7 @@ class ImageProcessorApp(ttk.Frame):
         if self.show_quad:
             cv2.polylines(img, [self.quad], isClosed=True, color=(0, 0, 255), thickness=int(self.ent_line_width.get()))
         self.display = img
+        
 
         # 处理缩放
         h, w = img.shape[:2]
@@ -345,6 +388,14 @@ class ImageProcessorApp(ttk.Frame):
         self.gain = float(self.ent_gain.get())
         self.update_display()
 
+    def update_denoise(self, event):
+        self.denoise = float(self.ent_denoise.get())
+        self.update_display()
+
+    def update_rotate(self, event):
+        self.rotate_angle = float(self.ent_rotate.get())
+        self.update_display()
+
     # 实时鼠标信息更新
     def update_mouse_info(self, event):
         if self.original is None: return
@@ -417,7 +468,7 @@ class ImageProcessorApp(ttk.Frame):
 
         # 处理colorbar
         if self.save_cbar.get():
-            cbar_img= self.create_colorbar(self.display.shape[0], 60, get_modified_jet(), 0, self.cmap_max, 50, 50)
+            cbar_img= self.create_colorbar(self.display.shape[0], 60, COLORMAP, 0, self.cmap_max, 50, 50)
             # 拼接图像
             self.display = np.hstack([self.display, cbar_img])
 

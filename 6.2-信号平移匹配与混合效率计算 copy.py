@@ -20,35 +20,37 @@ class App(ttk.Frame):
         super().__init__(master=root)        
         self.root = root
         self.ConfigManager = ConfigManager(self, name)
+
+        # 初始化图像路径变量
+        self.fo_path = tk.StringVar()
+        self.f_path = tk.StringVar()
+        self.o_path = tk.StringVar()
+        self.ConfigManager.register_var('fo_path', self.fo_path)
+        self.ConfigManager.register_var('f_path', self.f_path)
+        self.ConfigManager.register_var('o_path', self.o_path)
+
         # 文件选择部分
         self.setup_ui()
         self.ConfigManager.load_config()
 
     def setup_ui(self):
-        self.base_folder = tk.StringVar()
-        self.ConfigManager.register_var('base_folder', self.base_folder)
+        # 第一行：F+O信号
+        frm1 = ttk.Frame(self.root)
+        frm1.pack(anchor='w')
+        ttk.Button(frm1, text="选择F+O信号图片", command=lambda: self.select_file(self.fo_path), width=15).pack(side='left')
+        ttk.Label(frm1, textvariable=self.fo_path).pack(side='left')
 
-        frm0 = ttk.Frame(self.root)
-        frm0.pack(fill=tk.X)
-        frm = ttk.Frame(frm0)
-        frm.pack(fill=tk.X)
-        ttk.Button(frm, text='选择图像文件夹', command=lambda: self.select_folder(self.base_folder)).pack(side=tk.LEFT)
-        ttk.Label(frm, textvariable=self.base_folder).pack(side=tk.LEFT)
+        # 第二行：F信号
+        frm2 = ttk.Frame(self.root)
+        frm2.pack(anchor='w')
+        ttk.Button(frm2, text="选择F信号图片", command=lambda: self.select_file(self.f_path), width=15).pack(side='left')
+        ttk.Label(frm2, textvariable=self.f_path).pack(side='left')
 
-        frm = ttk.Frame(frm0)
-        frm.pack(fill=tk.X)
-        ttk.Label(frm, text='fo图像编号：').pack(side=tk.LEFT)
-        self.ent_fo_num = ttk.Entry(frm, width=5)
-        self.ent_fo_num.pack(side=tk.LEFT)
-        self.ConfigManager.register_entry('fo_num', self.ent_fo_num)
-        ttk.Label(frm, text='f图像编号：').pack(side=tk.LEFT)
-        self.ent_f_num = ttk.Entry(frm, width=5)
-        self.ent_f_num.pack(side=tk.LEFT)
-        self.ConfigManager.register_entry('f_num', self.ent_f_num)
-        ttk.Label(frm, text='o图像编号：').pack(side=tk.LEFT)
-        self.ent_o_num = ttk.Entry(frm, width=5)
-        self.ent_o_num.pack(side=tk.LEFT)
-        self.ConfigManager.register_entry('o_num', self.ent_o_num)
+        # 第三行：O信号
+        frm3 = ttk.Frame(self.root)
+        frm3.pack(anchor='w')
+        ttk.Button(frm3, text="选择O信号图片", command=lambda: self.select_file(self.o_path), width=15).pack(side='left')
+        ttk.Label(frm3, textvariable=self.o_path).pack(side='left')
 
         # 第二行：F信号平移范围、O信号平移范围
         frm2 = ttk.Frame(self.root)
@@ -94,15 +96,19 @@ class App(ttk.Frame):
         self.ConfigManager.register_entry('minor_axis', self.minor_axis)
         self.minor_axis.pack(side='left')
 
+        ttk.Label(frm3, text="偏差全图计算长轴:").pack(side='left')
+        self.major_axis_whole = ttk.Entry(frm3, width=7)
+        self.ConfigManager.register_entry('major_axis_whole', self.major_axis_whole)
+        self.major_axis_whole.pack(side='left')
+        
+        ttk.Label(frm3, text="偏差全图计算短轴:").pack(side='left')
+        self.minor_axis_whole = ttk.Entry(frm3, width=7)
+        self.ConfigManager.register_entry('minor_axis_whole', self.minor_axis_whole)
+        self.minor_axis_whole.pack(side='left')
+
         # 第四行：进程数、开始计算按钮
         frm4 = ttk.Frame(self.root)
         frm4.pack(anchor='w')
-        
-        ttk.Label(frm4, text='全局混合比：').pack(side=tk.LEFT)
-        self.ent_globalof = ttk.Entry(frm4, width=5)
-        self.ent_globalof.pack(side=tk.LEFT)
-        self.ConfigManager.register_entry('globalof', self.ent_globalof)
-
         ttk.Label(frm4, text="进程数:").pack(side='left')
         self.process_num = ttk.Entry(frm4, width=5)
         self.ConfigManager.register_entry('process_num', self.process_num)
@@ -149,31 +155,26 @@ class App(ttk.Frame):
     def select_file(self, path):
         path.set(filedialog.askopenfilename())
 
-    def select_folder(self, path):
-        path.set(filedialog.askdirectory())
-
     def start_process(self):
         # 数据提取
-        fo_path = self.base_folder.get()+f'\\实验编号{self.ent_fo_num.get()}.npy'
-        f_path = self.base_folder.get()+f'\\实验编号{self.ent_f_num.get()}.npy'
-        o_path = self.base_folder.get()+f'\\实验编号{self.ent_o_num.get()}.npy'
+        fo_path = self.fo_path.get()
         # images = cvimread_list(exp_plus(fo_path, 8), exp_plus(fo_path, 16), fo_path)
-        images = cvimread_list(f_path, o_path, fo_path)
+        images = cvimread_list(self.f_path.get(), self.o_path.get(), self.fo_path.get())
         f_range = (int(self.f_min.get()), int(self.f_max.get())+1)
         o_range = (int(self.o_min.get()), int(self.o_max.get())+1)
         ellipse = (int(self.ellipse_x.get()), int(self.ellipse_y.get()), int(self.major_axis.get()), int(self.minor_axis.get()))
+        ellipse_whole = (int(self.major_axis_whole.get()), int(self.minor_axis_whole.get()))
         processes = int(self.process_num.get())
-        global_mix_ratio = float(self.ent_globalof.get()) / (1 + float(self.ent_globalof.get()))
-        params={'images': images, 'f_range': f_range, 'o_range': o_range, 'ellipse': ellipse, 'processes': processes, 'global_mix_ratio': global_mix_ratio}
+        params={'images': images, 'f_range': f_range, 'o_range': o_range, 'ellipse': ellipse, 'ellipse_whole': ellipse_whole, 'processes': processes, 'global_mix_ratio': 0.5}
         results = calculate_matrices(params)
         """更新3D图表"""
         abs_matrix, me_ptp_matrix, me1_matrix, me2_matrix, me3_matrix = results
         min_val, (row, col) = abs_matrix.min(), np.unravel_index(abs_matrix.argmin(), abs_matrix.shape)
         f_range = list(range(f_range[0], f_range[1]))
         o_range = list(range(o_range[0], o_range[1]))
-        self.res1_lbl.config(text=f'差绝对值和最小值位置：{(f_range[row], o_range[col])}; 差绝对值和：{abs_matrix[row, col]:.4f}; 混合效率：{me3_matrix[row, col]:.4f}, {me2_matrix[row, col]:.4f}, {me1_matrix[row, col]:.4f}; 混合效率偏差：{me_ptp_matrix[row, col]:.4f}')
+        self.res1_lbl.config(text=f'差绝对值和最小值位置：{(f_range[row], o_range[col])}; 差绝对值和：{abs_matrix[row, col]:.4f}; 混合效率：{me1_matrix[row, col]:.4f}, {me2_matrix[row, col]:.4f}, {me3_matrix[row, col]:.4f}; 混合效率偏差：{me_ptp_matrix[row, col]:.4f}')
         min_val, (row, col) = me_ptp_matrix.min(), np.unravel_index(me_ptp_matrix.argmin(), me_ptp_matrix.shape)
-        self.res2_lbl.config(text=f'混合效率偏差最小值位置：{(f_range[row], o_range[col])}; 差绝对值和：{abs_matrix[row, col]:.4f}; 混合效率：{me3_matrix[row, col]:.4f}, {me2_matrix[row, col]:.4f}, {me1_matrix[row, col]:.4f}; 混合效率偏差：{me_ptp_matrix[row, col]:.4f}')
+        self.res2_lbl.config(text=f'混合效率偏差最小值位置：{(f_range[row], o_range[col])}; 差绝对值和：{abs_matrix[row, col]:.4f}; 混合效率：{me1_matrix[row, col]:.4f}, {me2_matrix[row, col]:.4f}, {me3_matrix[row, col]:.4f}; 混合效率偏差：{me_ptp_matrix[row, col]:.4f}')
 
         X, Y = np.meshgrid(range(int(self.f_min.get()), int(self.f_max.get())+1), range(int(self.o_min.get()), int(self.o_max.get())+1))
         
@@ -195,7 +196,7 @@ class App(ttk.Frame):
 
         # 更新右侧图表
         self.ax3.clear()
-        self.ax3.plot_surface(X, Y, ((me1_matrix+me2_matrix+me3_matrix)/3).T, cmap='plasma') # type: ignore
+        self.ax3.plot_surface(X, Y, me3_matrix.T, cmap='plasma') # type: ignore
         self.ax3.set_xlabel('F平移量', fontsize=10, labelpad=10)  # x轴标签
         self.ax3.set_ylabel('O平移量', fontsize=10, labelpad=10)  # y轴标签
         self.ax3.set_zlabel('混合效率', fontsize=10, labelpad=10)  # z轴标签 # type: ignore

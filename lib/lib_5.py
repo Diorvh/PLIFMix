@@ -117,22 +117,6 @@ def calc_result(f_img, o_img, fo_img, coords_me, global_mix_ratio):
     diff_sum_abs = np.sum(np.abs(f_values + o_values - fo_values))
     return diff_sum_abs, me1, me2, me3
 
-def calc_result_coeff(f_img, o_img, fo_img, coords_me, global_mix_ratio, A):
-    # 计算平移后掩膜并提取有效数据
-    xs, ys = coords_me
-    f_values = f_img[ys, xs].astype(np.float64)
-    o_values = o_img[ys, xs].astype(np.float64)
-    fo_values = fo_img[ys, xs].astype(np.float64)
-    # 计算混合效率
-    me1, _ = calc_mixing_efficiency(o_values * A, fo_values + (A - 1) * o_values, global_mix_ratio)
-    True_fo_values = fo_values * A + (1 - A) * f_values
-    print(np.max(True_fo_values), np.min(True_fo_values))
-    me2, _ = calc_mixing_efficiency(f_values, True_fo_values, 1-global_mix_ratio)
-    me3, _ = calc_mixing_efficiency(o_values * A, f_values + o_values * A, global_mix_ratio)
-    # 计算差绝对值和
-    diff_sum_abs = np.sum(np.abs(f_values + o_values - fo_values))
-    return diff_sum_abs, me1, me2, me3
-
 def calc_mixing_efficiency(o_values, fo_values, global_mix_ratio): #o/(f+o)
     valid = fo_values > 0
     mass_ratio = np.zeros_like(fo_values)
@@ -199,9 +183,12 @@ def fit_center_line(img, Up_limit, Down_limit, max_k, cx, cy, rotate_angle):
 def func_fit_2(x, y, fit_function):
     from scipy.optimize import curve_fit
     # 使用curve_fit进行拟合
-    popt, pcov = curve_fit(fit_function, x, y, p0=[1, 1])
-    # 提取拟合参数
-    a_fit, b_fit = popt
+    try:
+        popt, pcov = curve_fit(fit_function, x, y, p0=[1, 1])
+        # 提取拟合参数
+        a_fit, b_fit = popt
+    except:
+        a_fit, b_fit = 0, 0
     # 计算拟合值
     y_fit = fit_function(x, a_fit, b_fit)
     # 计算R²
@@ -304,11 +291,5 @@ def generate_mask_coords(cx, cy, major, minor, shape):
     """生成椭圆掩模的坐标"""
     mask = np.zeros(shape[:2], dtype=np.uint8)
     cv2.ellipse(mask, (cx, cy), (major, minor), 0, 0, 360, (255,), -1)
-    ys, xs = np.where(mask > 0)
-    return xs, ys
-
-def generate_mask_coords_all(cx, cy, major, minor, shape):
-    """生成椭圆掩模的坐标"""
-    mask = np.ones(shape[:2], dtype=np.uint8)
     ys, xs = np.where(mask > 0)
     return xs, ys

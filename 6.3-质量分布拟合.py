@@ -191,7 +191,7 @@ class ImageProcessorApp(ttk.Frame):
         self.lbl_res3 = ttk.Label(frm7,text='计算结果')
         self.lbl_res3.pack(anchor='w')
 
-        for ent in ['ent_thres_contour', 'ent_thres_Q_center_up', 'ent_thres_Q_center_down', 'ent_max_k', 'ent_rotate_anglef', 'ent_rotate_angleo']:
+        for ent in ['ent_thres_contour', 'ent_thres_Q_center_up', 'ent_thres_Q_center_down', 'ent_max_k', 'ent_rotate_anglef', 'ent_rotate_angleo', 'ent_rotate_anglefo']:
             getattr(self, ent).bind('<Return>', self.process)
 
     def setup_image_displays(self):
@@ -212,137 +212,134 @@ class ImageProcessorApp(ttk.Frame):
         self.process()
 
     def process(self, event = None):
-        try:
-            # 读取图像
-            f_img = cvimread(self.base_folder.get()+f'\\实验编号{self.ent_f_num.get()}.npy').astype(np.float64)
-            o_img = cvimread(self.base_folder.get()+f'\\实验编号{self.ent_o_num.get()}.npy').astype(np.float64)
-            # 去除<1%最大值的噪点
-            denoise_thres = float(self.ent_denoise.get())
-            mask = (f_img < (np.max(f_img)*denoise_thres)) & (o_img < (np.max(o_img)*denoise_thres))
-            f_img[mask] = 0
-            o_img[mask] = 0
-        
-            # 更新所有图像所需的变量
-            gain = float(self.ent_gain.get())
-            zoom = float(self.ent_zoom.get())
-            denoise = float(self.ent_denoise.get())
-            save_name = self.ent_save_name.get()
-            thres_contour = float(self.ent_thres_contour.get())
-            H, W = f_img.shape
-            Up_limit = int(self.ent_thres_Q_center_up.get())
-            Down_limit = int(self.ent_thres_Q_center_down.get())
-            max_k = int(self.ent_max_k.get())
-            hori_fit_width = int(self.ent_hori_fit_width.get())
-            lbl2 = ''
-            lbl3 = ''
-            name_list = ['f_img', 'o_img']
-            center = [(int(self.ent_cxf.get()), int(self.ent_cyf.get())), (int(self.ent_cxo.get()), int(self.ent_cyo.get()))]
-            rotate_angle = [float(self.ent_rotate_anglef.get()), float(self.ent_rotate_angleo.get())]
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            for num, img in enumerate([f_img, o_img]):
-                # 计算流量轮廓
-                cx, cy = center[num]
-                if self.show_Q_center == 'contour':# 如果显示轮廓才计算
-                    contour_value, boundary_points = calc_flowrate_contour(img, thres_contour)
-                else:
-                    contour_value, boundary_points = 0, []
-                # 计算流量中心线
-                a, b, r_squared, origin_point, fitted_point, verti_px_rotated = fit_center_line(img, Up_limit, Down_limit, max_k, cx, cy, rotate_angle[num])
-                lbl2 += f'{name_list[num]}流量轮廓值:{contour_value};流量中心线方程：y={a:.4f}*sqrt(x^2+{b*b:.4f})-{a:.4f}*{b:.4f}; R2={r_squared:.4f}     '
+        # 读取图像
+        f_img = cvimread(self.base_folder.get()+f'\\实验编号{self.ent_f_num.get()}.npy').astype(np.float64)
+        o_img = cvimread(self.base_folder.get()+f'\\实验编号{self.ent_o_num.get()}.npy').astype(np.float64)
+        # 去除<1%最大值的噪点
+        denoise_thres = float(self.ent_denoise.get())
+        mask = (f_img < (np.max(f_img)*denoise_thres)) & (o_img < (np.max(o_img)*denoise_thres))
+        f_img[mask] = 0
+        o_img[mask] = 0
+       
+        # 更新所有图像所需的变量
+        gain = float(self.ent_gain.get())
+        zoom = float(self.ent_zoom.get())
+        denoise = float(self.ent_denoise.get())
+        save_name = self.ent_save_name.get()
+        thres_contour = float(self.ent_thres_contour.get())
+        H, W = f_img.shape
+        Up_limit = int(self.ent_thres_Q_center_up.get())
+        Down_limit = int(self.ent_thres_Q_center_down.get())
+        max_k = int(self.ent_max_k.get())
+        hori_fit_width = int(self.ent_hori_fit_width.get())
+        lbl2 = ''
+        lbl3 = ''
+        name_list = ['f_img', 'o_img']
+        center = [(int(self.ent_cxf.get()), int(self.ent_cyf.get())), (int(self.ent_cxo.get()), int(self.ent_cyo.get()))]
+        rotate_angle = [float(self.ent_rotate_anglef.get()), float(self.ent_rotate_angleo.get())]
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        for num, img in enumerate([f_img, o_img]):
+            # 计算流量轮廓
+            cx, cy = center[num]
+            if self.show_Q_center == 'contour':# 如果显示轮廓才计算
+                contour_value, boundary_points = calc_flowrate_contour(img, thres_contour)
+            else:
+                contour_value, boundary_points = 0, []
+            # 计算流量中心线
+            a, b, r_squared, origin_point, fitted_point, verti_px_rotated = fit_center_line(img, Up_limit, Down_limit, max_k, cx, cy, rotate_angle[num])
+            lbl2 += f'{name_list[num]}流量轮廓值:{contour_value};流量中心线方程：y={a:.4f}*sqrt(x^2+{b*b:.4f})-{a:.4f}*{b:.4f}; R2={r_squared:.4f}     '
 
-                # 图像概率密度归一化
-                norm_img = img / np.sum(img) # 防止出现数值问题
-                # 计算横向分布
-                hori_px = np.array(range(-hori_fit_width, hori_fit_width))
-                hori_py = np.zeros_like(hori_px)
-                hori_px_rotated, hori_py_rotated = rotate_points_clockwise(hori_px, hori_py, -rotate_angle[num])
-                hori_intensity = norm_img[np.round(-hori_py_rotated + cy).astype(np.int32), np.round(hori_px_rotated + cx).astype(np.int32)]
-                def func_fit(x, a, b, c):
-                    return a / (x ** 2 * b ** 2 + 1) ** c
-                ah, bh, ch, r_squaredh, y_pred = func_fit_3(hori_px, hori_intensity, func_fit)
-                plot_scatter_and_line(hori_px, hori_intensity, hori_px, y_pred, r'D:\工作文件同步\20250826孔径比影响\横向分布'+f'_{name_list[num]}.png')
-                lbl2 += f'{name_list[num]}横向强度分布拟合：y={ah*1e4:.4f}E-4/(x^2*{bh:.4f}^2+1)^{ch:.4f}; R2={r_squaredh:.4f}     '
-                # 计算纵向分布
-                verti_py, verti_px = origin_point
-                verti_intensity = norm_img[verti_py, verti_px]
-                av, bv, cv, r_squaredv, y_pred = func_fit_3(verti_px_rotated, verti_intensity, func_fit)
-                plot_scatter_and_line(verti_px_rotated, verti_intensity, verti_px_rotated, y_pred, r'D:\工作文件同步\20250826孔径比影响\纵向分布'+f'_{name_list[num]}.png')
-                lbl2 += f'{name_list[num]}纵向强度分布拟合：y={av*1e4:.4f}E-4/(x^2*{bv:.4f}^2+1)^{cv:.4f}; R2={r_squaredv:.4f}\n'
-                # 掰直图像
-                bent_img = np.zeros_like(img)
-                b_cy, b_cx = origin_point
-                x_coords = np.arange(W)
-                for i, y in enumerate(b_cy):
-                    src_x = x_coords - (cx - b_cx[i])
-                    mask = (0 <= src_x) & (src_x < W)
-                    bent_img[y, x_coords[mask]] = norm_img[y, src_x[mask]]
-                # 优化RMSE以拟合相关系数rou
-                rho_limit = (0.01, 100)
-                def predict_img_func(rho):
-                        # 创建坐标网格
-                    X, Y = np.meshgrid(np.arange(W), np.arange(H), indexing='xy')
-                    trans_x = (X - cx) * PIXEL_SIZE / DIAMETER_FUEL
-                    trans_y = (Y - cy) * PIXEL_SIZE / DIAMETER_FUEL
-                    a = (ah + av) / 2
-                    predict_img = a / ( ((trans_x * trans_x * bh * bh +1) ** ch - 1) +
-                                        ((trans_y * trans_y * bv * bv +1) ** cv - 1) +
-                                        # (rho ** (np.abs(trans_x * bh) ** (1/ch) * np.abs(trans_y * bv) ** (1/cv))-1) + 1)
-                                        (np.abs(trans_x * bh) ** (rho) * np.abs(trans_y * bv) ** (rho)) + 1)
-                                        # ((np.abs(trans_x * bh * trans_y * bv) +1) ** rho - 1) + 1)
-                    predict_img = predict_img / np.sum(predict_img)
-                    return predict_img
-                def object_loss(rho):
-                    ss_res = np.sum((bent_img - predict_img_func(rho)) ** 2)
-                    return ss_res
-                if self.show_img == 'fit_img' or self.show_img == 'delta_img':
-                    try :
-                        from scipy import optimize
-                        res = optimize.minimize_scalar(object_loss, bounds = rho_limit, method = 'bounded')
-                        ss_tot = np.sum((bent_img - np.mean(bent_img)) ** 2)
-                        best_rho = res.x
-                        r_squaredp = 1 - (res.fun / ss_tot) if ss_tot != 0 else 0
-                    except Exception as e:
-                        best_rho = 0
-                        r_squaredp = 0
-                        print(f"Optimization error for {name_list[num]}: {e}")
-                else:
+            # 图像概率密度归一化
+            norm_img = img / np.sum(img) # 防止出现数值问题
+            # 计算横向分布
+            hori_px = np.array(range(-hori_fit_width, hori_fit_width))
+            hori_py = np.zeros_like(hori_px)
+            hori_px_rotated, hori_py_rotated = rotate_points_clockwise(hori_px, hori_py, -rotate_angle[num])
+            hori_intensity = norm_img[np.round(-hori_py_rotated + cy).astype(np.int32), np.round(hori_px_rotated + cx).astype(np.int32)]
+            def func_fit(x, a, b, c):
+                return a / (x ** 2 * b ** 2 + 1) ** c
+            ah, bh, ch, r_squaredh, y_pred = func_fit_3(hori_px, hori_intensity, func_fit)
+            plot_scatter_and_line(hori_px, hori_intensity, hori_px, y_pred, r'D:\工作文件同步\20250826孔径比影响\横向分布'+f'_{name_list[num]}.png')
+            lbl2 += f'{name_list[num]}横向强度分布拟合：y={ah*1e4:.4f}E-4/(x^2*{bh:.4f}^2+1)^{ch:.4f}; R2={r_squaredh:.4f}     '
+            # 计算纵向分布
+            verti_py, verti_px = origin_point
+            verti_intensity = norm_img[verti_py, verti_px]
+            av, bv, cv, r_squaredv, y_pred = func_fit_3(verti_px_rotated, verti_intensity, func_fit)
+            plot_scatter_and_line(verti_px_rotated, verti_intensity, verti_px_rotated, y_pred, r'D:\工作文件同步\20250826孔径比影响\纵向分布'+f'_{name_list[num]}.png')
+            lbl2 += f'{name_list[num]}纵向强度分布拟合：y={av*1e4:.4f}E-4/(x^2*{bv:.4f}^2+1)^{cv:.4f}; R2={r_squaredv:.4f}\n'
+            # 掰直图像
+            bent_img = np.zeros_like(img)
+            b_cy, b_cx = origin_point
+            x_coords = np.arange(W)
+            for i, y in enumerate(b_cy):
+                src_x = x_coords - (cx - b_cx[i])
+                mask = (0 <= src_x) & (src_x < W)
+                bent_img[y, x_coords[mask]] = norm_img[y, src_x[mask]]
+            # 优化RMSE以拟合相关系数rou
+            rho_limit = (0.01, 100)
+            def predict_img_func(rho):
+                    # 创建坐标网格
+                X, Y = np.meshgrid(np.arange(W), np.arange(H), indexing='xy')
+                trans_x = (X - cx) * PIXEL_SIZE / DIAMETER_FUEL
+                trans_y = (Y - cy) * PIXEL_SIZE / DIAMETER_FUEL
+                a = (ah + av) / 2
+                predict_img = a / ( ((trans_x * trans_x * bh * bh +1) ** ch - 1) +
+                                    ((trans_y * trans_y * bv * bv +1) ** cv - 1) +
+                                    # (rho ** (np.abs(trans_x * bh) ** (1/ch) * np.abs(trans_y * bv) ** (1/cv))-1) + 1)
+                                    (np.abs(trans_x * bh) ** (rho) * np.abs(trans_y * bv) ** (rho)) + 1)
+                                    # ((np.abs(trans_x * bh * trans_y * bv) +1) ** rho - 1) + 1)
+                predict_img = predict_img / np.sum(predict_img)
+                return predict_img
+            def object_loss(rho):
+                ss_res = np.sum((bent_img - predict_img_func(rho)) ** 2)
+                return ss_res
+            if self.show_img == 'fit_img' or self.show_img == 'delta_img':
+                try :
+                    from scipy import optimize
+                    res = optimize.minimize_scalar(object_loss, bounds = rho_limit, method = 'bounded')
+                    ss_tot = np.sum((bent_img - np.mean(bent_img)) ** 2)
+                    best_rho = res.x
+                    r_squaredp = 1 - (res.fun / ss_tot) if ss_tot != 0 else 0
+                except Exception as e:
                     best_rho = 0
                     r_squaredp = 0
-                lbl3 += f'{name_list[num]}横纵向联合分布拟合：rho={best_rho:.4f}; R2={r_squaredp:.4f}\n'
+                    print(f"Optimization error for {name_list[num]}: {e}")
+            else:
+                best_rho = 0
+                r_squaredp = 0
+            lbl3 += f'{name_list[num]}横纵向联合分布拟合：rho={best_rho:.4f}; R2={r_squaredp:.4f}\n'
 
-                if self.show_Q_center == 'contour':
-                    special_points = list(zip(*boundary_points))
-                elif self.show_Q_center == 'Q_center':
-                    special_points = origin_point
-                elif self.show_Q_center == 'Q_center_fitted':
-                    special_points = fitted_point
-                else:
-                    special_points = []
-                show_img = norm_img*1e4
-                if self.show_img == 'bent_img':
-                    show_img = bent_img*1e4
-                elif self.show_img == 'fit_img':
-                    show_img = predict_img_func(best_rho)*1e4
-                elif self.show_img == 'delta_img':
-                    show_img = np.abs(predict_img_func(best_rho) - bent_img)*1e4
-                else:
-                    show_img = norm_img * 1e4
-                self.list_display[num].update(show_img, gain, BlackedJet_colormap(), zoom, (cx, cy, int(self.ent_line_width.get())), denoise, save_name, special_points)
-                write_flush = [cx, cy, rotate_angle[num], a, b, r_squared, ah, bh, ch, r_squaredh, av, bv, cv, r_squaredv, best_rho, r_squaredp]
-                for j, str in enumerate(write_flush):
-                    ws.cell(row=num*2+1, column=j+1, value=str)
-                # print(f'{name_list[num]}:\n{ah*1e4:.4f}\n{ch:.4f}\n{r_squaredh:.4f}\n{av*1e4:.4f}\n{bv:.4f}\n{cv:.4f}\n{r_squaredv:.4f}\n')
-            try:
-                file_path = r'D:\工作文件同步\20250826孔径比影响\cache.xlsx'
-                wb.save(file_path)
-                os.system(f'start excel "{file_path}"')
-            except Exception as e:
-                print(f"Error saving or opening Excel file: {e}")
-            self.lbl_res2.config(text=lbl2)
-            self.lbl_res3.config(text=lbl3)
+            if self.show_Q_center == 'contour':
+                special_points = list(zip(*boundary_points))
+            elif self.show_Q_center == 'Q_center':
+                special_points = origin_point
+            elif self.show_Q_center == 'Q_center_fitted':
+                special_points = fitted_point
+            else:
+                special_points = []
+            show_img = norm_img*1e4
+            if self.show_img == 'bent_img':
+                show_img = bent_img*1e4
+            elif self.show_img == 'fit_img':
+                show_img = predict_img_func(best_rho)*1e4
+            elif self.show_img == 'delta_img':
+                show_img = np.abs(predict_img_func(best_rho) - bent_img)*1e4
+            else:
+                show_img = norm_img * 1e4
+            self.list_display[num].update(show_img, gain, BlackedJet_colormap(), zoom, (cx, cy, int(self.ent_line_width.get())), denoise, save_name, special_points)
+            write_flush = [cx, cy, rotate_angle[num], a, b, r_squared, ah, bh, ch, r_squaredh, av, bv, cv, r_squaredv, best_rho, r_squaredp]
+            for j, str in enumerate(write_flush):
+                ws.cell(row=num*2+1, column=j+1, value=str)
+            # print(f'{name_list[num]}:\n{ah*1e4:.4f}\n{ch:.4f}\n{r_squaredh:.4f}\n{av*1e4:.4f}\n{bv:.4f}\n{cv:.4f}\n{r_squaredv:.4f}\n')
+        try:
+            file_path = r'D:\工作文件同步\20250826孔径比影响\cache.xlsx'
+            wb.save(file_path)
+            os.system(f'start excel "{file_path}"')
         except Exception as e:
-            print(e)
+            print(f"Error saving or opening Excel file: {e}")
+        self.lbl_res2.config(text=lbl2)
+        self.lbl_res3.config(text=lbl3)
 
     # 伪彩图切换功能
     def toggle_pseudo(self):
