@@ -50,9 +50,10 @@ class ImageViewerTool(ttk.Frame):
         self.crosshair = tk.BooleanVar(value=False)
         self.ellipse = tk.BooleanVar(value=False)
         self.quad_visible = tk.BooleanVar(value=False)
+        self.panel: ViewerPanel | None = None
         self._setup_controls()
-        self.tabs = ttk.Notebook(self)
-        self.tabs.pack(fill="both", expand=True, padx=6, pady=4)
+        self.display_host = ttk.Frame(self)
+        self.display_host.pack(fill="both", expand=True, padx=6, pady=4)
 
     def _setup_controls(self) -> None:
         row1 = ttk.Frame(self)
@@ -166,23 +167,18 @@ class ImageViewerTool(ttk.Frame):
             self.load_status.config(text=f"文件不存在: {path}")
             return
         self.load_status.config(text=str(path))
-        self._add_tab(path)
+        self._show_path(path)
 
-    def _add_tab(self, path: Path) -> None:
-        for tab_id in self.tabs.tabs():
-            tab = self.nametowidget(tab_id)
-            if isinstance(tab, ViewerPanel) and tab.path == path:
-                self.tabs.select(tab)
-                self.update_current()
-                return
-        panel = ViewerPanel(self.tabs, path)
-        self.tabs.add(panel, text=path.stem)
-        self.tabs.select(panel)
+    def _show_path(self, path: Path) -> None:
+        if self.panel is None:
+            self.panel = ViewerPanel(self.display_host, path)
+            self.panel.pack(fill="both", expand=True)
+        else:
+            self.panel.set_path(path)
         self.update_current()
 
     def current_panel(self):
-        selected = self.tabs.select()
-        return self.nametowidget(selected) if selected else None
+        return self.panel
 
     def update_current(self) -> None:
         panel = self.current_panel()
@@ -217,13 +213,7 @@ class ImageViewerTool(ttk.Frame):
         else:
             self.vars["image_path"].set(str(target))
         self.load_status.config(text=str(target))
-        for tab_id in self.tabs.tabs():
-            tab = self.nametowidget(tab_id)
-            if isinstance(tab, ViewerPanel) and tab.path == target:
-                self.tabs.select(tab)
-                self.update_current()
-                return
-        self._add_tab(target)
+        self._show_path(target)
 
     def save_current(self) -> None:
         panel = self.current_panel()
@@ -237,8 +227,9 @@ class ImageViewerTool(ttk.Frame):
 class ViewerPanel(ttk.Frame):
     def __init__(self, master, path: Path):
         super().__init__(master)
-        self.path = path
-        self.original = read_image(path)
+        self.path = Path()
+        self.original = np.empty((0, 0), dtype=np.float64)
+        self.raw_single = np.empty((0, 0), dtype=np.float64)
         self.display = None
         self.zoom = 1.0
         body = ttk.Frame(self)
@@ -252,13 +243,16 @@ class ViewerPanel(ttk.Frame):
         self.hist_canvas.get_tk_widget().pack(side="left", fill="both", expand=True)
         self.info = ttk.Label(self, text=str(path))
         self.info.pack(anchor="w")
+        self.set_path(path)
+
+    def set_path(self, path: Path) -> None:
+        self.path = path
+        self.original = read_image(path)
+        self.raw_single = _to_16bit_single_channel(self.original)
+        self.info.config(text=str(path))
 
     def update_display(self, gain, zoom, rotate, shift, denoise, pseudo, center, ellipse, crosshair, line_width, quad) -> None:
-        image = self.original.copy()
-        source_dtype = image.dtype
-        if image.ndim == 3:
-            image = image[:, :, 1]
-        image = image.astype(np.float64)
+        image = self.raw_single.copy()
         if denoise > 0:
             image[image < np.max(image) * denoise] = 0
         if rotate:
@@ -267,7 +261,7 @@ class ViewerPanel(ttk.Frame):
             image = cv2.warpAffine(image, matrix, (w, h))
         image = shift_image(image, shift)
         raw_for_hist = image.copy()
-        scaled = _scale_gray_for_display(image, gain, source_dtype)
+        scaled = _scale_gray_for_display(image, gain)
         display = cv2.applyColorMap(scaled, blacked_jet_colormap()) if pseudo else cv2.cvtColor(scaled, cv2.COLOR_GRAY2BGR)
         if crosshair:
             cv2.line(display, (center[0], 0), (center[0], display.shape[0]), (0, 0, 255), line_width)
@@ -292,15 +286,23 @@ class ViewerPanel(ttk.Frame):
 
     def mouse_info(self, event) -> None:
         x, y = int(event.x * self.zoom), int(event.y * self.zoom)
-        image = self.original[:, :, 1] if self.original.ndim == 3 else self.original
+        image = self.raw_single
         if 0 <= x < image.shape[1] and 0 <= y < image.shape[0]:
-            self.info.config(text=f"{self.path.name}  坐标({x},{y}) 值={image[y, x]} 最小={np.min(image)} 最大={np.max(image)}")
+            self.info.config(text=f"{self.path.name}  坐标({x},{y}) 值={image[y, x]:g} 最小={np.min(image):g} 最大={np.max(image):g}")
 
 
-def _scale_gray_for_display(image: np.ndarray, gain: float, source_dtype: np.dtype) -> np.ndarray:
-    scaled = image * gain
-    if np.dtype(source_dtype) != np.dtype(np.uint8):
-        scaled = scaled / 256
+def _to_16bit_single_channel(image: np.ndarray) -> np.ndarray:
+    source_dtype = image.dtype
+    if image.ndim == 3:
+        image = image[:, :, 1]
+    image = image.astype(np.float64)
+    if source_dtype == np.uint8:
+        image *= 256
+    return image
+
+
+def _scale_gray_for_display(image: np.ndarray, gain: float) -> np.ndarray:
+    scaled = image * gain / 256
     return np.clip(scaled, 0, 255).astype(np.uint8)
 
 
@@ -311,52 +313,86 @@ class ImagePlayerTool(ttk.Frame):
         self.index = 0
         self.play_delta = 0
         self.folder = tk.StringVar()
-        self.delay = tk.StringVar(value="50")
-        self.jump = tk.StringVar(value="0")
-        row = ttk.Frame(self)
-        row.pack(anchor="w", padx=8, pady=6)
-        ttk.Button(row, text="选择文件夹", command=self.choose).pack(side="left")
-        ttk.Entry(row, textvariable=self.folder, width=45).pack(side="left", padx=3)
-        ttk.Button(row, text="反向播放", command=lambda: self.start(-1)).pack(side="left", padx=2)
-        ttk.Button(row, text="暂停", command=lambda: self.start(0)).pack(side="left", padx=2)
-        ttk.Button(row, text="正向播放", command=lambda: self.start(1)).pack(side="left", padx=2)
-        ttk.Label(row, text="间隔ms").pack(side="left")
-        ttk.Entry(row, textvariable=self.delay, width=6).pack(side="left")
-        ttk.Label(row, text="跳转").pack(side="left")
-        entry = ttk.Entry(row, textvariable=self.jump, width=7)
-        entry.pack(side="left")
-        entry.bind("<Return>", self.jump_to)
+        self.frame_rate = tk.StringVar(value="20")
+        self.current_frame = tk.StringVar(value="0")
+
+        row1 = ttk.Frame(self)
+        row1.pack(anchor="w", padx=8, pady=(6, 2))
+        ttk.Button(row1, text="选择文件夹", command=self.choose).pack(side="left")
+        folder_entry = ttk.Entry(row1, textvariable=self.folder, width=62)
+        folder_entry.pack(side="left", padx=3)
+        folder_entry.bind("<Return>", self.load_folder)
+
+        row2 = ttk.Frame(self)
+        row2.pack(anchor="w", padx=8, pady=2)
+        ttk.Label(row2, text="帧率/Hz").pack(side="left")
+        ttk.Entry(row2, textvariable=self.frame_rate, width=7).pack(side="left", padx=(3, 10))
+        ttk.Button(row2, text="反向播放", command=lambda: self.start(-1)).pack(side="left", padx=2)
+        ttk.Button(row2, text="暂停", command=lambda: self.start(0)).pack(side="left", padx=2)
+        ttk.Button(row2, text="正向播放", command=lambda: self.start(1)).pack(side="left", padx=2)
+
+        row3 = ttk.Frame(self)
+        row3.pack(anchor="w", padx=8, pady=(2, 4))
+        ttk.Label(row3, text="当前帧").pack(side="left")
+        frame_entry = ttk.Entry(row3, textvariable=self.current_frame, width=8)
+        frame_entry.pack(side="left", padx=3)
+        frame_entry.bind("<Return>", self.jump_to)
+        ttk.Button(row3, text="上一张", command=lambda: self.step(-1)).pack(side="left", padx=2)
+        ttk.Button(row3, text="下一张", command=lambda: self.step(1)).pack(side="left", padx=2)
+
         self.info = ttk.Label(self, text="")
         self.info.pack(anchor="w", padx=8)
-        self.canvas = tk.Canvas(self, highlightthickness=1, highlightbackground="#aaa")
-        self.canvas.pack(fill="both", expand=True, padx=8, pady=6)
+        self.display_host = ttk.Frame(self)
+        self.display_host.pack(fill="both", expand=True, padx=6, pady=4)
+        self.panel: ViewerPanel | None = None
 
     def choose(self) -> None:
         folder = filedialog.askdirectory()
         if not folder:
             return
         self.folder.set(folder)
-        self.files = sorted(path for path in Path(folder).iterdir() if path.suffix.lower() in {".png", ".tif", ".tiff", ".bmp", ".npy"})
+        self.load_folder()
+
+    def load_folder(self, event=None) -> None:
+        folder = Path(self.folder.get().strip())
+        if not folder.is_dir():
+            self.info.config(text=f"文件夹不存在: {folder}")
+            return
+        self.files = sorted(
+            path for path in folder.iterdir()
+            if path.suffix.lower() in {".png", ".tif", ".tiff", ".bmp", ".npy"}
+        )
         self.index = 0
+        self.current_frame.set("0")
+        if not self.files:
+            self.info.config(text="文件夹中没有可读取的图像")
+            return
         self.show()
 
     def show(self) -> None:
         if not self.files:
             return
-        image = read_image(self.files[self.index])
-        if image.ndim == 2:
-            image = cv2.cvtColor(np.clip(image / 256 if image.dtype == np.uint16 else image, 0, 255).astype(np.uint8), cv2.COLOR_GRAY2RGB)
+        path = self.files[self.index]
+        if self.panel is None:
+            self.panel = ViewerPanel(self.display_host, path)
+            self.panel.pack(fill="both", expand=True)
         else:
-            if image.dtype == np.uint16:
-                image = image / 256
-            image = cv2.cvtColor(np.clip(image, 0, 255).astype(np.uint8), cv2.COLOR_BGR2RGB)
-        max_w, max_h = max(100, self.canvas.winfo_width()), max(100, self.canvas.winfo_height())
-        ratio = min(max_w / image.shape[1], max_h / image.shape[0], 1)
-        image = cv2.resize(image, (int(image.shape[1] * ratio), int(image.shape[0] * ratio)))
-        self.tk_image = ImageTk.PhotoImage(Image.fromarray(image))
-        self.canvas.delete("all")
-        self.canvas.create_image(max_w // 2, max_h // 2, image=self.tk_image)
-        self.info.config(text=f"{self.index}/{len(self.files)-1}  {self.files[self.index].name}")
+            self.panel.set_path(path)
+        self.panel.update_display(
+            gain=1,
+            zoom=1,
+            rotate=0,
+            shift=0,
+            denoise=0,
+            pseudo=False,
+            center=(0, 0),
+            ellipse=None,
+            crosshair=False,
+            line_width=1,
+            quad=None,
+        )
+        self.current_frame.set(str(self.index))
+        self.info.config(text=f"{self.index}/{len(self.files)-1}  {path.name}")
 
     def start(self, delta: int) -> None:
         self.play_delta = delta
@@ -367,13 +403,32 @@ class ImagePlayerTool(ttk.Frame):
         if not self.play_delta or not self.files:
             return
         self.index = (self.index + self.play_delta) % len(self.files)
-        self.jump.set(str(self.index))
         self.show()
-        self.after(max(1, int(self.delay.get())), self._tick)
+        try:
+            frame_rate = float(self.frame_rate.get())
+            if frame_rate <= 0:
+                raise ValueError
+            delay_ms = max(1, int(1000 / frame_rate))
+        except ValueError:
+            self.play_delta = 0
+            self.info.config(text="帧率必须是大于0的数值")
+            return
+        self.after(delay_ms, self._tick)
+
+    def step(self, delta: int) -> None:
+        if not self.files:
+            return
+        self.play_delta = 0
+        self.index = (self.index + delta) % len(self.files)
+        self.show()
 
     def jump_to(self, event=None) -> None:
         if self.files:
-            self.index = min(max(0, int(self.jump.get())), len(self.files) - 1)
+            try:
+                self.index = min(max(0, int(self.current_frame.get())), len(self.files) - 1)
+            except ValueError:
+                self.info.config(text="当前帧必须是整数")
+                return
             self.show()
 
 
