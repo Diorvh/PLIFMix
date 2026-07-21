@@ -1,0 +1,228 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+
+import cv2
+import numpy as np
+import openpyxl
+
+from PLIFv2.algorithms.average import average_images
+from PLIFv2.core.image_io import write_tif
+from PLIFv2.domain.settings import (
+    AverageSettings,
+    CalibrationSettings,
+    DavisSettings,
+    DistributionSettings,
+    GainCorrectionSettings,
+    ManualMixingSettings,
+    NoiseSettings,
+    ShiftSearchSettings,
+)
+from PLIFv2.services.average_service import AverageImageService
+from PLIFv2.services.calibration_service import CalibrationService
+from PLIFv2.services.davis_service import DavisService
+from PLIFv2.services.intensifier_service import IntensifierCorrectionService
+from PLIFv2.services.mixing_service import MixingService
+from PLIFv2.services.noise_service import NoiseAnalysisService
+from PLIFv2.tools.image_tools import create_colorbar, export_gif, top_k_values, transform_npy
+
+
+class WorkflowSmokeTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp_dir.name)
+
+    def tearDown(self) -> None:
+        self.temp_dir.cleanup()
+
+    def test_average_multiple_experiments_and_segments(self) -> None:
+        source = self.root / "raw"
+        for experiment in ["实验编号1", "实验编号2"]:
+            folder = source / experiment
+            folder.mkdir(parents=True)
+            for index in range(4):
+                image = np.zeros((8, 10, 3), dtype=np.uint16)
+                image[:, :, 0] = 5000
+                image[:, :, 1] = (index + 1) * 100
+                image[:, :, 2] = 6000
+                write_tif(folder / f"capture_{index}.tif", image)
+        result = AverageImageService().run(
+            AverageSettings(
+                source_folder=source,
+                output_folder=self.root / "avg",
+                experiment_numbers="1,2",
+                use_frame_segments=True,
+                frame_segments="1:3",
+                denoise_threshold=250,
+                process_count=1,
+            )
+        )
+        self.assertEqual(len(result.items), 2)
+        self.assertEqual(result.selected_count, 4)
+        self.assertTrue((self.root / "avg" / "实验编号1.npy").exists())
+        self.assertAlmostEqual(float(np.load(self.root / "avg" / "实验编号1.npy")[0, 0]), 150)
+        self.assertTrue((source / "实验编号1" / "0000.TIF").exists())
+
+    def test_average_time_range_when_segments_disabled(self) -> None:
+        folder = self.root / "实验编号17"
+        folder.mkdir()
+        for index in range(4):
+            image = np.zeros((5, 6, 3), dtype=np.uint16)
+            image[:, :, 1] = (index + 1) * 100
+            write_tif(folder / f"{index:04d}.tif", image)
+        result = AverageImageService().run(
+            AverageSettings(
+                source_folder=folder,
+                output_folder=self.root / "avg",
+                experiment_numbers="17",
+                time_start=0.25,
+                time_end=0.75,
+                sample_frequency=4,
+                use_frame_segments=False,
+                frame_segments="invalid-but-ignored",
+                denoise_threshold=0,
+                process_count=1,
+            )
+        )
+        self.assertEqual(result.selected_count, 2)
+        self.assertAlmostEqual(float(np.load(self.root / "avg" / "实验编号17.npy")[0, 0]), 250)
+
+    def test_average_uint8_threshold_is_applied_before_scaling(self) -> None:
+        folder = self.root / "uint8"
+        folder.mkdir()
+        first = np.zeros((2, 3, 3), dtype=np.uint8)
+        second = np.zeros((2, 3, 3), dtype=np.uint8)
+        first[:, :, 1] = 2
+        second[:, :, 1] = 3
+        cv2.imwrite(str(folder / "0000.png"), first)
+        cv2.imwrite(str(folder / "0001.png"), second)
+
+        average = average_images(
+            [folder / "0000.png", folder / "0001.png"],
+            process_count=1,
+            denoise_threshold=2,
+        )
+
+        self.assertTrue(np.all(average == 384))
+
+    def test_average_uint8_multiprocessing_matches_reference(self) -> None:
+        folder = self.root / "uint8-multiprocessing"
+        folder.mkdir()
+        rng = np.random.default_rng(17)
+        green_frames = rng.integers(0, 16, size=(7, 6, 8), dtype=np.uint8)
+        paths = []
+        for index, green in enumerate(green_frames):
+            image = np.empty((6, 8, 3), dtype=np.uint8)
+            image[:, :, 0] = 201
+            image[:, :, 1] = green
+            image[:, :, 2] = 99
+            path = folder / f"{index:04d}.png"
+            cv2.imwrite(str(path), image)
+            paths.append(path)
+
+        filtered = green_frames.astype(np.float64)
+        filtered[filtered <= 2] = 0
+        expected = filtered.mean(axis=0) * 256
+        single = average_images(paths, process_count=1, denoise_threshold=2)
+        multiple = average_images(paths, process_count=3, denoise_threshold=2)
+
+        np.testing.assert_array_equal(single, expected)
+        np.testing.assert_array_equal(multiple, expected)
+
+    def test_excel_gain_correction(self) -> None:
+        images = self.root / "images"
+        matrices = self.root / "matrices"
+        images.mkdir()
+        matrices.mkdir()
+        np.save(images / "实验编号1.npy", np.ones((6, 7)) * 10)
+        np.save(matrices / "Gain60.npy", np.ones((6, 7)) * 2)
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        sheet.append([1, None, None, 0.6])
+        excel = self.root / "experiments.xlsx"
+        workbook.save(excel)
+        settings = GainCorrectionSettings(image_folder=images, matrix_folder=matrices, output_folder=self.root / "corrected", excel_path=excel)
+        result = IntensifierCorrectionService().apply_by_excel(settings)
+        self.assertEqual(result.processed_count, 1)
+        self.assertAlmostEqual(float(np.load(self.root / "corrected" / "实验编号1.npy")[0, 0]), 20)
+
+    def test_davis_prepare_and_import(self) -> None:
+        corrected = self.root / "corrected"
+        corrected.mkdir()
+        write_tif(corrected / "实验编号1-GAIN2.tif", np.ones((5, 6), dtype=np.uint16) * 20)
+        settings = DavisSettings(corrected_folder=corrected, davis_input_folder=self.root / "davis_in")
+        prepared = DavisService().prepare_input_folder(settings)
+        self.assertEqual(prepared.copied_count, 1)
+        export = self.root / "davis_export"
+        export.mkdir()
+        write_tif(export / "prefix_实验编号1-GAIN2_Image.tif", np.ones((5, 6), dtype=np.uint16) * 20)
+        settings.davis_export_folder = export
+        settings.output_folder = self.root / "davis_out"
+        imported = DavisService().import_export_folder(settings)
+        self.assertEqual(imported.npy_count, 1)
+        self.assertAlmostEqual(float(np.load(self.root / "davis_out" / "实验编号1.npy")[0, 0]), 10)
+
+    def test_calibration_noise_and_matrix_tools(self) -> None:
+        folder = self.root / "calibration"
+        folder.mkdir()
+        base = np.arange(1, 49, dtype=np.float64).reshape(6, 8)
+        for exposure in [100, 200, 300]:
+            np.save(folder / f"{exposure}ns.npy", base * exposure)
+        service = CalibrationService()
+        settings = CalibrationSettings(source_folder=folder, output_folder=self.root / "cal_out", analysis_radius=2)
+        result = service.analyze(settings)
+        self.assertLess(float(np.max(result.error_map)), 1e-12)
+        self.assertTrue(service.save_correction(settings, result)["npy"].exists())
+        settings.compare_folder = self.root / "compare"
+        settings.compare_folder.mkdir()
+        np.save(settings.compare_folder / "a.npy", np.ones((6, 8)))
+        np.save(settings.compare_folder / "b.npy", np.ones((6, 8)) * 1.1)
+        settings.compare_center_x = 4
+        settings.compare_center_y = 3
+        settings.compare_radius = 3
+        comparison = service.compare_matrices(settings)
+        self.assertGreater(comparison.max_relative_ptp, 0)
+        noise = NoiseAnalysisService().run(NoiseSettings(source_folder=folder, frame_start=0, frame_end=3, process_count=1))
+        self.assertEqual(len(noise.max_values), 3)
+
+    def test_shift_manual_and_distribution(self) -> None:
+        folder = self.root / "mixing"
+        folder.mkdir()
+        y, x = np.indices((80, 120))
+        f = np.exp(-((x - 45) ** 2 + (y - 40) ** 2) / 500) * 1000
+        o = np.exp(-((x - 70) ** 2 + (y - 40) ** 2) / 500) * 900
+        fo = f + o
+        for number, image in [(1, f), (2, o), (3, fo)]:
+            np.save(folder / f"实验编号{number}.npy", image)
+        service = MixingService()
+        shift = service.run_shift_search(ShiftSearchSettings(image_folder=folder, f_exp_no="1", o_exp_no="2", fo_exp_no="3", f_min=-1, f_max=1, o_min=-1, o_max=1, ellipse_x=58, ellipse_y=40, major_axis=50, minor_axis=30, process_count=1))
+        self.assertEqual(shift.abs_matrix.shape, (3, 3))
+        manual_settings = ManualMixingSettings(image_folder=folder, f_exp_no="1", o_exp_no="2", fo_exp_no="3", center_xf=45, center_yf=40, center_xo=70, center_yo=40, center_xfo=58, center_yfo=40, major_axis=50, minor_axis=30, q_center_up=10, q_center_down=70, max_k=5, global_of=1, zoom=4, output_folder=self.root / "manual")
+        manual = service.run_manual_display(manual_settings)
+        self.assertEqual(len(manual.images), 12)
+        self.assertTrue(service.export_manual(manual_settings, manual).exists())
+        distribution_settings = DistributionSettings(image_folder=folder, f_exp_no="1", o_exp_no="2", center_xf=45, center_yf=40, center_xo=70, center_yo=40, q_center_up=10, q_center_down=70, max_k=5, output_folder=self.root / "distribution")
+        distribution = service.run_distribution(distribution_settings, "nonshow", "ori_img")
+        self.assertGreaterEqual(len(distribution.images), 2)
+
+    def test_tool_algorithms(self) -> None:
+        array = np.arange(12).reshape(3, 4)
+        npy = self.root / "array.npy"
+        np.save(npy, array)
+        self.assertEqual(top_k_values(array, 1)[0][0], 11)
+        transformed = transform_npy(npy, self.root / "normalized.npy", "normalize")
+        self.assertAlmostEqual(float(np.max(np.load(transformed))), 1)
+        colorbar = create_colorbar(120, 20, 0, 1, 10, 10)
+        self.assertEqual(colorbar.shape[0], 120)
+        frames = self.root / "frames"
+        frames.mkdir()
+        for index in range(3):
+            write_tif(frames / f"{index:04d}.tif", np.ones((20, 30), dtype=np.uint16) * index * 100)
+        gif = export_gif(frames, self.root / "test.gif", end=3)
+        self.assertTrue(gif.exists())
+
+
+if __name__ == "__main__":
+    unittest.main()
