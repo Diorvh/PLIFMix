@@ -17,6 +17,7 @@ from PIL import Image, ImageTk
 
 from PLIFv2.algorithms.mixing import shift_image
 from PLIFv2.algorithms.visualization import blacked_jet_colormap
+from PLIFv2.core.frame_selection import select_frame_indices
 from PLIFv2.core.image_io import read_image, write_tif
 from PLIFv2.tools.image_tools import create_colorbar, export_gif, save_colorbar, top_k_values, transform_npy
 from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
@@ -443,16 +444,16 @@ def _read_player_raw_frame(path: Path) -> np.ndarray:
     return np.ascontiguousarray(image)
 
 
-def _read_player_raw_batch(start_index: int, paths: tuple[Path, ...]) -> tuple[int, list[np.ndarray | None], int]:
-    frames: list[np.ndarray | None] = []
+def _read_player_raw_batch(indexed_paths: tuple[tuple[int, Path], ...]) -> tuple[list[tuple[int, np.ndarray | None]], int]:
+    frames: list[tuple[int, np.ndarray | None]] = []
     failed = 0
-    for path in paths:
+    for frame_index, path in indexed_paths:
         try:
-            frames.append(_read_player_raw_frame(path))
+            frames.append((frame_index, _read_player_raw_frame(path)))
         except Exception:
-            frames.append(None)
+            frames.append((frame_index, None))
             failed += 1
-    return start_index, frames, failed
+    return frames, failed
 
 
 def _scale_gray_for_display(image: np.ndarray, gain: float) -> np.ndarray:
@@ -466,8 +467,17 @@ class PlayerPixelPlot(ttk.Frame):
         self.series: np.ndarray | None = None
         self.point: tuple[int, int] | None = None
         self.frame_labels: list[str] = []
+        self.fixed_y_axis = tk.BooleanVar(value=False)
         self.status = ttk.Label(self, text="单击左侧图像中的像素，绘制该点的去噪灰度值。")
         self.status.pack(anchor="w", padx=6, pady=(4, 0))
+        axis_controls = ttk.Frame(self)
+        axis_controls.pack(fill="x", padx=6, pady=(2, 0))
+        ttk.Checkbutton(
+            axis_controls,
+            text="固定纵轴 0-65535",
+            variable=self.fixed_y_axis,
+            command=self._update_y_axis,
+        ).pack(side="left")
         self.figure = Figure(figsize=(4, 5), dpi=100)
         self.axis = self.figure.add_subplot(111)
         self.axis.set_xlabel("图片序号")
@@ -515,6 +525,7 @@ class PlayerPixelPlot(ttk.Frame):
         self.axis.set_ylabel("灰度值(16位)")
         self.axis.set_title(f"去噪像素 ({x}, {y})")
         self.axis.grid(True, alpha=0.3)
+        self._apply_y_axis_limit()
         self.status.config(text=f"像素 ({x}, {y})，共 {len(values)} 张图片")
         self.canvas.request_draw()
         self.update_top_k(top_k)
@@ -543,6 +554,19 @@ class PlayerPixelPlot(ttk.Frame):
             label = self.frame_labels[frame_index] if frame_index < len(self.frame_labels) else str(frame_index)
             self.top_values.insert("", "end", values=(rank, label, f"{self.series[frame_index]:g}"))
 
+    def _update_y_axis(self) -> None:
+        if self.series is None:
+            return
+        self._apply_y_axis_limit()
+        self.canvas.request_draw()
+
+    def _apply_y_axis_limit(self) -> None:
+        if self.fixed_y_axis.get():
+            self.axis.set_ylim(0, 65535)
+        else:
+            self.axis.relim()
+            self.axis.autoscale_view(scalex=False, scaley=True)
+
 
 class ImagePlayerTool(ttk.Frame):
     def __init__(self, master):
@@ -568,6 +592,13 @@ class ImagePlayerTool(ttk.Frame):
         self.pseudo = tk.BooleanVar(value=False)
         default_cache_processes = max(1, min(8, (os.cpu_count() or 1) - 1))
         self.cache_processes = tk.StringVar(value=str(default_cache_processes))
+        self.time_start = tk.StringVar(value="0")
+        self.time_end = tk.StringVar()
+        self.sample_frequency = tk.StringVar(value="400")
+        self.use_frame_segments = tk.BooleanVar(value=False)
+        self.frame_segments = tk.StringVar()
+        self._selected_indices: tuple[int, ...] = ()
+        self._selected_index_set: set[int] = set()
         self.pixel_x = tk.StringVar(value="0")
         self.pixel_y = tk.StringVar(value="0")
         self.pixel_top_k = tk.StringVar(value="10")
@@ -583,6 +614,24 @@ class ImagePlayerTool(ttk.Frame):
         process_entry = ttk.Entry(row1, textvariable=self.cache_processes, width=5)
         process_entry.pack(side="left")
         process_entry.bind("<Return>", self.load_folder)
+
+        range_row = ttk.Frame(self)
+        range_row.pack(anchor="w", padx=8, pady=2)
+        self._range_entry(range_row, "开始时间/s", self.time_start)
+        self._range_entry(range_row, "结束时间/s", self.time_end)
+        self._range_entry(range_row, "采样频率/Hz", self.sample_frequency)
+        ttk.Checkbutton(
+            range_row,
+            text="非连续区间",
+            variable=self.use_frame_segments,
+            command=self._sync_segment_state,
+        ).pack(side="left", padx=(8, 2))
+        self.segment_entry = ttk.Entry(range_row, textvariable=self.frame_segments, width=34)
+        self.segment_entry.pack(side="left")
+        self.segment_entry.bind("<Return>", self.load_folder)
+        ttk.Label(range_row, text="格式：200:600,3200:3700（帧序号，左闭右开）").pack(side="left", padx=(4, 0))
+        ttk.Button(range_row, text="重新缓存", command=self.load_folder).pack(side="left", padx=(8, 0))
+        self._sync_segment_state()
 
         row2 = ttk.Frame(self)
         row2.pack(anchor="w", padx=8, pady=2)
@@ -645,6 +694,15 @@ class ImagePlayerTool(ttk.Frame):
         entry.pack(side="left")
         entry.bind("<Return>", command)
 
+    def _range_entry(self, row: ttk.Frame, label: str, variable: tk.StringVar) -> None:
+        ttk.Label(row, text=label).pack(side="left", padx=(0, 2))
+        entry = ttk.Entry(row, textvariable=variable, width=8)
+        entry.pack(side="left", padx=(0, 8))
+        entry.bind("<Return>", self.load_folder)
+
+    def _sync_segment_state(self) -> None:
+        self.segment_entry.configure(state="normal" if self.use_frame_segments.get() else "disabled")
+
     def _refresh_display(self, event=None) -> None:
         self.show()
 
@@ -662,18 +720,54 @@ class ImagePlayerTool(ttk.Frame):
             return
         self.play_delta = 0
         self.pixel_plot.reset()
+        self._frame_cache = []
+        self._selected_indices = ()
+        self._selected_index_set = set()
         self.files = sorted(
             path for path in folder.iterdir()
             if path.suffix.lower() in {".png", ".tif", ".tiff", ".bmp", ".npy"}
         )
-        self.index = 0
-        self.current_frame.set("0")
         if not self.files:
             self.info.config(text="文件夹中没有可读取的图像")
             return
+        self._initialize_default_time_end()
+        if not self._select_cache_indices():
+            return
+        self.index = self._selected_indices[0]
+        self.current_frame.set(str(self.index))
         if not self._cache_frames():
             return
         self.show()
+
+    def _initialize_default_time_end(self) -> None:
+        if self.time_end.get().strip():
+            return
+        try:
+            sample_frequency = float(self.sample_frequency.get())
+        except ValueError:
+            return
+        if sample_frequency > 0:
+            self.time_end.set(f"{len(self.files) / sample_frequency:g}")
+
+    def _select_cache_indices(self) -> bool:
+        try:
+            indices = select_frame_indices(
+                len(self.files),
+                time_start=float(self.time_start.get()),
+                time_end=float(self.time_end.get()),
+                sample_frequency=float(self.sample_frequency.get()),
+                use_frame_segments=self.use_frame_segments.get(),
+                frame_segments=self.frame_segments.get(),
+            )
+        except ValueError as exc:
+            self.info.config(text=f"缓存范围错误: {exc}")
+            return False
+        self._selected_indices = tuple(sorted(set(indices)))
+        self._selected_index_set = set(self._selected_indices)
+        if not self._selected_indices:
+            self.info.config(text="缓存范围没有选中任何图像")
+            return False
+        return True
 
     def _cache_frames(self) -> bool:
         cache_started = time.perf_counter()
@@ -686,48 +780,50 @@ class ImagePlayerTool(ttk.Frame):
             return False
 
         total = len(self.files)
-        worker_count = min(requested_processes, total)
-        batch_size, remainder = divmod(total, worker_count)
-        batches: list[tuple[int, tuple[Path, ...]]] = []
+        selected_total = len(self._selected_indices)
+        worker_count = min(requested_processes, selected_total)
+        batch_size, remainder = divmod(selected_total, worker_count)
+        indexed_files = tuple((index, self.files[index]) for index in self._selected_indices)
+        batches: list[tuple[tuple[int, Path], ...]] = []
         start_index = 0
         for batch_index in range(worker_count):
             stop_index = start_index + batch_size + (1 if batch_index < remainder else 0)
-            batches.append((start_index, tuple(self.files[start_index:stop_index])))
+            batches.append(indexed_files[start_index:stop_index])
             start_index = stop_index
 
         self._frame_cache = [None] * total
         self._cache_loaded = 0
         self._cache_failed = 0
         self._cache_bytes = 0
-        self.cache_status.set(f"正在用 {worker_count} 个进程缓存：0/{total} 张")
+        self.cache_status.set(f"正在用 {worker_count} 个进程缓存：0/{selected_total} 张（总 {total} 张）")
         self.update_idletasks()
 
         if worker_count == 1:
-            results = [_read_player_raw_batch(*batches[0])]
+            results = [_read_player_raw_batch(batches[0])]
         else:
             results = []
             with ProcessPoolExecutor(max_workers=worker_count) as executor:
                 future_batches = {
-                    executor.submit(_read_player_raw_batch, start, paths): (start, len(paths))
-                    for start, paths in batches
+                    executor.submit(_read_player_raw_batch, indexed_paths): indexed_paths
+                    for indexed_paths in batches
                 }
                 for future in as_completed(future_batches):
-                    start, count = future_batches[future]
+                    indexed_paths = future_batches[future]
                     try:
                         results.append(future.result())
                     except Exception:
-                        results.append((start, [None] * count, count))
+                        results.append(([(index, None) for index, _path in indexed_paths], len(indexed_paths)))
 
-        for start, frames, failed in results:
-            self._frame_cache[start:start + len(frames)] = frames
+        for frames, failed in results:
             self._cache_failed += failed
-            for frame in frames:
+            for frame_index, frame in frames:
+                self._frame_cache[frame_index] = frame
                 if frame is not None:
                     self._cache_loaded += 1
                     self._cache_bytes += frame.nbytes
         memory_gib = self._cache_bytes / (1024 ** 3)
         elapsed_seconds = time.perf_counter() - cache_started
-        text = f"已缓存：{self._cache_loaded}/{total} 张，{memory_gib:.2f} GiB，耗时：{elapsed_seconds:.2f} s"
+        text = f"已缓存：{self._cache_loaded}/{selected_total} 张（总 {total} 张），{memory_gib:.2f} GiB，耗时：{elapsed_seconds:.2f} s"
         if self._cache_failed:
             text += f"，失败：{self._cache_failed}"
         self.cache_status.set(text)
@@ -737,6 +833,13 @@ class ImagePlayerTool(ttk.Frame):
         if 0 <= frame_index < len(self._frame_cache):
             return self._frame_cache[frame_index]
         return None
+
+    def _next_selected_index(self, delta: int) -> int:
+        try:
+            position = self._selected_indices.index(self.index)
+        except ValueError:
+            return self._selected_indices[0] if delta > 0 else self._selected_indices[-1]
+        return self._selected_indices[(position + delta) % len(self._selected_indices)]
 
     def show(self) -> None:
         if not self.files:
@@ -799,7 +902,7 @@ class ImagePlayerTool(ttk.Frame):
             self._tick()
 
     def _tick(self) -> None:
-        if not self.play_delta or not self.files:
+        if not self.play_delta or not self.files or not self._selected_indices:
             return
         try:
             frame_rate = float(self.frame_rate.get())
@@ -809,7 +912,7 @@ class ImagePlayerTool(ttk.Frame):
             self.play_delta = 0
             self.info.config(text="帧率必须是大于0的数值")
             return
-        next_index = (self.index + self.play_delta) % len(self.files)
+        next_index = self._next_selected_index(self.play_delta)
         if self._cached_frame(next_index) is None:
             self.play_delta = 0
             self.info.config(text=f"Image {next_index} was not cached; playback stopped.")
@@ -824,19 +927,23 @@ class ImagePlayerTool(ttk.Frame):
             self.after_idle(self._tick)
 
     def step(self, delta: int) -> None:
-        if not self.files:
+        if not self.files or not self._selected_indices:
             return
         self.play_delta = 0
-        self.index = (self.index + delta) % len(self.files)
+        self.index = self._next_selected_index(delta)
         self.show()
 
     def jump_to(self, event=None) -> None:
         if self.files:
             try:
-                self.index = min(max(0, int(self.current_frame.get())), len(self.files) - 1)
+                target_index = min(max(0, int(self.current_frame.get())), len(self.files) - 1)
             except ValueError:
                 self.info.config(text="当前帧必须是整数")
                 return
+            if target_index not in self._selected_index_set:
+                self.info.config(text="当前帧不在已缓存范围内")
+                return
+            self.index = target_index
             self.show()
 
     def _request_pixel_series(self, x: int, y: int) -> None:
@@ -862,6 +969,8 @@ class ImagePlayerTool(ttk.Frame):
 
         values = np.zeros(len(self.files), dtype=np.float64)
         for frame_index, raw_single in enumerate(self._frame_cache):
+            if frame_index not in self._selected_index_set:
+                continue
             if raw_single is None:
                 self.pixel_plot.set_error(f"Image {frame_index} was not cached.")
                 return
