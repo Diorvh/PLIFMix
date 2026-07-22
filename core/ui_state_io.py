@@ -1,23 +1,20 @@
 from __future__ import annotations
 
-import json
 import tkinter as tk
-from pathlib import Path
 from tkinter import ttk
 from typing import Any
 
-
-def default_ui_state_path() -> Path:
-    return Path(__file__).resolve().parents[1] / "runtime" / "ui_state.json"
+from PLIFv2.domain.settings import UiStateSettings
 
 
 class UIStateStore:
-    def __init__(self, path: Path | None = None):
-        self.path = path or default_ui_state_path()
-        self.data = self._load()
+    """Capture widget values in the application's single settings document."""
+
+    def __init__(self, state: UiStateSettings):
+        self.data = state
 
     def restore_page(self, page_key: str, root: tk.Misc) -> None:
-        values = self.data.get("pages", {}).get(page_key, {})
+        values = self.data.pages.get(page_key, {})
         for widget in _walk_widgets(root):
             key = _relative_widget_path(root, widget)
             if key in values:
@@ -27,7 +24,6 @@ class UIStateStore:
             restore_custom(values.get("__custom__", {}))
 
     def capture_page(self, page_key: str, root: tk.Misc) -> None:
-        pages = self.data.setdefault("pages", {})
         values: dict[str, Any] = {}
         for widget in _walk_widgets(root):
             value = _capture_widget(widget)
@@ -36,29 +32,13 @@ class UIStateStore:
         export_custom = getattr(root, "export_ui_state", None)
         if callable(export_custom):
             values["__custom__"] = export_custom()
-        pages[page_key] = values
+        self.data.pages[page_key] = values
 
     def get_app_value(self, key: str, default: Any = None) -> Any:
-        return self.data.get("app", {}).get(key, default)
+        return self.data.app.get(key, default)
 
     def set_app_value(self, key: str, value: Any) -> None:
-        self.data.setdefault("app", {})[key] = value
-
-    def save(self) -> Path:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = self.path.with_name(f".{self.path.name}.tmp")
-        temporary.write_text(json.dumps(self.data, ensure_ascii=False, indent=2), encoding="utf-8")
-        temporary.replace(self.path)
-        return self.path
-
-    def _load(self) -> dict[str, Any]:
-        if not self.path.exists():
-            return {"pages": {}}
-        try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            return {"pages": {}}
-        return data if isinstance(data, dict) else {"pages": {}}
+        self.data.app[key] = value
 
 
 def _walk_widgets(root: tk.Misc):

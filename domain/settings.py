@@ -142,6 +142,14 @@ class ManualMixingSettings:
 
 
 @dataclass
+class UiStateSettings:
+    """Window and widget values stored alongside processing parameters."""
+
+    app: dict[str, Any] = field(default_factory=dict)
+    pages: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+
+@dataclass
 class AppSettings:
     average: AverageSettings = field(default_factory=AverageSettings)
     gain: GainCorrectionSettings = field(default_factory=GainCorrectionSettings)
@@ -151,6 +159,7 @@ class AppSettings:
     shift: ShiftSearchSettings = field(default_factory=ShiftSearchSettings)
     manual: ManualMixingSettings = field(default_factory=ManualMixingSettings)
     distribution: DistributionSettings = field(default_factory=DistributionSettings)
+    ui: UiStateSettings = field(default_factory=UiStateSettings)
 
 
 def dataclass_to_jsonable(value: Any) -> Any:

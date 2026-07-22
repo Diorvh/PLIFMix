@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,6 +10,7 @@ import numpy as np
 import openpyxl
 
 from PLIFv2.algorithms.average import average_image_sets, average_images, split_average_tasks
+from PLIFv2.core.config_io import load_settings, save_settings
 from PLIFv2.core.image_io import write_tif
 from PLIFv2.domain.settings import (
     AverageSettings,
@@ -299,6 +301,28 @@ class WorkflowSmokeTests(unittest.TestCase):
             write_tif(frames / f"{index:04d}.tif", np.ones((20, 30), dtype=np.uint16) * index * 100)
         gif = export_gif(frames, self.root / "test.gif", end=3)
         self.assertTrue(gif.exists())
+
+    def test_single_settings_file_keeps_ui_state(self) -> None:
+        path = self.root / "settings.json"
+        app_settings = load_settings(path)
+        app_settings.average = AverageSettings(source_folder=self.root / "raw")
+        app_settings.ui.app["active_page"] = "图片播放器"
+        app_settings.ui.pages["图片播放器"] = {"entry": {"kind": "text", "value": "24"}}
+        save_settings(app_settings, path)
+
+        restored = load_settings(path)
+        self.assertEqual(restored.average.source_folder, self.root / "raw")
+        self.assertEqual(restored.ui.app["active_page"], "图片播放器")
+        self.assertEqual(restored.ui.pages["图片播放器"]["entry"]["value"], "24")
+
+    def test_settings_migrates_legacy_ui_state_once(self) -> None:
+        path = self.root / "settings.json"
+        path.write_text("{}", encoding="utf-8")
+        legacy = {"app": {"active_page": "图像查看器"}, "pages": {"图像查看器": {}}}
+        path.with_name("ui_state.json").write_text(json.dumps(legacy, ensure_ascii=False), encoding="utf-8")
+
+        restored = load_settings(path)
+        self.assertEqual(restored.ui.app["active_page"], "图像查看器")
 
 
 if __name__ == "__main__":

@@ -2,15 +2,15 @@
   "average": {
     "source_folder": "E:\\实验数据\\20250820孔径比影响-正式\\原始图像",
     "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\1-平均图",
-    "experiment_numbers": "126",
+    "experiment_numbers": "228",
     "use_experiment_numbers": true,
     "best_process_count": 10,
-    "denoise_threshold": 2.0,
+    "denoise_threshold": 5.0,
     "sample_frequency": 500.0,
-    "time_start": 0.5,
-    "time_end": 10.0,
-    "use_frame_segments": true,
-    "frame_segments": "500:1700,1900:3800,4000:5000"
+    "time_start": 0.0,
+    "time_end": 0.0,
+    "use_frame_segments": false,
+    "frame_segments": "0:3000"
   },
   "gain": {
     "image_folder": ".",
@@ -118,5 +118,989 @@
     "rotate_angle_o": 0,
     "hori_fit_width": 200,
     "output_folder": "."
+  },
+  "ui": {
+    "app": {
+      "main_tab": 8,
+      "active_page": "图片播放器",
+      "last_tool_page": "图片播放器"
+    },
+    "pages": {
+      "1 平均图": {
+        "!frame.!entry": {
+          "kind": "text",
+          "value": "E:/实验数据/20250820孔径比影响-正式/原始图像"
+        },
+        "!frame.!entry2": {
+          "kind": "text",
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/1-平均图"
+        },
+        "!frame.!checkbutton": {
+          "kind": "variable",
+          "value": 1
+        },
+        "!frame.!entry3": {
+          "kind": "text",
+          "value": "228"
+        },
+        "!frame2.!entry": {
+          "kind": "text",
+          "value": "10"
+        },
+        "!frame2.!entry2": {
+          "kind": "text",
+          "value": "5"
+        },
+        "!frame3.!entry": {
+          "kind": "text",
+          "value": "2.8"
+        },
+        "!frame3.!entry2": {
+          "kind": "text",
+          "value": "10"
+        },
+        "!frame3.!entry3": {
+          "kind": "text",
+          "value": "500.0"
+        },
+        "!frame3.!checkbutton": {
+          "kind": "variable",
+          "value": "0"
+        },
+        "!frame3.!entry4": {
+          "kind": "text",
+          "value": "0:3000"
+        }
+      },
+      "2 像增强器": {
+        "!boundform.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!boundform.!entry2": {
+          "kind": "text",
+          "value": ""
+        },
+        "!boundform.!entry3": {
+          "kind": "text",
+          "value": ""
+        },
+        "!boundform.!entry4": {
+          "kind": "text",
+          "value": ""
+        },
+        "!boundform.!entry5": {
+          "kind": "text",
+          "value": ""
+        },
+        "!boundform.!entry6": {
+          "kind": "text",
+          "value": "multiply"
+        },
+        "!boundform.!entry7": {
+          "kind": "text",
+          "value": "1"
+        },
+        "!boundform.!entry8": {
+          "kind": "text",
+          "value": "4"
+        },
+        "!boundform.!entry9": {
+          "kind": "text",
+          "value": "100"
+        },
+        "!boundform.!entry10": {
+          "kind": "text",
+          "value": "Gain{gain}.npy"
+        },
+        "!boundform.!entry11": {
+          "kind": "text",
+          "value": "False"
+        }
+      },
+      "2.1 标定诊断": {
+        "!notebook": {
+          "kind": "notebook",
+          "value": 0
+        },
+        "!notebook.!frame.!boundform.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame.!boundform.!entry2": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame.!boundform.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!notebook.!frame.!boundform.!entry4": {
+          "kind": "text",
+          "value": "550"
+        },
+        "!notebook.!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-11": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-12": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!frame2.!frame.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame2.!frame.!entry2": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame2.!frame.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!notebook.!frame2.!frame.!entry4": {
+          "kind": "text",
+          "value": "5000"
+        },
+        "!notebook.!frame3.!boundform.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame3.!boundform.!entry2": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame3.!boundform.!entry3": {
+          "kind": "text",
+          "value": "640"
+        },
+        "!notebook.!frame3.!boundform.!entry4": {
+          "kind": "text",
+          "value": "600"
+        },
+        "!notebook.!frame3.!boundform.!entry5": {
+          "kind": "text",
+          "value": "550"
+        },
+        "!notebook.!frame3.!boundform.!entry6": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame3.!boundform.!entry7": {
+          "kind": "text",
+          "value": ""
+        }
+      },
+      "3 Davis 整理": {
+        "!boundform.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!boundform.!entry2": {
+          "kind": "text",
+          "value": ""
+        },
+        "!boundform.!entry3": {
+          "kind": "text",
+          "value": ""
+        },
+        "!boundform.!entry4": {
+          "kind": "text",
+          "value": ""
+        },
+        "!boundform.!entry5": {
+          "kind": "text",
+          "value": "True"
+        }
+      },
+      "4 平移搜索": {
+        "!boundform.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!boundform.!entry2": {
+          "kind": "text",
+          "value": ""
+        },
+        "!boundform.!entry3": {
+          "kind": "text",
+          "value": ""
+        },
+        "!boundform.!entry4": {
+          "kind": "text",
+          "value": ""
+        },
+        "!boundform.!entry5": {
+          "kind": "text",
+          "value": "-20"
+        },
+        "!boundform.!entry6": {
+          "kind": "text",
+          "value": "20"
+        },
+        "!boundform.!entry7": {
+          "kind": "text",
+          "value": "-20"
+        },
+        "!boundform.!entry8": {
+          "kind": "text",
+          "value": "20"
+        },
+        "!boundform.!entry9": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!boundform.!entry10": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!boundform.!entry11": {
+          "kind": "text",
+          "value": "1000"
+        },
+        "!boundform.!entry12": {
+          "kind": "text",
+          "value": "1000"
+        },
+        "!boundform.!entry13": {
+          "kind": "text",
+          "value": "1.0"
+        },
+        "!boundform.!entry14": {
+          "kind": "text",
+          "value": "4"
+        },
+        "!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-5": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-6": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-7": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-8": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!frame.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-9": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!frame.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-10": {
+          "kind": "variable",
+          "value": 0
+        }
+      },
+      "6 质量分布拟合": {
+        "!frame.!frame.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame.!entry2": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame.!entry3": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame.!entry4": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame.!entry5": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame2.!entry": {
+          "kind": "text",
+          "value": "3"
+        },
+        "!frame.!frame2.!entry2": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame2.!entry3": {
+          "kind": "text",
+          "value": "0.01"
+        },
+        "!frame.!frame2.!entry4": {
+          "kind": "text",
+          "value": "200"
+        },
+        "!frame.!frame3.!entry": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry2": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry4": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry5": {
+          "kind": "text",
+          "value": "2"
+        },
+        "!frame.!frame4.!entry": {
+          "kind": "text",
+          "value": "0.9"
+        },
+        "!frame.!frame4.!entry2": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame4.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame4.!entry4": {
+          "kind": "text",
+          "value": "30"
+        },
+        "!frame.!frame4.!entry5": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame4.!entry6": {
+          "kind": "text",
+          "value": "0"
+        },
+        "__custom__": {
+          "is_pseudo": true,
+          "show_crosshair": true,
+          "show_q_center": "nonshow",
+          "show_img": "ori_img"
+        }
+      },
+      "底噪分析": {
+        "!boundform.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!boundform.!entry2": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!boundform.!entry3": {
+          "kind": "text",
+          "value": "1000"
+        },
+        "!boundform.!entry4": {
+          "kind": "text",
+          "value": "4"
+        },
+        "!frame.!navigationtoolbar2tk.!checkbutton-1": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!frame.!navigationtoolbar2tk.!checkbutton-2": {
+          "kind": "variable",
+          "value": 0
+        }
+      },
+      "工具箱": {
+        "!notebook": {
+          "kind": "notebook",
+          "value": 1
+        },
+        "!notebook.!imageviewertool.!frame2.!checkbutton": {
+          "kind": "variable",
+          "value": "1"
+        },
+        "!notebook.!imageviewertool.!frame2.!entry": {
+          "kind": "text",
+          "value": "1"
+        },
+        "!notebook.!imageviewertool.!frame2.!checkbutton2": {
+          "kind": "variable",
+          "value": "1"
+        },
+        "!notebook.!imageviewertool.!frame2.!entry2": {
+          "kind": "text",
+          "value": "1"
+        },
+        "!notebook.!imageviewertool.!frame2.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!notebook.!imageviewertool.!frame2.!entry4": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!notebook.!imageviewertool.!frame2.!entry5": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!notebook.!imageviewertool.!frame3.!entry": {
+          "kind": "text",
+          "value": "2"
+        },
+        "!notebook.!imageviewertool.!frame3.!checkbutton": {
+          "kind": "variable",
+          "value": "0"
+        },
+        "!notebook.!imageviewertool.!frame3.!entry2": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!notebook.!imageviewertool.!frame3.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!notebook.!imageviewertool.!frame3.!checkbutton2": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!imageviewertool.!frame3.!entry4": {
+          "kind": "text",
+          "value": "100"
+        },
+        "!notebook.!imageviewertool.!frame3.!entry5": {
+          "kind": "text",
+          "value": "100"
+        },
+        "!notebook.!imageviewertool.!frame4.!checkbutton": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!imageviewertool.!frame4.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!imageviewertool.!frame4.!entry2": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!imageviewertool.!frame4.!entry3": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!imageviewertool.!frame4.!entry4": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!imageviewertool.!frame4.!entry5": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!imageviewertool.!frame4.!entry6": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!imageviewertool.!frame4.!entry7": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!imageviewertool.!frame4.!entry8": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!imageviewertool.!frame6.!radiobutton": {
+          "kind": "variable",
+          "value": "folder"
+        },
+        "!notebook.!imageviewertool.!frame6.!entry": {
+          "kind": "text",
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/1-平均图/旧/实验编号2.npy"
+        },
+        "!notebook.!imageviewertool.!frame6.!radiobutton2": {
+          "kind": "variable",
+          "value": "folder"
+        },
+        "!notebook.!imageviewertool.!frame6.!entry2": {
+          "kind": "text",
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/1-平均图"
+        },
+        "!notebook.!imageviewertool.!frame6.!entry3": {
+          "kind": "text",
+          "value": "17"
+        },
+        "!notebook.!imageviewertool.!frame7.!viewerpanel.!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-5": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!imageviewertool.!frame7.!viewerpanel.!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-6": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!imageplayertool.!frame.!entry": {
+          "kind": "text",
+          "value": "E:/实验数据/20250820孔径比影响-正式/原始图像/实验编号2"
+        },
+        "!notebook.!imageplayertool.!frame2.!entry": {
+          "kind": "text",
+          "value": "60"
+        },
+        "!notebook.!imageplayertool.!frame3.!entry": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!notebook.!imageplayertool.!frame4.!checkbutton": {
+          "kind": "variable",
+          "value": "1"
+        },
+        "!notebook.!imageplayertool.!frame4.!entry": {
+          "kind": "text",
+          "value": "10"
+        },
+        "!notebook.!imageplayertool.!frame4.!checkbutton2": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!imageplayertool.!frame4.!entry2": {
+          "kind": "text",
+          "value": "1"
+        },
+        "!notebook.!imageplayertool.!frame4.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!notebook.!imageplayertool.!frame4.!entry4": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!notebook.!imageplayertool.!frame4.!entry5": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!notebook.!imageplayertool.!frame4.!entry6": {
+          "kind": "text",
+          "value": "5"
+        },
+        "!notebook.!imageplayertool.!frame5.!entry": {
+          "kind": "text",
+          "value": "372"
+        },
+        "!notebook.!imageplayertool.!frame5.!entry2": {
+          "kind": "text",
+          "value": "197"
+        },
+        "!notebook.!imageplayertool.!frame5.!entry3": {
+          "kind": "text",
+          "value": "10"
+        },
+        "!notebook.!imageplayertool.!frame6.!panedwindow.!playerpixelplot.!frame.!navigationtoolbar2tk.!checkbutton-1": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!imageplayertool.!frame6.!panedwindow.!playerpixelplot.!frame.!navigationtoolbar2tk.!checkbutton-2": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!npytool.!frame.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!npytool.!frame.!entry2": {
+          "kind": "text",
+          "value": "10"
+        },
+        "!notebook.!npytool.!frame.!combobox": {
+          "kind": "text",
+          "value": "multiply"
+        },
+        "!notebook.!npytool.!frame.!entry3": {
+          "kind": "text",
+          "value": "1"
+        },
+        "!notebook.!giftool.!frame.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!giftool.!frame.!entry2": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!giftool.!frame.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!notebook.!giftool.!frame.!entry4": {
+          "kind": "text",
+          "value": "200"
+        },
+        "!notebook.!giftool.!frame.!entry5": {
+          "kind": "text",
+          "value": "1"
+        },
+        "!notebook.!giftool.!frame.!entry6": {
+          "kind": "text",
+          "value": "50"
+        },
+        "!notebook.!giftool.!frame.!entry7": {
+          "kind": "text",
+          "value": "400"
+        },
+        "!notebook.!colorbartool.!frame.!entry": {
+          "kind": "text",
+          "value": "800"
+        },
+        "!notebook.!colorbartool.!frame.!entry2": {
+          "kind": "text",
+          "value": "50"
+        },
+        "!notebook.!colorbartool.!frame.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!notebook.!colorbartool.!frame.!entry4": {
+          "kind": "text",
+          "value": "1"
+        },
+        "!notebook.!colorbartool.!frame.!entry5": {
+          "kind": "text",
+          "value": "20"
+        },
+        "!notebook.!colorbartool.!frame.!entry6": {
+          "kind": "text",
+          "value": "20"
+        },
+        "!notebook.!distributioncomparisontool.!frame.!navigationtoolbar2tk.!checkbutton-3": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!distributioncomparisontool.!frame.!navigationtoolbar2tk.!checkbutton-4": {
+          "kind": "variable",
+          "value": 0
+        }
+      },
+      "5 手动调参": {
+        "!frame.!frame.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame.!entry2": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame.!entry3": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame.!entry4": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame.!entry5": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame2.!entry": {
+          "kind": "text",
+          "value": "1.0"
+        },
+        "!frame.!frame2.!entry2": {
+          "kind": "text",
+          "value": "3"
+        },
+        "!frame.!frame2.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry2": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry4": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry5": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry6": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry7": {
+          "kind": "text",
+          "value": "1000"
+        },
+        "!frame.!frame3.!entry8": {
+          "kind": "text",
+          "value": "1000"
+        },
+        "!frame.!frame3.!entry9": {
+          "kind": "text",
+          "value": "2"
+        },
+        "!frame.!frame4.!entry": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame4.!entry2": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame4.!entry3": {
+          "kind": "text",
+          "value": "0.01"
+        },
+        "!frame.!frame4.!entry4": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame5.!entry": {
+          "kind": "text",
+          "value": "0.9"
+        },
+        "!frame.!frame5.!entry2": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame5.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame5.!entry4": {
+          "kind": "text",
+          "value": "30"
+        },
+        "!frame.!frame5.!entry5": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame5.!entry6": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame5.!entry7": {
+          "kind": "text",
+          "value": "0"
+        },
+        "__custom__": {
+          "is_pseudo": true,
+          "show_crosshair": true,
+          "show_ellipse": true,
+          "show_q_center": "nonshow",
+          "show_img": "ori_img"
+        }
+      },
+      "图像查看器": {
+        "!frame2.!checkbutton": {
+          "kind": "variable",
+          "value": "1"
+        },
+        "!frame2.!entry": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame2.!checkbutton2": {
+          "kind": "variable",
+          "value": "1"
+        },
+        "!frame2.!entry2": {
+          "kind": "text",
+          "value": "1"
+        },
+        "!frame2.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame2.!entry4": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame2.!entry5": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame3.!entry": {
+          "kind": "text",
+          "value": "2"
+        },
+        "!frame3.!checkbutton": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!frame3.!entry2": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame3.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame3.!checkbutton2": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!frame3.!entry4": {
+          "kind": "text",
+          "value": "100"
+        },
+        "!frame3.!entry5": {
+          "kind": "text",
+          "value": "100"
+        },
+        "!frame4.!checkbutton": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!frame4.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame4.!entry2": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame4.!entry3": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame4.!entry4": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame4.!entry5": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame4.!entry6": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame4.!entry7": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame4.!entry8": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame6.!radiobutton": {
+          "kind": "variable",
+          "value": "folder"
+        },
+        "!frame6.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame6.!radiobutton2": {
+          "kind": "variable",
+          "value": "folder"
+        },
+        "!frame6.!entry2": {
+          "kind": "text",
+          "value": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\1-平均图"
+        },
+        "!frame6.!entry3": {
+          "kind": "text",
+          "value": "228"
+        },
+        "!frame7.!viewerpanel.!frame.!horizontaldisplaypane.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-3": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!frame7.!viewerpanel.!frame.!horizontaldisplaypane.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-4": {
+          "kind": "variable",
+          "value": 0
+        }
+      },
+      "图片播放器": {
+        "!frame.!entry": {
+          "kind": "text",
+          "value": "E:/实验数据/20250820孔径比影响-正式/原始图像/实验编号228"
+        },
+        "!frame.!entry2": {
+          "kind": "text",
+          "value": "8"
+        },
+        "!frame.!checkbutton": {
+          "kind": "variable",
+          "value": "1"
+        },
+        "!frame.!entry3": {
+          "kind": "text",
+          "value": "500:4300,4500:5000"
+        },
+        "!frame2.!entry": {
+          "kind": "text",
+          "value": "60"
+        },
+        "!frame3.!entry": {
+          "kind": "text",
+          "value": "4375"
+        },
+        "!frame4.!checkbutton": {
+          "kind": "variable",
+          "value": "1"
+        },
+        "!frame4.!entry": {
+          "kind": "text",
+          "value": "5"
+        },
+        "!frame4.!checkbutton2": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!frame4.!entry2": {
+          "kind": "text",
+          "value": "1"
+        },
+        "!frame4.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame4.!entry4": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame4.!entry5": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame4.!entry6": {
+          "kind": "text",
+          "value": "5"
+        },
+        "!frame5.!entry": {
+          "kind": "text",
+          "value": "542"
+        },
+        "!frame5.!entry2": {
+          "kind": "text",
+          "value": "271"
+        },
+        "!frame5.!entry3": {
+          "kind": "text",
+          "value": "20"
+        },
+        "!frame6.!horizontaldisplaypane.!frame2.!playerpixelplot.!frame.!checkbutton": {
+          "kind": "variable",
+          "value": "1"
+        },
+        "!frame6.!horizontaldisplaypane.!frame2.!playerpixelplot.!frame2.!navigationtoolbar2tk.!checkbutton-1": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!frame6.!horizontaldisplaypane.!frame2.!playerpixelplot.!frame2.!navigationtoolbar2tk.!checkbutton-2": {
+          "kind": "variable",
+          "value": 0
+        }
+      }
+    }
   }
 }

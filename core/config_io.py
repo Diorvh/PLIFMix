@@ -33,6 +33,7 @@ def load_settings(path: Path | None = None) -> AppSettings:
         return AppSettings()
     data = json.loads(config_path.read_text(encoding="utf-8"))
     _migrate_average_settings(data)
+    _migrate_ui_state(data, config_path)
     return _from_dict(AppSettings, data)
 
 
@@ -50,6 +51,20 @@ def _migrate_average_settings(data: dict[str, Any]) -> None:
         frequency = float(average.get("sample_frequency", 400) or 400)
         average["time_start"] = float(average.get("frame_start", 0)) / frequency
         average["time_end"] = float(average.get("frame_end", 0)) / frequency
+
+
+def _migrate_ui_state(data: dict[str, Any], config_path: Path) -> None:
+    if isinstance(data.get("ui"), dict):
+        return
+    legacy_path = config_path.with_name("ui_state.json")
+    if not legacy_path.exists():
+        data["ui"] = {"app": {}, "pages": {}}
+        return
+    try:
+        legacy = json.loads(legacy_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        legacy = {}
+    data["ui"] = legacy if isinstance(legacy, dict) else {"app": {}, "pages": {}}
 
 
 def _from_dict(cls: type[T], data: dict[str, Any]) -> T:

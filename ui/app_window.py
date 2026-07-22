@@ -75,7 +75,7 @@ class PLIFAppWindow(tk.Tk):
         self.minsize(960, 620)
         self.after_idle(lambda: self.state("zoomed"))
         self.state_model = AppState()
-        self.ui_state = UIStateStore()
+        self.ui_state = UIStateStore(self.state_model.settings.ui)
         self.actions = PLIFActions(self.state_model)
         self._setup_style()
         self._setup_ui()
@@ -182,6 +182,5 @@ class PLIFAppWindow(tk.Tk):
             self.ui_state.set_app_value("main_tab", len(self.workflow_specs))
         for page in self.pages.values():
             page.capture_state()
-        self.ui_state.save()
         self.state_model.save()
         self.destroy()
