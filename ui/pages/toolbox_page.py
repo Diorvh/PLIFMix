@@ -17,7 +17,6 @@ from PIL import Image, ImageTk
 
 from PLIFv2.algorithms.mixing import shift_image
 from PLIFv2.algorithms.visualization import blacked_jet_colormap
-from PLIFv2.core.frame_selection import select_frame_indices
 from PLIFv2.core.image_io import read_image, write_tif
 from PLIFv2.tools.image_tools import create_colorbar, export_gif, save_colorbar, top_k_values, transform_npy
 from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
@@ -592,9 +591,6 @@ class ImagePlayerTool(ttk.Frame):
         self.pseudo = tk.BooleanVar(value=False)
         default_cache_processes = max(1, min(8, (os.cpu_count() or 1) - 1))
         self.cache_processes = tk.StringVar(value=str(default_cache_processes))
-        self.time_start = tk.StringVar(value="0")
-        self.time_end = tk.StringVar()
-        self.sample_frequency = tk.StringVar(value="400")
         self.use_frame_segments = tk.BooleanVar(value=False)
         self.frame_segments = tk.StringVar()
         self._selected_indices: tuple[int, ...] = ()
@@ -614,24 +610,15 @@ class ImagePlayerTool(ttk.Frame):
         process_entry = ttk.Entry(row1, textvariable=self.cache_processes, width=5)
         process_entry.pack(side="left")
         process_entry.bind("<Return>", self.load_folder)
-
-        range_row = ttk.Frame(self)
-        range_row.pack(anchor="w", padx=8, pady=2)
-        self._range_entry(range_row, "开始时间/s", self.time_start)
-        self._range_entry(range_row, "结束时间/s", self.time_end)
-        self._range_entry(range_row, "采样频率/Hz", self.sample_frequency)
         ttk.Checkbutton(
-            range_row,
+            row1,
             text="非连续区间",
             variable=self.use_frame_segments,
-            command=self._sync_segment_state,
+            command=self._reload_for_frame_segments,
         ).pack(side="left", padx=(8, 2))
-        self.segment_entry = ttk.Entry(range_row, textvariable=self.frame_segments, width=34)
+        self.segment_entry = ttk.Entry(row1, textvariable=self.frame_segments, width=28)
         self.segment_entry.pack(side="left")
         self.segment_entry.bind("<Return>", self.load_folder)
-        ttk.Label(range_row, text="格式：200:600,3200:3700（帧序号，左闭右开）").pack(side="left", padx=(4, 0))
-        ttk.Button(range_row, text="重新缓存", command=self.load_folder).pack(side="left", padx=(8, 0))
-        self._sync_segment_state()
 
         row2 = ttk.Frame(self)
         row2.pack(anchor="w", padx=8, pady=2)
@@ -694,14 +681,9 @@ class ImagePlayerTool(ttk.Frame):
         entry.pack(side="left")
         entry.bind("<Return>", command)
 
-    def _range_entry(self, row: ttk.Frame, label: str, variable: tk.StringVar) -> None:
-        ttk.Label(row, text=label).pack(side="left", padx=(0, 2))
-        entry = ttk.Entry(row, textvariable=variable, width=8)
-        entry.pack(side="left", padx=(0, 8))
-        entry.bind("<Return>", self.load_folder)
-
-    def _sync_segment_state(self) -> None:
-        self.segment_entry.configure(state="normal" if self.use_frame_segments.get() else "disabled")
+    def _reload_for_frame_segments(self) -> None:
+        if self.folder.get().strip():
+            self.load_folder()
 
     def _refresh_display(self, event=None) -> None:
         self.show()
@@ -730,7 +712,6 @@ class ImagePlayerTool(ttk.Frame):
         if not self.files:
             self.info.config(text="文件夹中没有可读取的图像")
             return
-        self._initialize_default_time_end()
         if not self._select_cache_indices():
             return
         self.index = self._selected_indices[0]
@@ -739,29 +720,26 @@ class ImagePlayerTool(ttk.Frame):
             return
         self.show()
 
-    def _initialize_default_time_end(self) -> None:
-        if self.time_end.get().strip():
-            return
-        try:
-            sample_frequency = float(self.sample_frequency.get())
-        except ValueError:
-            return
-        if sample_frequency > 0:
-            self.time_end.set(f"{len(self.files) / sample_frequency:g}")
-
     def _select_cache_indices(self) -> bool:
-        try:
-            indices = select_frame_indices(
-                len(self.files),
-                time_start=float(self.time_start.get()),
-                time_end=float(self.time_end.get()),
-                sample_frequency=float(self.sample_frequency.get()),
-                use_frame_segments=self.use_frame_segments.get(),
-                frame_segments=self.frame_segments.get(),
-            )
-        except ValueError as exc:
-            self.info.config(text=f"缓存范围错误: {exc}")
+        if not self.use_frame_segments.get():
+            self._selected_indices = tuple(range(len(self.files)))
+            self._selected_index_set = set(self._selected_indices)
+            return True
+        if not self.frame_segments.get().strip():
+            self.info.config(text="非连续区间已启用，但尚未输入区间")
             return False
+        indices: list[int] = []
+        for segment in re.split(r"[,，;；]+", self.frame_segments.get()):
+            try:
+                start_text, end_text = segment.strip().split(":", 1)
+                start, end = int(start_text), int(end_text)
+            except ValueError:
+                self.info.config(text=f"非连续区间格式错误: {segment}")
+                return False
+            if start < 0 or end <= start or end > len(self.files):
+                self.info.config(text=f"非连续区间超出范围: {start}:{end}，可用范围为 0:{len(self.files)}")
+                return False
+            indices.extend(range(start, end))
         self._selected_indices = tuple(sorted(set(indices)))
         self._selected_index_set = set(self._selected_indices)
         if not self._selected_indices:

@@ -7,7 +7,6 @@ import time
 import uuid
 
 from PLIFv2.algorithms.average import AverageSetError, average_image_sets
-from PLIFv2.core.frame_selection import select_frame_indices
 from PLIFv2.core.image_io import list_image_files, save_float_image
 from PLIFv2.core.paths import path_is_set
 from PLIFv2.domain.settings import AverageSettings
@@ -99,15 +98,28 @@ class AverageImageService:
 
 
 def _select_files(files: list[Path], settings: AverageSettings) -> list[Path]:
-    indices = select_frame_indices(
-        len(files),
-        time_start=settings.time_start,
-        time_end=settings.time_end,
-        sample_frequency=settings.sample_frequency,
-        use_frame_segments=settings.use_frame_segments,
-        frame_segments=settings.frame_segments,
-    )
-    return [files[index] for index in indices]
+    if settings.use_frame_segments:
+        if not settings.frame_segments.strip():
+            raise ValueError("Non-contiguous interval mode is selected, but no intervals were entered.")
+        selected: list[Path] = []
+        segments = re.split(r"[,，;；]+", settings.frame_segments)
+        for segment in segments:
+            try:
+                start_text, end_text = segment.strip().split(":", 1)
+                start, end = int(start_text), int(end_text)
+            except ValueError as exc:
+                raise ValueError(f"Invalid interval '{segment}'. Use start:end,start:end.") from exc
+            if start < 0 or end <= start or end > len(files):
+                raise ValueError(f"Interval {start}:{end} is outside the available frame range 0:{len(files)}.")
+            selected.extend(files[start:end])
+        return selected
+    if settings.sample_frequency <= 0:
+        raise ValueError("Sample frequency must be greater than zero.")
+    start = int(settings.time_start * settings.sample_frequency)
+    end = int(settings.time_end * settings.sample_frequency)
+    if start < 0 or end <= start or end > len(files):
+        raise ValueError(f"Time range selects frames {start}:{end}, outside the available range 0:{len(files)}.")
+    return files[start:end]
 
 
 def _resolve_experiment_folders(source_root: Path, experiment_numbers: str) -> list[tuple[Path, str]]:
