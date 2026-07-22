@@ -676,6 +676,7 @@ class ImagePlayerTool(ttk.Frame):
         self.show()
 
     def _cache_frames(self) -> bool:
+        cache_started = time.perf_counter()
         try:
             requested_processes = int(self.cache_processes.get())
             if requested_processes < 1:
@@ -725,7 +726,8 @@ class ImagePlayerTool(ttk.Frame):
                     self._cache_loaded += 1
                     self._cache_bytes += frame.nbytes
         memory_gib = self._cache_bytes / (1024 ** 3)
-        text = f"已缓存：{self._cache_loaded}/{total} 张，{memory_gib:.2f} GiB"
+        elapsed_seconds = time.perf_counter() - cache_started
+        text = f"已缓存：{self._cache_loaded}/{total} 张，{memory_gib:.2f} GiB，耗时：{elapsed_seconds:.2f} s"
         if self._cache_failed:
             text += f"，失败：{self._cache_failed}"
         self.cache_status.set(text)
