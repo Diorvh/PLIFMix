@@ -250,6 +250,9 @@ class ViewerPanel(ttk.Frame):
         self.render_scale = 1.0
         self.image_offset = (0, 0)
         self.cursor_position: tuple[int, int] | None = None
+        self.tk_image: ImageTk.PhotoImage | None = None
+        self.canvas_image_id: int | None = None
+        self._canvas_image_size: tuple[int, int] | None = None
         body = ttk.Frame(self)
         body.pack(fill="both", expand=True)
         self.canvas = tk.Canvas(
@@ -361,11 +364,19 @@ class ViewerPanel(ttk.Frame):
         shown_width = max(1, int(round(image_width / self.zoom)))
         shown_height = max(1, int(round(image_height / self.zoom)))
         shown = cv2.resize(self.display, (shown_width, shown_height), interpolation=cv2.INTER_NEAREST)
-        self.tk_image = ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(shown, cv2.COLOR_BGR2RGB)))
+        frame_image = Image.fromarray(cv2.cvtColor(shown, cv2.COLOR_BGR2RGB))
         self.image_offset = (0, 0)
-        self.canvas.config(width=shown_width, height=shown_height)
-        self.canvas.delete("all")
-        self.canvas.create_image(0, 0, anchor="nw", image=self.tk_image)
+        frame_size = (shown_width, shown_height)
+        if self.tk_image is None or self._canvas_image_size != frame_size:
+            self.tk_image = ImageTk.PhotoImage(frame_image)
+            self._canvas_image_size = frame_size
+            self.canvas.config(width=shown_width, height=shown_height)
+            if self.canvas_image_id is None:
+                self.canvas_image_id = self.canvas.create_image(0, 0, anchor="nw", image=self.tk_image)
+            else:
+                self.canvas.itemconfigure(self.canvas_image_id, image=self.tk_image)
+        else:
+            self.tk_image.paste(frame_image)
 
     def mouse_info(self, event) -> None:
         x = int((event.x - self.image_offset[0]) / self.render_scale)
