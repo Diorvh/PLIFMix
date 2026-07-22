@@ -3,9 +3,7 @@ from __future__ import annotations
 import re
 import time
 import tkinter as tk
-from concurrent.futures import Future, ThreadPoolExecutor
 from math import ceil
-from threading import Event
 from pathlib import Path
 from tkinter import filedialog, ttk
 
@@ -309,8 +307,8 @@ class ViewerPanel(ttk.Frame):
             self.original = read_image(path)
             self.raw_single = _to_16bit_single_channel(self.original)
         else:
-            self.original = np.empty((0, 0), dtype=np.float64)
-            self.raw_single = raw_single
+            self.original = raw_single
+            self.raw_single = _to_16bit_single_channel(raw_single)
         self.value_image = self.raw_single
         self._refresh_info()
 
@@ -433,98 +431,121 @@ def _to_16bit_single_channel(image: np.ndarray) -> np.ndarray:
     source_dtype = image.dtype
     if image.ndim == 3:
         image = image[:, :, 1]
-    image = image.astype(np.float64)
     if source_dtype == np.uint8:
-        image *= 256
-    return image
+        return image.astype(np.uint16) * 256
+    if source_dtype == np.uint16:
+        return image
+    return image.astype(np.float64)
 
 
 def _read_player_raw_frame(path: Path) -> np.ndarray:
-    return _to_16bit_single_channel(read_image(path))
-
-
-def _read_player_pixel_series(
-    paths: tuple[Path, ...],
-    x: int,
-    y: int,
-    zero_threshold_8bit: float,
-    relative_denoise: float,
-    cancel_event: Event,
-) -> np.ndarray | None:
-    values = np.zeros(len(paths), dtype=np.float64)
-    absolute_threshold = zero_threshold_8bit * 256
-    for index, path in enumerate(paths):
-        if cancel_event.is_set():
-            return None
-        image = _read_player_raw_frame(path)
-        if not (0 <= x < image.shape[1] and 0 <= y < image.shape[0]):
-            continue
-        value = image[y, x]
-        if zero_threshold_8bit > 0 and value <= absolute_threshold:
-            continue
-        if relative_denoise > 0 and value < np.max(image) * relative_denoise:
-            continue
-        values[index] = value
-    return values
+    image = read_image(path)
+    if image.ndim == 3:
+        image = image[:, :, 1]
+    # Make the cached green channel own its compact 8-bit buffer instead of
+    # retaining the three-channel source image through a NumPy view.
+    return np.ascontiguousarray(image)
 
 
 def _scale_gray_for_display(image: np.ndarray, gain: float) -> np.ndarray:
-    scaled = image * gain / 256
+    scaled = image.astype(np.float32, copy=False) * np.float32(gain / 256)
     return np.clip(scaled, 0, 255).astype(np.uint8)
 
 
 class PlayerPixelPlot(ttk.Frame):
     def __init__(self, master):
         super().__init__(master)
-        self.status = ttk.Label(self, text="Click an image pixel to plot its denoised values.")
+        self.series: np.ndarray | None = None
+        self.point: tuple[int, int] | None = None
+        self.frame_labels: list[str] = []
+        self.status = ttk.Label(self, text="单击左侧图像中的像素，绘制该点的去噪灰度值。")
         self.status.pack(anchor="w", padx=6, pady=(4, 0))
         self.figure = Figure(figsize=(4, 5), dpi=100)
         self.axis = self.figure.add_subplot(111)
-        self.axis.set_xlabel("Frame index")
-        self.axis.set_ylabel("Gray value (16-bit)")
+        self.axis.set_xlabel("图片序号")
+        self.axis.set_ylabel("灰度值(16位)")
         self.axis.grid(True, alpha=0.3)
         self.canvas = DebouncedFigureCanvasTkAgg(self.figure, master=self)
         self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=4, pady=4)
+        toolbar_frame = ttk.Frame(self)
+        toolbar_frame.pack(fill="x", padx=4)
+        self.toolbar = NavigationToolbar2Tk(self.canvas, toolbar_frame)
+        table_frame = ttk.Frame(self)
+        table_frame.pack(fill="x", padx=6, pady=(2, 6))
+        self.top_values = ttk.Treeview(
+            table_frame,
+            columns=("rank", "frame", "value"),
+            show="headings",
+            height=5,
+        )
+        self.top_values.heading("rank", text="#")
+        self.top_values.heading("frame", text="图片序号")
+        self.top_values.heading("value", text="灰度值")
+        self.top_values.column("rank", width=42, stretch=False, anchor="e")
+        self.top_values.column("frame", width=76, stretch=False, anchor="e")
+        self.top_values.column("value", width=110, stretch=True, anchor="e")
+        self.top_values.pack(fill="x")
 
     def set_loading(self, x: int, y: int) -> None:
-        self.status.config(text=f"Reading denoised values at ({x}, {y})...")
+        self.status.config(text=f"正在读取坐标({x}, {y})的去噪灰度值...")
 
-    def set_series(self, x: int, y: int, values: np.ndarray) -> None:
+    def set_series(
+        self,
+        x: int,
+        y: int,
+        values: np.ndarray,
+        frame_axis: np.ndarray,
+        frame_labels: list[str],
+        top_k: int,
+    ) -> None:
+        self.series = values
+        self.point = (x, y)
+        self.frame_labels = frame_labels
         self.axis.clear()
-        self.axis.plot(np.arange(len(values)), values, linewidth=0.8)
-        self.axis.set_xlabel("Frame index")
-        self.axis.set_ylabel("Gray value (16-bit)")
-        self.axis.set_title(f"Denoised pixel ({x}, {y})")
+        self.axis.plot(frame_axis, values, linewidth=0.8)
+        self.axis.set_xlabel("图片序号")
+        self.axis.set_ylabel("灰度值(16位)")
+        self.axis.set_title(f"去噪像素 ({x}, {y})")
         self.axis.grid(True, alpha=0.3)
-        self.status.config(text=f"Pixel ({x}, {y}), {len(values)} frames")
+        self.status.config(text=f"像素 ({x}, {y})，共 {len(values)} 张图片")
         self.canvas.request_draw()
+        self.update_top_k(top_k)
 
     def set_error(self, message: str) -> None:
         self.status.config(text=message)
 
     def reset(self) -> None:
+        self.series = None
+        self.point = None
+        self.frame_labels = []
         self.axis.clear()
-        self.axis.set_xlabel("Frame index")
-        self.axis.set_ylabel("Gray value (16-bit)")
+        self.axis.set_xlabel("图片序号")
+        self.axis.set_ylabel("灰度值(16位)")
         self.axis.grid(True, alpha=0.3)
-        self.status.config(text="Click an image pixel to plot its denoised values.")
+        self.status.config(text="单击左侧图像中的像素，绘制该点的去噪灰度值。")
+        self.top_values.delete(*self.top_values.get_children())
         self.canvas.request_draw()
+
+    def update_top_k(self, top_k: int) -> None:
+        if self.series is None:
+            return
+        self.top_values.delete(*self.top_values.get_children())
+        count = min(top_k, len(self.series))
+        for rank, frame_index in enumerate(np.argsort(self.series)[::-1][:count], start=1):
+            label = self.frame_labels[frame_index] if frame_index < len(self.frame_labels) else str(frame_index)
+            self.top_values.insert("", "end", values=(rank, label, f"{self.series[frame_index]:g}"))
 
 
 class ImagePlayerTool(ttk.Frame):
-    PREFETCH_FRAME_COUNT = 10
-
     def __init__(self, master):
         super().__init__(master)
         self.files: list[Path] = []
         self.index = 0
         self.play_delta = 0
-        self._prefetch_direction = 1
-        self._prefetch_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="plif-player")
-        self._prefetch_futures: dict[int, Future[np.ndarray]] = {}
-        self._pixel_series_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="plif-pixel-plot")
-        self._pixel_series_cancel = Event()
-        self._pixel_series_request = 0
+        self._frame_cache: list[np.ndarray | None] = []
+        self._cache_loaded = 0
+        self._cache_failed = 0
+        self._cache_bytes = 0
         self.folder = tk.StringVar()
         self.frame_rate = tk.StringVar(value="20")
         self.current_frame = tk.StringVar(value="0")
@@ -537,6 +558,10 @@ class ImagePlayerTool(ttk.Frame):
         self.shift = tk.StringVar(value="0")
         self.denoise_threshold = tk.StringVar(value="0")
         self.pseudo = tk.BooleanVar(value=False)
+        self.pixel_x = tk.StringVar(value="0")
+        self.pixel_y = tk.StringVar(value="0")
+        self.pixel_top_k = tk.StringVar(value="10")
+        self.cache_status = tk.StringVar(value="缓存：空闲")
 
         row1 = ttk.Frame(self)
         row1.pack(anchor="w", padx=8, pady=(6, 2))
@@ -574,6 +599,15 @@ class ImagePlayerTool(ttk.Frame):
         self._display_entry(row4, "左移", self.shift)
         self._display_entry(row4, "去噪阈值(8位)", self.denoise_threshold)
 
+        row5 = ttk.Frame(self)
+        row5.pack(anchor="w", padx=8, pady=(0, 3))
+        self._pixel_entry(row5, "X", self.pixel_x, self._request_manual_pixel_series)
+        self._pixel_entry(row5, "Y", self.pixel_y, self._request_manual_pixel_series)
+        ttk.Button(row5, text="更新像素数据", command=self._request_manual_pixel_series).pack(side="left", padx=(4, 10))
+        self._pixel_entry(row5, "Top K", self.pixel_top_k, self._update_top_k, width=5)
+        ttk.Button(row5, text="更新 Top K", command=self._update_top_k).pack(side="left", padx=4)
+        ttk.Label(row5, textvariable=self.cache_status).pack(side="left", padx=(12, 0))
+
         self.info = ttk.Label(self, text="")
         self.info.pack(anchor="w", padx=8)
         self.display_host = ttk.Frame(self)
@@ -590,7 +624,16 @@ class ImagePlayerTool(ttk.Frame):
         ttk.Label(row, text=label).pack(side="left", padx=(4, 2))
         entry = ttk.Entry(row, textvariable=variable, width=7)
         entry.pack(side="left")
-        entry.bind("<Return>", lambda _event: self.show())
+        entry.bind("<Return>", self._refresh_display)
+
+    def _pixel_entry(self, row: ttk.Frame, label: str, variable: tk.StringVar, command, width: int = 7) -> None:
+        ttk.Label(row, text=label).pack(side="left", padx=(4, 2))
+        entry = ttk.Entry(row, textvariable=variable, width=width)
+        entry.pack(side="left")
+        entry.bind("<Return>", command)
+
+    def _refresh_display(self, event=None) -> None:
+        self.show()
 
     def choose(self) -> None:
         folder = filedialog.askdirectory()
@@ -605,8 +648,6 @@ class ImagePlayerTool(ttk.Frame):
             self.info.config(text=f"文件夹不存在: {folder}")
             return
         self.play_delta = 0
-        self._reset_prefetch()
-        self._cancel_pixel_series()
         self.pixel_plot.reset()
         self.files = sorted(
             path for path in folder.iterdir()
@@ -617,13 +658,46 @@ class ImagePlayerTool(ttk.Frame):
         if not self.files:
             self.info.config(text="文件夹中没有可读取的图像")
             return
+        self._cache_frames()
         self.show()
+
+    def _cache_frames(self) -> None:
+        self._frame_cache = []
+        self._cache_loaded = 0
+        self._cache_failed = 0
+        self._cache_bytes = 0
+        self.cache_status.set(f"正在缓存：0/{len(self.files)} 张")
+        self.update_idletasks()
+        for path in self.files:
+            try:
+                raw_single = _read_player_raw_frame(path)
+            except Exception:
+                self._frame_cache.append(None)
+                self._cache_failed += 1
+            else:
+                self._frame_cache.append(raw_single)
+                self._cache_loaded += 1
+                self._cache_bytes += raw_single.nbytes
+        total = len(self.files)
+        memory_gib = self._cache_bytes / (1024 ** 3)
+        text = f"已缓存：{self._cache_loaded}/{total} 张，{memory_gib:.2f} GiB"
+        if self._cache_failed:
+            text += f"，失败：{self._cache_failed}"
+        self.cache_status.set(text)
+
+    def _cached_frame(self, frame_index: int) -> np.ndarray | None:
+        if 0 <= frame_index < len(self._frame_cache):
+            return self._frame_cache[frame_index]
+        return None
 
     def show(self) -> None:
         if not self.files:
             return
         path = self.files[self.index]
-        raw_single = self._take_prefetched_frame(self.index)
+        raw_single = self._cached_frame(self.index)
+        if raw_single is None:
+            self.info.config(text="Selected image could not be read into cache.")
+            return
         try:
             auto_gain = self.auto_gain.get()
             gain = 1.0 if auto_gain else float(self.gain.get())
@@ -670,12 +744,10 @@ class ImagePlayerTool(ttk.Frame):
         )
         self.current_frame.set(str(self.index))
         self.info.config(text="")
-        self._schedule_prefetch()
 
     def start(self, delta: int) -> None:
         self.play_delta = delta
         if delta:
-            self._set_prefetch_direction(delta)
             self._tick()
 
     def _tick(self) -> None:
@@ -689,8 +761,13 @@ class ImagePlayerTool(ttk.Frame):
             self.play_delta = 0
             self.info.config(text="帧率必须是大于0的数值")
             return
+        next_index = (self.index + self.play_delta) % len(self.files)
+        if self._cached_frame(next_index) is None:
+            self.play_delta = 0
+            self.info.config(text=f"Image {next_index} was not cached; playback stopped.")
+            return
         frame_started = time.perf_counter()
-        self.index = (self.index + self.play_delta) % len(self.files)
+        self.index = next_index
         self.show()
         remaining_seconds = (1 / frame_rate) - (time.perf_counter() - frame_started)
         if remaining_seconds > 0:
@@ -702,7 +779,6 @@ class ImagePlayerTool(ttk.Frame):
         if not self.files:
             return
         self.play_delta = 0
-        self._set_prefetch_direction(delta)
         self.index = (self.index + delta) % len(self.files)
         self.show()
 
@@ -713,101 +789,65 @@ class ImagePlayerTool(ttk.Frame):
             except ValueError:
                 self.info.config(text="当前帧必须是整数")
                 return
-            self._reset_prefetch()
             self.show()
 
     def _request_pixel_series(self, x: int, y: int) -> None:
+        self.pixel_x.set(str(x))
+        self.pixel_y.set(str(y))
+        self._request_manual_pixel_series()
+
+    def _request_manual_pixel_series(self, event=None) -> None:
         if not self.files:
             return
         try:
+            x = int(self.pixel_x.get())
+            y = int(self.pixel_y.get())
             zero_threshold_8bit = float(self.denoise_threshold.get())
             relative_denoise = float(self.relative_denoise.get())
-            if zero_threshold_8bit < 0 or relative_denoise < 0:
+            top_k = int(self.pixel_top_k.get())
+            if x < 0 or y < 0 or zero_threshold_8bit < 0 or relative_denoise < 0 or top_k < 1:
                 raise ValueError
         except ValueError:
-            self.pixel_plot.set_error("Denoise parameters must be non-negative.")
+            self.pixel_plot.set_error("X/Y must be non-negative integers; Top K must be at least 1.")
             return
-
-        self._cancel_pixel_series()
-        request = self._pixel_series_request
-        cancel_event = self._pixel_series_cancel
         self.pixel_plot.set_loading(x, y)
-        future = self._pixel_series_executor.submit(
-            _read_player_pixel_series,
-            tuple(self.files),
-            x,
-            y,
-            zero_threshold_8bit,
-            relative_denoise,
-            cancel_event,
-        )
-        self.after(50, lambda: self._poll_pixel_series(request, future, x, y))
 
-    def _poll_pixel_series(self, request: int, future: Future[np.ndarray | None], x: int, y: int) -> None:
-        if request != self._pixel_series_request:
-            return
-        if not future.done():
-            self.after(50, lambda: self._poll_pixel_series(request, future, x, y))
-            return
+        values = np.zeros(len(self.files), dtype=np.float64)
+        for frame_index, raw_single in enumerate(self._frame_cache):
+            if raw_single is None:
+                self.pixel_plot.set_error(f"Image {frame_index} was not cached.")
+                return
+            if y >= raw_single.shape[0] or x >= raw_single.shape[1]:
+                self.pixel_plot.set_error(f"Point ({x}, {y}) is outside image {frame_index}.")
+                return
+            value_scale = 256.0 if raw_single.dtype == np.uint8 else 1.0
+            pixel_value = float(raw_single[y, x]) * value_scale
+            if pixel_value <= zero_threshold_8bit * 256:
+                continue
+            if relative_denoise > 0 and pixel_value < float(np.max(raw_single)) * value_scale * relative_denoise:
+                continue
+            values[frame_index] = pixel_value
+        frame_axis, frame_labels = self._frame_axis(tuple(self.files))
+        self.pixel_plot.set_series(x, y, values, frame_axis, frame_labels, top_k)
+
+    @staticmethod
+    def _frame_axis(paths: tuple[Path, ...]) -> tuple[np.ndarray, list[str]]:
+        labels = [path.stem for path in paths]
+        if all(label.isdigit() for label in labels):
+            return np.asarray([int(label) for label in labels]), labels
+        return np.arange(len(paths)), labels
+
+    def _update_top_k(self, event=None) -> None:
         try:
-            values = future.result()
-        except Exception as exc:
-            self.pixel_plot.set_error(f"Pixel data error: {exc}")
+            top_k = int(self.pixel_top_k.get())
+            if top_k < 1:
+                raise ValueError
+        except ValueError:
+            self.pixel_plot.set_error("Top K must be at least 1.")
             return
-        if values is not None:
-            self.pixel_plot.set_series(x, y, values)
-
-    def _cancel_pixel_series(self) -> None:
-        self._pixel_series_request += 1
-        self._pixel_series_cancel.set()
-        self._pixel_series_cancel = Event()
-
-    def _set_prefetch_direction(self, direction: int) -> None:
-        if direction != self._prefetch_direction:
-            self._prefetch_direction = direction
-            self._reset_prefetch()
-
-    def _schedule_prefetch(self) -> None:
-        if not self.files:
-            return
-        direction = self.play_delta or self._prefetch_direction
-        desired = [
-            (self.index + direction * offset) % len(self.files)
-            for offset in range(1, self.PREFETCH_FRAME_COUNT + 1)
-        ]
-        desired_set = set(desired)
-        for frame_index, future in tuple(self._prefetch_futures.items()):
-            if frame_index not in desired_set:
-                future.cancel()
-                del self._prefetch_futures[frame_index]
-        for frame_index in desired:
-            if frame_index not in self._prefetch_futures:
-                self._prefetch_futures[frame_index] = self._prefetch_executor.submit(
-                    _read_player_raw_frame,
-                    self.files[frame_index],
-                )
-
-    def _take_prefetched_frame(self, frame_index: int) -> np.ndarray | None:
-        future = self._prefetch_futures.pop(frame_index, None)
-        if future is None or not future.done():
-            if future is not None:
-                future.cancel()
-            return None
-        try:
-            return future.result()
-        except Exception:
-            return None
-
-    def _reset_prefetch(self) -> None:
-        for future in self._prefetch_futures.values():
-            future.cancel()
-        self._prefetch_futures.clear()
+        self.pixel_plot.update_top_k(top_k)
 
     def destroy(self) -> None:
-        self._reset_prefetch()
-        self._cancel_pixel_series()
-        self._prefetch_executor.shutdown(wait=False, cancel_futures=True)
-        self._pixel_series_executor.shutdown(wait=False, cancel_futures=True)
         super().destroy()
 
 
