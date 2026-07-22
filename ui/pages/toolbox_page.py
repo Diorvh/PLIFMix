@@ -22,6 +22,15 @@ from PLIFv2.tools.image_tools import create_colorbar, export_gif, save_colorbar,
 from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
 
 
+class HorizontalDisplayPane(ttk.PanedWindow):
+    def __init__(self, master, primary_weight: int = 3, secondary_weight: int = 1):
+        super().__init__(master, orient=tk.HORIZONTAL)
+        self.primary_host = ttk.Frame(self)
+        self.secondary_host = ttk.Frame(self)
+        self.add(self.primary_host, weight=primary_weight)
+        self.add(self.secondary_host, weight=secondary_weight)
+
+
 class ImageViewerTool(ttk.Frame):
     def __init__(self, master):
         super().__init__(master)
@@ -251,28 +260,29 @@ class ViewerPanel(ttk.Frame):
         self.point_selected_callback = point_selected_callback
         body = ttk.Frame(self)
         body.pack(fill="both", expand=True)
+        self.display_pane = None
+        self.histogram_panel = None
+        image_host = body
+        if self.show_histogram:
+            self.display_pane = HorizontalDisplayPane(body)
+            self.display_pane.pack(fill="both", expand=True)
+            image_host = self.display_pane.primary_host
+            self.histogram_panel = self.display_pane.secondary_host
         self.canvas = tk.Canvas(
-            body,
+            image_host,
             width=640,
             height=480,
             highlightthickness=1,
             highlightbackground="#aaa",
         )
-        self.canvas.grid(row=0, column=0, sticky="nsew")
+        self.canvas.pack(fill="both", expand=True)
         self.canvas.bind("<Motion>", self.mouse_info)
         self.canvas.bind("<Button-1>", self._select_point)
-        body.rowconfigure(0, weight=1)
-        body.columnconfigure(0, weight=1)
         self.figure = None
         self.axis = None
         self.hist_canvas = None
         self.hist_toolbar = None
-        self.histogram_panel = None
         if self.show_histogram:
-            self.histogram_panel = ttk.Frame(body, width=460)
-            self.histogram_panel.grid(row=0, column=1, sticky="nsew", padx=(4, 0))
-            self.histogram_panel.grid_propagate(False)
-            body.columnconfigure(1, weight=0, minsize=460)
             self.figure = Figure(figsize=(3, 4), dpi=100)
             self.axis = self.figure.add_subplot(111)
             self.hist_canvas = DebouncedFigureCanvasTkAgg(self.figure, master=self.histogram_panel)
@@ -616,12 +626,11 @@ class ImagePlayerTool(ttk.Frame):
         self.info.pack(anchor="w", padx=8)
         self.display_host = ttk.Frame(self)
         self.display_host.pack(fill="both", expand=True, padx=6, pady=4)
-        self.display_pane = ttk.PanedWindow(self.display_host, orient=tk.HORIZONTAL)
+        self.display_pane = HorizontalDisplayPane(self.display_host)
         self.display_pane.pack(fill="both", expand=True)
-        self.image_host = ttk.Frame(self.display_pane)
-        self.pixel_plot = PlayerPixelPlot(self.display_pane)
-        self.display_pane.add(self.image_host, weight=3)
-        self.display_pane.add(self.pixel_plot, weight=1)
+        self.image_host = self.display_pane.primary_host
+        self.pixel_plot = PlayerPixelPlot(self.display_pane.secondary_host)
+        self.pixel_plot.pack(fill="both", expand=True)
         self.panel: ViewerPanel | None = None
 
     def _display_entry(self, row: ttk.Frame, label: str, variable: tk.StringVar) -> None:
