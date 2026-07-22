@@ -5,6 +5,7 @@ import time
 import tkinter as tk
 from concurrent.futures import Future, ThreadPoolExecutor
 from math import ceil
+from threading import Event
 from pathlib import Path
 from tkinter import filedialog, ttk
 
@@ -247,6 +248,7 @@ class ViewerPanel(ttk.Frame):
         path: Path,
         show_histogram: bool = True,
         raw_single: np.ndarray | None = None,
+        point_selected_callback=None,
     ):
         super().__init__(master)
         self.show_histogram = show_histogram
@@ -262,6 +264,7 @@ class ViewerPanel(ttk.Frame):
         self.tk_image: ImageTk.PhotoImage | None = None
         self.canvas_image_id: int | None = None
         self._canvas_image_size: tuple[int, int] | None = None
+        self.point_selected_callback = point_selected_callback
         body = ttk.Frame(self)
         body.pack(fill="both", expand=True)
         self.canvas = tk.Canvas(
@@ -273,6 +276,7 @@ class ViewerPanel(ttk.Frame):
         )
         self.canvas.grid(row=0, column=0, sticky="nsew")
         self.canvas.bind("<Motion>", self.mouse_info)
+        self.canvas.bind("<Button-1>", self._select_point)
         body.rowconfigure(0, weight=1)
         body.columnconfigure(0, weight=1)
         self.figure = None
@@ -401,6 +405,14 @@ class ViewerPanel(ttk.Frame):
         self.cursor_position = (x, y)
         self._refresh_info()
 
+    def _select_point(self, event) -> None:
+        self.mouse_info(event)
+        if self.point_selected_callback is None or self.cursor_position is None:
+            return
+        x, y = self.cursor_position
+        if 0 <= x < self.value_image.shape[1] and 0 <= y < self.value_image.shape[0]:
+            self.point_selected_callback(x, y)
+
     def _refresh_info(self) -> None:
         image = self.value_image
         if image.size == 0:
@@ -431,9 +443,72 @@ def _read_player_raw_frame(path: Path) -> np.ndarray:
     return _to_16bit_single_channel(read_image(path))
 
 
+def _read_player_pixel_series(
+    paths: tuple[Path, ...],
+    x: int,
+    y: int,
+    zero_threshold_8bit: float,
+    relative_denoise: float,
+    cancel_event: Event,
+) -> np.ndarray | None:
+    values = np.zeros(len(paths), dtype=np.float64)
+    absolute_threshold = zero_threshold_8bit * 256
+    for index, path in enumerate(paths):
+        if cancel_event.is_set():
+            return None
+        image = _read_player_raw_frame(path)
+        if not (0 <= x < image.shape[1] and 0 <= y < image.shape[0]):
+            continue
+        value = image[y, x]
+        if zero_threshold_8bit > 0 and value <= absolute_threshold:
+            continue
+        if relative_denoise > 0 and value < np.max(image) * relative_denoise:
+            continue
+        values[index] = value
+    return values
+
+
 def _scale_gray_for_display(image: np.ndarray, gain: float) -> np.ndarray:
     scaled = image * gain / 256
     return np.clip(scaled, 0, 255).astype(np.uint8)
+
+
+class PlayerPixelPlot(ttk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.status = ttk.Label(self, text="Click an image pixel to plot its denoised values.")
+        self.status.pack(anchor="w", padx=6, pady=(4, 0))
+        self.figure = Figure(figsize=(4, 5), dpi=100)
+        self.axis = self.figure.add_subplot(111)
+        self.axis.set_xlabel("Frame index")
+        self.axis.set_ylabel("Gray value (16-bit)")
+        self.axis.grid(True, alpha=0.3)
+        self.canvas = DebouncedFigureCanvasTkAgg(self.figure, master=self)
+        self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=4, pady=4)
+
+    def set_loading(self, x: int, y: int) -> None:
+        self.status.config(text=f"Reading denoised values at ({x}, {y})...")
+
+    def set_series(self, x: int, y: int, values: np.ndarray) -> None:
+        self.axis.clear()
+        self.axis.plot(np.arange(len(values)), values, linewidth=0.8)
+        self.axis.set_xlabel("Frame index")
+        self.axis.set_ylabel("Gray value (16-bit)")
+        self.axis.set_title(f"Denoised pixel ({x}, {y})")
+        self.axis.grid(True, alpha=0.3)
+        self.status.config(text=f"Pixel ({x}, {y}), {len(values)} frames")
+        self.canvas.request_draw()
+
+    def set_error(self, message: str) -> None:
+        self.status.config(text=message)
+
+    def reset(self) -> None:
+        self.axis.clear()
+        self.axis.set_xlabel("Frame index")
+        self.axis.set_ylabel("Gray value (16-bit)")
+        self.axis.grid(True, alpha=0.3)
+        self.status.config(text="Click an image pixel to plot its denoised values.")
+        self.canvas.request_draw()
 
 
 class ImagePlayerTool(ttk.Frame):
@@ -447,6 +522,9 @@ class ImagePlayerTool(ttk.Frame):
         self._prefetch_direction = 1
         self._prefetch_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="plif-player")
         self._prefetch_futures: dict[int, Future[np.ndarray]] = {}
+        self._pixel_series_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="plif-pixel-plot")
+        self._pixel_series_cancel = Event()
+        self._pixel_series_request = 0
         self.folder = tk.StringVar()
         self.frame_rate = tk.StringVar(value="20")
         self.current_frame = tk.StringVar(value="0")
@@ -500,6 +578,12 @@ class ImagePlayerTool(ttk.Frame):
         self.info.pack(anchor="w", padx=8)
         self.display_host = ttk.Frame(self)
         self.display_host.pack(fill="both", expand=True, padx=6, pady=4)
+        self.display_pane = ttk.PanedWindow(self.display_host, orient=tk.HORIZONTAL)
+        self.display_pane.pack(fill="both", expand=True)
+        self.image_host = ttk.Frame(self.display_pane)
+        self.pixel_plot = PlayerPixelPlot(self.display_pane)
+        self.display_pane.add(self.image_host, weight=3)
+        self.display_pane.add(self.pixel_plot, weight=1)
         self.panel: ViewerPanel | None = None
 
     def _display_entry(self, row: ttk.Frame, label: str, variable: tk.StringVar) -> None:
@@ -522,6 +606,8 @@ class ImagePlayerTool(ttk.Frame):
             return
         self.play_delta = 0
         self._reset_prefetch()
+        self._cancel_pixel_series()
+        self.pixel_plot.reset()
         self.files = sorted(
             path for path in folder.iterdir()
             if path.suffix.lower() in {".png", ".tif", ".tiff", ".bmp", ".npy"}
@@ -554,7 +640,13 @@ class ImagePlayerTool(ttk.Frame):
             self.info.config(text=f"显示参数错误: {exc}")
             return
         if self.panel is None:
-            self.panel = ViewerPanel(self.display_host, path, show_histogram=False, raw_single=raw_single)
+            self.panel = ViewerPanel(
+                self.image_host,
+                path,
+                show_histogram=False,
+                raw_single=raw_single,
+                point_selected_callback=self._request_pixel_series,
+            )
             self.panel.pack(fill="both", expand=True)
         else:
             self.panel.set_path(path, raw_single)
@@ -624,6 +716,52 @@ class ImagePlayerTool(ttk.Frame):
             self._reset_prefetch()
             self.show()
 
+    def _request_pixel_series(self, x: int, y: int) -> None:
+        if not self.files:
+            return
+        try:
+            zero_threshold_8bit = float(self.denoise_threshold.get())
+            relative_denoise = float(self.relative_denoise.get())
+            if zero_threshold_8bit < 0 or relative_denoise < 0:
+                raise ValueError
+        except ValueError:
+            self.pixel_plot.set_error("Denoise parameters must be non-negative.")
+            return
+
+        self._cancel_pixel_series()
+        request = self._pixel_series_request
+        cancel_event = self._pixel_series_cancel
+        self.pixel_plot.set_loading(x, y)
+        future = self._pixel_series_executor.submit(
+            _read_player_pixel_series,
+            tuple(self.files),
+            x,
+            y,
+            zero_threshold_8bit,
+            relative_denoise,
+            cancel_event,
+        )
+        self.after(50, lambda: self._poll_pixel_series(request, future, x, y))
+
+    def _poll_pixel_series(self, request: int, future: Future[np.ndarray | None], x: int, y: int) -> None:
+        if request != self._pixel_series_request:
+            return
+        if not future.done():
+            self.after(50, lambda: self._poll_pixel_series(request, future, x, y))
+            return
+        try:
+            values = future.result()
+        except Exception as exc:
+            self.pixel_plot.set_error(f"Pixel data error: {exc}")
+            return
+        if values is not None:
+            self.pixel_plot.set_series(x, y, values)
+
+    def _cancel_pixel_series(self) -> None:
+        self._pixel_series_request += 1
+        self._pixel_series_cancel.set()
+        self._pixel_series_cancel = Event()
+
     def _set_prefetch_direction(self, direction: int) -> None:
         if direction != self._prefetch_direction:
             self._prefetch_direction = direction
@@ -667,7 +805,9 @@ class ImagePlayerTool(ttk.Frame):
 
     def destroy(self) -> None:
         self._reset_prefetch()
+        self._cancel_pixel_series()
         self._prefetch_executor.shutdown(wait=False, cancel_futures=True)
+        self._pixel_series_executor.shutdown(wait=False, cancel_futures=True)
         super().destroy()
 
 
