@@ -17,14 +17,12 @@ from PLIFv2.ui.pages.intensifier_page import IntensifierPage
 from PLIFv2.ui.pages.manual_mixing_page import ManualMixingPage
 from PLIFv2.ui.pages.noise_page import NoisePage
 from PLIFv2.ui.pages.shift_search_page import ShiftSearchPage
-from PLIFv2.ui.pages.toolbox_page import (
-    ColorbarTool,
-    DistributionComparisonTool,
-    GifTool,
-    ImagePlayerTool,
-    ImageViewerTool,
-    NpyTool,
-)
+from PLIFv2.ui.pages.colorbar_page import ColorbarPage
+from PLIFv2.ui.pages.distribution_comparison_page import DistributionComparisonPage
+from PLIFv2.ui.pages.gif_export_page import GifExportPage
+from PLIFv2.ui.pages.image_player_page import ImagePlayerPage
+from PLIFv2.ui.pages.image_viewer_page import ImageViewerPage
+from PLIFv2.ui.pages.npy_page import NpyPage
 
 
 class LazyPage(ttk.Frame):
@@ -109,13 +107,13 @@ class PLIFAppWindow(tk.Tk):
             ("6 质量分布拟合", lambda master: DistributionPage(master, self.actions)),
             ("底噪分析", lambda master: NoisePage(master, self.actions)),
         ]
-        self.tool_specs = [
-            ("图像查看器", ImageViewerTool),
-            ("图片播放器", ImagePlayerTool),
-            ("NPY矩阵", NpyTool),
-            ("GIF导出", GifTool),
-            ("Colorbar", ColorbarTool),
-            ("分布对比", DistributionComparisonTool),
+        self.secondary_specs = [
+            ("图像查看器", ImageViewerPage),
+            ("图片播放器", ImagePlayerPage),
+            ("NPY矩阵", NpyPage),
+            ("GIF导出", GifExportPage),
+            ("Colorbar", ColorbarPage),
+            ("分布对比", DistributionComparisonPage),
         ]
         self.content_host = ttk.Frame(self)
         navigation = ttk.Frame(self)
@@ -127,17 +125,17 @@ class PLIFAppWindow(tk.Tk):
         self.content_host.pack(fill="both", expand=True, padx=10, pady=(2, 10))
 
         self.pages: dict[str, LazyPage] = {}
-        for key, factory in [*self.workflow_specs, *self.tool_specs]:
+        for key, factory in [*self.workflow_specs, *self.secondary_specs]:
             self.pages[key] = LazyPage(self.content_host, key, factory, self.ui_state)
         for key, _factory in self.workflow_specs:
             self.primary_tabs.add_tab(key, key)
-        for key, _factory in self.tool_specs:
+        for key, _factory in self.secondary_specs:
             self.secondary_tabs.add_tab(key, key)
 
         self.active_page_key: str | None = None
-        self.last_tool_key = self.ui_state.get_app_value("last_tool_page", self.tool_specs[0][0])
-        if self.last_tool_key not in self.pages or self.last_tool_key in {key for key, _factory in self.workflow_specs}:
-            self.last_tool_key = self.tool_specs[0][0]
+        self.last_secondary_key = self.ui_state.get_app_value("last_secondary_page", self.secondary_specs[0][0])
+        if self.last_secondary_key not in self.pages or self.last_secondary_key in {key for key, _factory in self.workflow_specs}:
+            self.last_secondary_key = self.secondary_specs[0][0]
         saved_key = self.ui_state.get_app_value("active_page", None)
         if saved_key not in self.pages:
             saved_key = self._legacy_saved_page_key()
@@ -150,13 +148,13 @@ class PLIFAppWindow(tk.Tk):
             saved_tab = 0
         if 0 <= saved_tab < len(self.workflow_specs):
             return self.workflow_specs[saved_tab][0]
-        return self.last_tool_key
+        return self.last_secondary_key
 
     def _select_primary_tab(self, key: str) -> None:
         self._show_page(key)
 
     def _select_tool_tab(self, key: str) -> None:
-        self.last_tool_key = key
+        self.last_secondary_key = key
         self._show_page(key)
 
     def _show_page(self, key: str) -> None:
@@ -169,15 +167,15 @@ class PLIFAppWindow(tk.Tk):
             selected.pack(fill="both", expand=True)
             self.active_page_key = key
         selected.ensure_loaded()
-        is_tool = key in {tool_key for tool_key, _factory in self.tool_specs}
-        self.primary_tabs.select(None if is_tool else key)
-        self.secondary_tabs.select(key if is_tool else None)
+        is_secondary = key in {page_key for page_key, _factory in self.secondary_specs}
+        self.primary_tabs.select(None if is_secondary else key)
+        self.secondary_tabs.select(key if is_secondary else None)
         for page_key, page in self.pages.items():
             set_canvas_tree_active(page, page_key == key)
 
     def _on_close(self) -> None:
         self.ui_state.set_app_value("active_page", self.active_page_key)
-        self.ui_state.set_app_value("last_tool_page", self.last_tool_key)
+        self.ui_state.set_app_value("last_secondary_page", self.last_secondary_key)
         if self.active_page_key in {key for key, _factory in self.workflow_specs}:
             self.ui_state.set_app_value("main_tab", [key for key, _factory in self.workflow_specs].index(self.active_page_key))
         else:
