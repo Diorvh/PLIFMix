@@ -8,7 +8,7 @@ import numpy as np
 import openpyxl
 
 from PLIFv2.algorithms.intensifier import apply_correction_matrix, fit_linear_gain_matrix
-from PLIFv2.core.image_io import list_image_files, read_image, save_float_image
+from PLIFv2.core.image_io import extract_plif_signal, list_image_files, read_image, save_float_image
 from PLIFv2.core.paths import path_is_set
 from PLIFv2.domain.settings import GainCorrectionSettings
 
@@ -110,7 +110,9 @@ class IntensifierCorrectionService:
         if not files:
             raise ValueError(f"No images found for matrix fitting: {folder}")
         x_values = np.array([_parse_numeric_stem(path) for path in files], dtype=np.float64)
-        stack = np.dstack([read_image(path) for path in files])
+        # v1 3.3 fits one scalar image per exposure.  Keep .npy inputs unchanged
+        # and extract the same green PLIF plane when calibration inputs are color images.
+        stack = np.dstack([extract_plif_signal(read_image(path)) for path in files])
         _, correction = fit_linear_gain_matrix(stack, x_values)
         out = Path(output_folder) if output_folder is not None and path_is_set(output_folder) else folder.parent
         outputs = save_float_image(correction, out, folder.name)

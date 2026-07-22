@@ -12,7 +12,7 @@ from PIL import Image, ImageTk
 
 from PLIFv2.algorithms.mixing import shift_image
 from PLIFv2.algorithms.visualization import blacked_jet_colormap
-from PLIFv2.core.image_io import read_image
+from PLIFv2.core.image_io import read_image, to_16bit_plif_signal
 from PLIFv2.ui.components.display_pane import HorizontalDisplayPane
 from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
 
@@ -205,14 +205,7 @@ class ViewerPanel(ttk.Frame):
             self.info.config(text=f"坐标(-, -)  值=-  最小={np.min(image):g}  最大={np.max(image):g}")
 
 def _to_16bit_single_channel(image: np.ndarray) -> np.ndarray:
-    source_dtype = image.dtype
-    if image.ndim == 3:
-        image = image[:, :, 1]
-    if source_dtype == np.uint8:
-        return image.astype(np.uint16) * 256
-    if source_dtype == np.uint16:
-        return image
-    return image.astype(np.float64)
+    return to_16bit_plif_signal(image)
 
 def _scale_gray_for_display(image: np.ndarray, gain: float) -> np.ndarray:
     scaled = image.astype(np.float32, copy=False) * np.float32(gain / 256)

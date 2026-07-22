@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 
 from PLIFv2.algorithms.intensifier import fit_linear_gain_matrix
-from PLIFv2.core.image_io import list_image_files, read_image, save_float_image
+from PLIFv2.core.image_io import extract_plif_signal, list_image_files, read_image, save_float_image
 from PLIFv2.core.paths import path_is_set
 from PLIFv2.domain.settings import CalibrationSettings
 
@@ -127,7 +127,7 @@ class CalibrationService:
 
 
 def _single_channel(image: np.ndarray) -> np.ndarray:
-    return image[:, :, 1] if image.ndim == 3 else image
+    return extract_plif_signal(image)
 
 
 def _parse_numeric_name(stem: str) -> int:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from PLIFv2.core.image_io import list_image_files, read_image
+from PLIFv2.core.image_io import extract_plif_signal, list_image_files, read_image
 from PLIFv2.domain.settings import NoiseSettings
 
 
@@ -41,7 +41,5 @@ class NoiseAnalysisService:
 
 
 def _image_max(path: Path) -> float:
-    image = read_image(path).astype(np.float64)
-    if image.ndim == 3:
-        image = np.dot(image[:, :, :3], [0.114, 0.587, 0.299])
+    image = extract_plif_signal(read_image(path)).astype(np.float64)
     return float(np.max(image))

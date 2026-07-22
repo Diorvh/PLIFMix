@@ -50,6 +50,21 @@ def save_float_image(image: np.ndarray, folder: str | Path, name: str) -> dict[s
     return {"npy": npy_path, "tif": tif_path, "gain_tif": gain_path}
 
 
+def extract_plif_signal(image: np.ndarray) -> np.ndarray:
+    """Return the PLIF signal plane without changing its numeric scale."""
+    return image[:, :, 1] if image.ndim == 3 else image
+
+
+def to_16bit_plif_signal(image: np.ndarray) -> np.ndarray:
+    """Return the green PLIF signal in the viewer's 16-bit value domain."""
+    signal = extract_plif_signal(image)
+    if signal.dtype == np.uint8:
+        return signal.astype(np.uint16) * 256
+    if signal.dtype == np.uint16:
+        return signal
+    return signal.astype(np.float64)
+
+
 def to_float_single_channel(
     image: np.ndarray,
     green_channel: bool = True,
@@ -57,10 +72,7 @@ def to_float_single_channel(
 ) -> np.ndarray:
     source_dtype = image.dtype
     if image.ndim == 3:
-        if green_channel:
-            image = image[:, :, 1]
-        else:
-            image = np.dot(image[:, :, :3], [0.114, 0.587, 0.299])
+        image = extract_plif_signal(image) if green_channel else np.dot(image[:, :, :3], [0.114, 0.587, 0.299])
     image = image.astype(np.float64)
     if zero_threshold is not None:
         image[image <= zero_threshold] = 0

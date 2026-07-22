@@ -227,6 +227,30 @@ class WorkflowSmokeTests(unittest.TestCase):
         self.assertEqual(result.processed_count, 1)
         self.assertAlmostEqual(float(np.load(self.root / "corrected" / "实验编号1.npy")[0, 0]), 20)
 
+    def test_intensifier_fit_uses_v1_single_image_signal_path(self) -> None:
+        folder = self.root / "intensifier-fit"
+        folder.mkdir()
+        x_values = [100, 200, 300]
+        green_stack = []
+        for exposure in x_values:
+            green = np.array([[2, 4], [8, 16]], dtype=np.uint16) * exposure
+            image = np.zeros((2, 2, 3), dtype=np.uint16)
+            image[:, :, 0] = 1
+            image[:, :, 1] = green
+            image[:, :, 2] = 65535
+            path = folder / f"{exposure}ns.tif"
+            write_tif(path, image)
+            green_stack.append(green)
+
+        result = IntensifierCorrectionService().fit_matrix_from_folder(folder, self.root / "fit-output")
+        expected_stack = np.dstack(green_stack)
+        expected_k = np.tensordot(expected_stack.astype(np.float64), np.array(x_values), axes=([2], [0]))
+        expected_k /= float(np.dot(x_values, x_values))
+        expected = np.where(expected_k > 0, np.max(expected_k) / expected_k, 0)
+
+        self.assertEqual(result.image_count, 3)
+        np.testing.assert_array_equal(np.load(result.outputs["npy"]), expected)
+
     def test_davis_prepare_and_import(self) -> None:
         corrected = self.root / "corrected"
         corrected.mkdir()
@@ -265,6 +289,18 @@ class WorkflowSmokeTests(unittest.TestCase):
         self.assertGreater(comparison.max_relative_ptp, 0)
         noise = NoiseAnalysisService().run(NoiseSettings(source_folder=folder, frame_start=0, frame_end=3, process_count=1))
         self.assertEqual(len(noise.max_values), 3)
+
+    def test_noise_uses_green_channel_for_color_frames(self) -> None:
+        folder = self.root / "noise-green"
+        folder.mkdir()
+        image = np.zeros((3, 4, 3), dtype=np.uint8)
+        image[:, :, 0] = 255
+        image[:, :, 1] = 7
+        image[:, :, 2] = 200
+        write_tif(folder / "0000.tif", image)
+
+        result = NoiseAnalysisService().run(NoiseSettings(source_folder=folder, frame_start=0, frame_end=1, process_count=1))
+        self.assertEqual(float(result.maximum), 7.0)
 
     def test_shift_manual_and_distribution(self) -> None:
         folder = self.root / "mixing"
