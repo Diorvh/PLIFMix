@@ -3,15 +3,23 @@
     "1 平均图": {
       "!frame.!entry": {
         "kind": "text",
-        "value": "E:\\实验数据\\20250820孔径比影响-正式\\原始图像"
+        "value": "E:/实验数据/20250820孔径比影响-正式/原始图像"
       },
       "!frame.!entry2": {
         "kind": "text",
-        "value": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\1-平均图"
+        "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/1-平均图"
+      },
+      "!frame.!checkbutton": {
+        "kind": "variable",
+        "value": 1
+      },
+      "!frame.!entry3": {
+        "kind": "text",
+        "value": "93"
       },
       "!frame2.!entry": {
         "kind": "text",
-        "value": "8"
+        "value": "10"
       },
       "!frame2.!entry2": {
         "kind": "text",
@@ -19,27 +27,23 @@
       },
       "!frame3.!entry": {
         "kind": "text",
-        "value": "2"
+        "value": "93"
       },
-      "!frame4.!entry": {
+      "!frame3.!entry2": {
         "kind": "text",
-        "value": "0.3"
+        "value": "0.0"
       },
-      "!frame4.!entry2": {
-        "kind": "text",
-        "value": "10"
-      },
-      "!frame4.!entry3": {
+      "!frame3.!entry3": {
         "kind": "text",
         "value": "500.0"
       },
-      "!frame4.!checkbutton": {
+      "!frame3.!checkbutton": {
         "kind": "variable",
-        "value": 0
+        "value": 1
       },
-      "!frame4.!entry4": {
+      "!frame3.!entry4": {
         "kind": "text",
-        "value": ""
+        "value": "0:4000"
       }
     },
     "2 像增强器": {
@@ -89,6 +93,10 @@
       }
     },
     "2.1 标定诊断": {
+      "!notebook": {
+        "kind": "notebook",
+        "value": 0
+      },
       "!notebook.!frame.!boundform.!entry": {
         "kind": "text",
         "value": ""
@@ -105,11 +113,11 @@
         "kind": "text",
         "value": "550"
       },
-      "!notebook.!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-3": {
+      "!notebook.!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-11": {
         "kind": "variable",
         "value": 0
       },
-      "!notebook.!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-4": {
+      "!notebook.!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-12": {
         "kind": "variable",
         "value": 0
       },
@@ -367,27 +375,35 @@
         "kind": "text",
         "value": "4"
       },
-      "!frame.!navigationtoolbar2tk.!checkbutton-11": {
+      "!frame.!navigationtoolbar2tk.!checkbutton-13": {
         "kind": "variable",
         "value": 0
       },
-      "!frame.!navigationtoolbar2tk.!checkbutton-12": {
+      "!frame.!navigationtoolbar2tk.!checkbutton-14": {
         "kind": "variable",
         "value": 0
       }
     },
     "工具箱": {
+      "!notebook": {
+        "kind": "notebook",
+        "value": 0
+      },
       "!notebook.!imageviewertool.!frame2.!checkbutton": {
         "kind": "variable",
-        "value": 0
+        "value": "1"
       },
       "!notebook.!imageviewertool.!frame2.!entry": {
         "kind": "text",
         "value": "1"
       },
+      "!notebook.!imageviewertool.!frame2.!checkbutton2": {
+        "kind": "variable",
+        "value": "1"
+      },
       "!notebook.!imageviewertool.!frame2.!entry2": {
         "kind": "text",
-        "value": "2"
+        "value": "1"
       },
       "!notebook.!imageviewertool.!frame2.!entry3": {
         "kind": "text",
@@ -407,7 +423,7 @@
       },
       "!notebook.!imageviewertool.!frame3.!checkbutton": {
         "kind": "variable",
-        "value": 0
+        "value": "0"
       },
       "!notebook.!imageviewertool.!frame3.!entry2": {
         "kind": "text",
@@ -467,35 +483,75 @@
       },
       "!notebook.!imageviewertool.!frame6.!radiobutton": {
         "kind": "variable",
-        "value": "image"
+        "value": "folder"
       },
       "!notebook.!imageviewertool.!frame6.!entry": {
         "kind": "text",
-        "value": "E:\\实验数据\\20250820孔径比影响-正式\\原始图像\\实验编号2\\0006.PNG"
+        "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/1-平均图/旧/实验编号2.npy"
       },
       "!notebook.!imageviewertool.!frame6.!radiobutton2": {
         "kind": "variable",
-        "value": "image"
+        "value": "folder"
       },
       "!notebook.!imageviewertool.!frame6.!entry2": {
         "kind": "text",
-        "value": ""
+        "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/1-平均图"
       },
       "!notebook.!imageviewertool.!frame6.!entry3": {
         "kind": "text",
-        "value": ""
+        "value": "104"
+      },
+      "!notebook.!imageviewertool.!frame7.!viewerpanel.!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-3": {
+        "kind": "variable",
+        "value": 0
+      },
+      "!notebook.!imageviewertool.!frame7.!viewerpanel.!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-4": {
+        "kind": "variable",
+        "value": 0
       },
       "!notebook.!imageplayertool.!frame.!entry": {
         "kind": "text",
-        "value": "E:/实验数据/20250820孔径比影响-正式/原始图像/实验编号2"
+        "value": "E:/实验数据/20250820孔径比影响-正式/原始图像/实验编号60"
       },
-      "!notebook.!imageplayertool.!frame.!entry2": {
+      "!notebook.!imageplayertool.!frame2.!entry": {
         "kind": "text",
         "value": "50"
       },
-      "!notebook.!imageplayertool.!frame.!entry3": {
+      "!notebook.!imageplayertool.!frame3.!entry": {
         "kind": "text",
-        "value": "211"
+        "value": "1057"
+      },
+      "!notebook.!imageplayertool.!frame4.!checkbutton": {
+        "kind": "variable",
+        "value": "1"
+      },
+      "!notebook.!imageplayertool.!frame4.!entry": {
+        "kind": "text",
+        "value": "10"
+      },
+      "!notebook.!imageplayertool.!frame4.!checkbutton2": {
+        "kind": "variable",
+        "value": 0
+      },
+      "!notebook.!imageplayertool.!frame4.!entry2": {
+        "kind": "text",
+        "value": "1"
+      },
+      "!notebook.!imageplayertool.!frame4.!entry3": {
+        "kind": "text",
+        "value": "0"
+      },
+      "!notebook.!imageplayertool.!frame4.!entry4": {
+        "kind": "text",
+        "value": "0"
+      },
+      "!notebook.!imageplayertool.!frame4.!entry5": {
+        "kind": "text",
+        "value": "2"
+      },
+      "!notebook.!imageplayertool.!frame4.!entry6": {
+        "kind": "text",
+        "value": "2"
       },
       "!notebook.!npytool.!frame.!entry": {
         "kind": "text",
@@ -695,5 +751,8 @@
         "show_img": "ori_img"
       }
     }
+  },
+  "app": {
+    "main_tab": 0
   }
 }

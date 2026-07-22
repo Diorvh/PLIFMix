@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 import openpyxl
 
-from PLIFv2.algorithms.average import average_images
+from PLIFv2.algorithms.average import average_image_sets, average_images, split_average_tasks
 from PLIFv2.core.image_io import write_tif
 from PLIFv2.domain.settings import (
     AverageSettings,
@@ -56,11 +56,12 @@ class WorkflowSmokeTests(unittest.TestCase):
                 use_frame_segments=True,
                 frame_segments="1:3",
                 denoise_threshold=250,
-                process_count=1,
+                process_count=3,
             )
         )
         self.assertEqual(len(result.items), 2)
         self.assertEqual(result.selected_count, 4)
+        self.assertGreaterEqual(result.calculation_seconds, 0)
         self.assertTrue((self.root / "avg" / "实验编号1.npy").exists())
         self.assertAlmostEqual(float(np.load(self.root / "avg" / "实验编号1.npy")[0, 0]), 150)
         self.assertTrue((source / "实验编号1" / "0000.TIF").exists())
@@ -88,6 +89,30 @@ class WorkflowSmokeTests(unittest.TestCase):
         )
         self.assertEqual(result.selected_count, 2)
         self.assertAlmostEqual(float(np.load(self.root / "avg" / "实验编号17.npy")[0, 0]), 250)
+
+    def test_average_uses_source_root_when_experiment_numbers_are_disabled(self) -> None:
+        folder = self.root / "custom-name"
+        folder.mkdir()
+        for index, value in enumerate([100, 300]):
+            image = np.zeros((4, 5, 3), dtype=np.uint16)
+            image[:, :, 1] = value
+            write_tif(folder / f"{index:04d}.tif", image)
+
+        result = AverageImageService().run(
+            AverageSettings(
+                source_folder=folder,
+                output_folder=self.root / "avg",
+                experiment_numbers="17,18",
+                use_experiment_numbers=False,
+                time_start=0,
+                time_end=1,
+                sample_frequency=2,
+                process_count=1,
+            )
+        )
+        self.assertEqual(len(result.items), 1)
+        self.assertTrue((self.root / "avg" / "custom-name.npy").exists())
+        self.assertAlmostEqual(float(np.load(self.root / "avg" / "custom-name.npy")[0, 0]), 200)
 
     def test_average_uint8_threshold_is_applied_before_scaling(self) -> None:
         folder = self.root / "uint8"
@@ -130,6 +155,58 @@ class WorkflowSmokeTests(unittest.TestCase):
 
         np.testing.assert_array_equal(single, expected)
         np.testing.assert_array_equal(multiple, expected)
+
+    def test_average_batch_uses_balanced_shared_tasks(self) -> None:
+        image_sets = [
+            [Path(f"experiment_{experiment}_{frame}.png") for frame in range(12)]
+            for experiment in range(3)
+        ]
+        tasks = split_average_tasks(image_sets, process_count=10)
+        self.assertGreater(len(tasks), 10)
+        for experiment in range(3):
+            assigned = [path for task_experiment, paths in tasks if task_experiment == experiment for path in paths]
+            self.assertEqual(assigned, image_sets[experiment])
+
+        equal_tasks = split_average_tasks(image_sets, process_count=3)
+        self.assertEqual(len(equal_tasks), 3)
+
+    def test_average_batch_matches_individual_averages(self) -> None:
+        folder = self.root / "batch-average"
+        folder.mkdir()
+        image_sets = []
+        for experiment, values in enumerate([(4, 8, 12), (20, 24, 28)]):
+            paths = []
+            for frame, value in enumerate(values):
+                image = np.zeros((4, 5, 3), dtype=np.uint8)
+                image[:, :, 1] = value
+                path = folder / f"experiment_{experiment}_{frame}.png"
+                cv2.imwrite(str(path), image)
+                paths.append(path)
+            image_sets.append(paths)
+
+        averages = average_image_sets(image_sets, process_count=3, denoise_threshold=0)
+        self.assertAlmostEqual(float(averages[0][0, 0]), 8 * 256)
+        self.assertAlmostEqual(float(averages[1][0, 0]), 24 * 256)
+
+    def test_average_reports_experiment_when_worker_cannot_read_image(self) -> None:
+        source = self.root / "raw"
+        good_folder = source / "实验编号1"
+        bad_folder = source / "实验编号2"
+        good_folder.mkdir(parents=True)
+        bad_folder.mkdir(parents=True)
+        write_tif(good_folder / "0000.tif", np.ones((4, 5), dtype=np.uint16))
+        (bad_folder / "0000.png").write_bytes(b"not an image")
+
+        with self.assertRaisesRegex(RuntimeError, "实验编号2"):
+            AverageImageService().run(
+                AverageSettings(
+                    source_folder=source,
+                    experiment_numbers="1,2",
+                    use_frame_segments=True,
+                    frame_segments="0:1",
+                    process_count=2,
+                )
+            )
 
     def test_excel_gain_correction(self) -> None:
         images = self.root / "images"

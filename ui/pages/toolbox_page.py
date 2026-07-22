@@ -47,6 +47,8 @@ class ImageViewerTool(ttk.Frame):
         }.items()}
         self.input_mode = tk.StringVar(value="image")
         self.pseudo = tk.BooleanVar(value=False)
+        self.auto_gain = tk.BooleanVar(value=False)
+        self.auto_gain_text = tk.StringVar(value="（自动增益：-）")
         self.crosshair = tk.BooleanVar(value=False)
         self.ellipse = tk.BooleanVar(value=False)
         self.quad_visible = tk.BooleanVar(value=False)
@@ -61,7 +63,12 @@ class ImageViewerTool(ttk.Frame):
         row2 = ttk.Frame(self)
         row2.pack(anchor="w", padx=6, pady=2)
         ttk.Checkbutton(row2, text="伪彩图", variable=self.pseudo, command=self.update_current).pack(side="left", padx=3)
-        for name, label, width in [("gain", "增益", 6), ("zoom", "缩小", 6), ("rotate", "旋转", 6), ("shift", "左移", 6), ("denoise", "降噪比", 7)]:
+        self._entry(row2, "gain", "增益", 6)
+        ttk.Checkbutton(row2, variable=self.auto_gain, command=self.update_current).pack(side="left", padx=(5, 1))
+        ttk.Label(row2, textvariable=self.auto_gain_text).pack(side="left", padx=(0, 3))
+        self._entry(row2, "zoom", "缩小", 6)
+        self._entry(row2, "denoise", "相对去噪阈值", 7)
+        for name, label, width in [("rotate", "旋转", 6), ("shift", "左移", 6)]:
             self._entry(row2, name, label, width)
 
         row3 = ttk.Frame(self)
@@ -166,7 +173,7 @@ class ImageViewerTool(ttk.Frame):
         if not str(path) or str(path) == "." or not path.is_file():
             self.load_status.config(text=f"文件不存在: {path}")
             return
-        self.load_status.config(text=str(path))
+        self.load_status.config(text="")
         self._show_path(path)
 
     def _show_path(self, path: Path) -> None:
@@ -185,14 +192,20 @@ class ImageViewerTool(ttk.Frame):
         if panel is None:
             return
         try:
-            panel.update_display(
-                gain=float(self.vars["gain"].get()), zoom=float(self.vars["zoom"].get()),
+            auto_gain = self.auto_gain.get()
+            computed_gain = panel.update_display(
+                gain=1.0 if auto_gain else float(self.vars["gain"].get()),
+                auto_gain=auto_gain,
+                zoom=float(self.vars["zoom"].get()),
                 rotate=float(self.vars["rotate"].get()), shift=int(self.vars["shift"].get()),
                 denoise=float(self.vars["denoise"].get()), pseudo=self.pseudo.get(),
                 center=(int(self.vars["center_x"].get()), int(self.vars["center_y"].get())),
                 ellipse=(int(self.vars["major"].get()), int(self.vars["minor"].get())) if self.ellipse.get() else None,
                 crosshair=self.crosshair.get(), line_width=int(self.vars["line_width"].get()),
                 quad=_parse_quad_entries(self.vars) if self.quad_visible.get() else None,
+            )
+            self.auto_gain_text.set(
+                f"（自动增益：{computed_gain:.2f}）" if computed_gain is not None else "（自动增益：-）"
             )
         except Exception as exc:
             panel.info.config(text=f"错误: {exc}")
@@ -212,7 +225,7 @@ class ImageViewerTool(ttk.Frame):
                 self.vars["experiment_number"].set(match.group(1))
         else:
             self.vars["image_path"].set(str(target))
-        self.load_status.config(text=str(target))
+        self.load_status.config(text="")
         self._show_path(target)
 
     def save_current(self) -> None:
@@ -225,23 +238,52 @@ class ImageViewerTool(ttk.Frame):
 
 
 class ViewerPanel(ttk.Frame):
-    def __init__(self, master, path: Path):
+    def __init__(self, master, path: Path, show_histogram: bool = True):
         super().__init__(master)
+        self.show_histogram = show_histogram
         self.path = Path()
         self.original = np.empty((0, 0), dtype=np.float64)
         self.raw_single = np.empty((0, 0), dtype=np.float64)
+        self.value_image = np.empty((0, 0), dtype=np.float64)
         self.display = None
         self.zoom = 1.0
+        self.render_scale = 1.0
+        self.image_offset = (0, 0)
+        self.cursor_position: tuple[int, int] | None = None
         body = ttk.Frame(self)
         body.pack(fill="both", expand=True)
-        self.canvas = tk.Canvas(body, highlightthickness=1, highlightbackground="#aaa")
-        self.canvas.pack(side="left", anchor="nw")
+        self.canvas = tk.Canvas(
+            body,
+            width=640,
+            height=480,
+            highlightthickness=1,
+            highlightbackground="#aaa",
+        )
+        self.canvas.grid(row=0, column=0, sticky="nsew")
         self.canvas.bind("<Motion>", self.mouse_info)
-        self.figure = Figure(figsize=(4, 4), dpi=100)
-        self.axis = self.figure.add_subplot(111)
-        self.hist_canvas = DebouncedFigureCanvasTkAgg(self.figure, master=body)
-        self.hist_canvas.get_tk_widget().pack(side="left", fill="both", expand=True)
-        self.info = ttk.Label(self, text=str(path))
+        body.rowconfigure(0, weight=1)
+        body.columnconfigure(0, weight=1)
+        self.figure = None
+        self.axis = None
+        self.hist_canvas = None
+        self.hist_toolbar = None
+        self.histogram_panel = None
+        if self.show_histogram:
+            self.histogram_panel = ttk.Frame(body, width=460)
+            self.histogram_panel.grid(row=0, column=1, sticky="nsew", padx=(4, 0))
+            self.histogram_panel.grid_propagate(False)
+            body.columnconfigure(1, weight=0, minsize=460)
+            self.figure = Figure(figsize=(3, 4), dpi=100)
+            self.axis = self.figure.add_subplot(111)
+            self.hist_canvas = DebouncedFigureCanvasTkAgg(self.figure, master=self.histogram_panel)
+            self.hist_canvas.get_tk_widget().pack(fill="both", expand=True)
+            toolbar_frame = ttk.Frame(self.histogram_panel)
+            toolbar_frame.pack(fill="x")
+            self.hist_toolbar = NavigationToolbar2Tk(self.hist_canvas, toolbar_frame)
+            message_label = getattr(self.hist_toolbar, "_message_label", None)
+            if message_label is not None:
+                message_label.configure(width=28, anchor="e")
+        self.info = ttk.Label(self, text="坐标(-, -)  值=-  最小=-  最大=-")
         self.info.pack(anchor="w")
         self.set_path(path)
 
@@ -249,10 +291,29 @@ class ViewerPanel(ttk.Frame):
         self.path = path
         self.original = read_image(path)
         self.raw_single = _to_16bit_single_channel(self.original)
-        self.info.config(text=str(path))
+        self.value_image = self.raw_single.copy()
+        self._refresh_info()
 
-    def update_display(self, gain, zoom, rotate, shift, denoise, pseudo, center, ellipse, crosshair, line_width, quad) -> None:
+    def update_display(
+        self,
+        gain,
+        auto_gain,
+        zoom,
+        rotate,
+        shift,
+        denoise,
+        pseudo,
+        center,
+        ellipse,
+        crosshair,
+        line_width,
+        quad,
+        zero_threshold_8bit: float = 0,
+    ) -> None:
         image = self.raw_single.copy()
+        if zero_threshold_8bit < 0:
+            raise ValueError("去噪阈值不能小于0")
+        image[image <= zero_threshold_8bit * 256] = 0
         if denoise > 0:
             image[image < np.max(image) * denoise] = 0
         if rotate:
@@ -261,6 +322,13 @@ class ViewerPanel(ttk.Frame):
             image = cv2.warpAffine(image, matrix, (w, h))
         image = shift_image(image, shift)
         raw_for_hist = image.copy()
+        self.value_image = raw_for_hist
+        self._refresh_info()
+        computed_gain = None
+        if auto_gain:
+            maximum = float(np.max(image)) if image.size else 0.0
+            computed_gain = 65535.0 / maximum if maximum > 0 else None
+            gain = computed_gain if computed_gain is not None else 0.0
         scaled = _scale_gray_for_display(image, gain)
         display = cv2.applyColorMap(scaled, blacked_jet_colormap()) if pseudo else cv2.cvtColor(scaled, cv2.COLOR_GRAY2BGR)
         if crosshair:
@@ -271,24 +339,54 @@ class ViewerPanel(ttk.Frame):
         if quad is not None:
             cv2.polylines(display, [quad], True, (0, 0, 255), line_width)
         self.display = display
-        self.zoom = max(0.1, zoom)
-        h, w = display.shape[:2]
-        shown = cv2.resize(display, (max(1, int(w / self.zoom)), max(1, int(h / self.zoom)))) if self.zoom != 1 else display
+        if zoom <= 0:
+            raise ValueError("缩小倍数必须大于0")
+        self.zoom = zoom
+        self._render_canvas()
+        if self.show_histogram and self.axis is not None and self.hist_canvas is not None:
+            values = _quad_values(raw_for_hist, quad)
+            self.axis.clear()
+            self.axis.hist(values.ravel(), bins=100)
+            self.axis.set_title("灰度直方图")
+            if self.hist_toolbar is not None:
+                self.hist_toolbar.update()
+            self.hist_canvas.request_draw()
+        return computed_gain
+
+    def _render_canvas(self) -> None:
+        if self.display is None or not self.winfo_exists():
+            return
+        image_height, image_width = self.display.shape[:2]
+        self.render_scale = 1 / self.zoom
+        shown_width = max(1, int(round(image_width / self.zoom)))
+        shown_height = max(1, int(round(image_height / self.zoom)))
+        shown = cv2.resize(self.display, (shown_width, shown_height), interpolation=cv2.INTER_NEAREST)
         self.tk_image = ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(shown, cv2.COLOR_BGR2RGB)))
-        self.canvas.config(width=shown.shape[1], height=shown.shape[0])
+        self.image_offset = (0, 0)
+        self.canvas.config(width=shown_width, height=shown_height)
         self.canvas.delete("all")
         self.canvas.create_image(0, 0, anchor="nw", image=self.tk_image)
-        values = _quad_values(raw_for_hist, quad)
-        self.axis.clear()
-        self.axis.hist(values.ravel(), bins=100)
-        self.axis.set_title("灰度直方图")
-        self.hist_canvas.request_draw()
 
     def mouse_info(self, event) -> None:
-        x, y = int(event.x * self.zoom), int(event.y * self.zoom)
-        image = self.raw_single
+        x = int((event.x - self.image_offset[0]) / self.render_scale)
+        y = int((event.y - self.image_offset[1]) / self.render_scale)
+        self.cursor_position = (x, y)
+        self._refresh_info()
+
+    def _refresh_info(self) -> None:
+        image = self.value_image
+        if image.size == 0:
+            return
+        if self.cursor_position is not None:
+            x, y = self.cursor_position
+        else:
+            x, y = -1, -1
         if 0 <= x < image.shape[1] and 0 <= y < image.shape[0]:
-            self.info.config(text=f"{self.path.name}  坐标({x},{y}) 值={image[y, x]:g} 最小={np.min(image):g} 最大={np.max(image):g}")
+            self.info.config(
+                text=f"坐标({x}, {y})  值={image[y, x]:g}  最小={np.min(image):g}  最大={np.max(image):g}"
+            )
+        else:
+            self.info.config(text=f"坐标(-, -)  值=-  最小={np.min(image):g}  最大={np.max(image):g}")
 
 
 def _to_16bit_single_channel(image: np.ndarray) -> np.ndarray:
@@ -315,6 +413,15 @@ class ImagePlayerTool(ttk.Frame):
         self.folder = tk.StringVar()
         self.frame_rate = tk.StringVar(value="20")
         self.current_frame = tk.StringVar(value="0")
+        self.gain = tk.StringVar(value="1")
+        self.auto_gain = tk.BooleanVar(value=False)
+        self.auto_gain_text = tk.StringVar(value="（自动增益：-）")
+        self.zoom = tk.StringVar(value="2")
+        self.relative_denoise = tk.StringVar(value="0")
+        self.rotate = tk.StringVar(value="0")
+        self.shift = tk.StringVar(value="0")
+        self.denoise_threshold = tk.StringVar(value="0")
+        self.pseudo = tk.BooleanVar(value=False)
 
         row1 = ttk.Frame(self)
         row1.pack(anchor="w", padx=8, pady=(6, 2))
@@ -340,11 +447,29 @@ class ImagePlayerTool(ttk.Frame):
         ttk.Button(row3, text="上一张", command=lambda: self.step(-1)).pack(side="left", padx=2)
         ttk.Button(row3, text="下一张", command=lambda: self.step(1)).pack(side="left", padx=2)
 
+        row4 = ttk.Frame(self)
+        row4.pack(anchor="w", padx=8, pady=(2, 4))
+        ttk.Checkbutton(row4, text="伪彩图", variable=self.pseudo, command=self.show).pack(side="left", padx=(0, 5))
+        self._display_entry(row4, "增益", self.gain)
+        ttk.Checkbutton(row4, variable=self.auto_gain, command=self.show).pack(side="left", padx=(5, 1))
+        ttk.Label(row4, textvariable=self.auto_gain_text).pack(side="left", padx=(0, 3))
+        self._display_entry(row4, "缩小", self.zoom)
+        self._display_entry(row4, "相对去噪阈值", self.relative_denoise)
+        self._display_entry(row4, "旋转", self.rotate)
+        self._display_entry(row4, "左移", self.shift)
+        self._display_entry(row4, "去噪阈值(8位)", self.denoise_threshold)
+
         self.info = ttk.Label(self, text="")
         self.info.pack(anchor="w", padx=8)
         self.display_host = ttk.Frame(self)
         self.display_host.pack(fill="both", expand=True, padx=6, pady=4)
         self.panel: ViewerPanel | None = None
+
+    def _display_entry(self, row: ttk.Frame, label: str, variable: tk.StringVar) -> None:
+        ttk.Label(row, text=label).pack(side="left", padx=(4, 2))
+        entry = ttk.Entry(row, textvariable=variable, width=7)
+        entry.pack(side="left")
+        entry.bind("<Return>", lambda _event: self.show())
 
     def choose(self) -> None:
         folder = filedialog.askdirectory()
@@ -373,26 +498,46 @@ class ImagePlayerTool(ttk.Frame):
         if not self.files:
             return
         path = self.files[self.index]
+        try:
+            auto_gain = self.auto_gain.get()
+            gain = 1.0 if auto_gain else float(self.gain.get())
+            zoom = float(self.zoom.get())
+            relative_denoise = float(self.relative_denoise.get())
+            rotate = float(self.rotate.get())
+            shift = int(self.shift.get())
+            denoise_threshold = float(self.denoise_threshold.get())
+            if zoom <= 0:
+                raise ValueError("缩小倍数必须大于0")
+            if relative_denoise < 0 or denoise_threshold < 0:
+                raise ValueError("去噪阈值不能小于0")
+        except ValueError as exc:
+            self.info.config(text=f"显示参数错误: {exc}")
+            return
         if self.panel is None:
-            self.panel = ViewerPanel(self.display_host, path)
+            self.panel = ViewerPanel(self.display_host, path, show_histogram=False)
             self.panel.pack(fill="both", expand=True)
         else:
             self.panel.set_path(path)
-        self.panel.update_display(
-            gain=1,
-            zoom=1,
-            rotate=0,
-            shift=0,
-            denoise=0,
-            pseudo=False,
+        computed_gain = self.panel.update_display(
+            gain=gain,
+            auto_gain=auto_gain,
+            zoom=zoom,
+            rotate=rotate,
+            shift=shift,
+            denoise=relative_denoise,
+            pseudo=self.pseudo.get(),
             center=(0, 0),
             ellipse=None,
             crosshair=False,
             line_width=1,
             quad=None,
+            zero_threshold_8bit=denoise_threshold,
+        )
+        self.auto_gain_text.set(
+            f"（自动增益：{computed_gain:.2f}）" if computed_gain is not None else "（自动增益：-）"
         )
         self.current_frame.set(str(self.index))
-        self.info.config(text=f"{self.index}/{len(self.files)-1}  {path.name}")
+        self.info.config(text="")
 
     def start(self, delta: int) -> None:
         self.play_delta = delta

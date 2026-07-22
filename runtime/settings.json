@@ -2,14 +2,15 @@
   "average": {
     "source_folder": "E:\\实验数据\\20250820孔径比影响-正式\\原始图像",
     "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\1-平均图",
-    "experiment_numbers": "2",
-    "process_count": 8,
+    "experiment_numbers": "106,127,118,107,128,119,108,129,120,110,121,112,131,122,114,133,123,115,134,124,116",
+    "use_experiment_numbers": true,
+    "process_count": 21,
     "denoise_threshold": 2.0,
     "sample_frequency": 500.0,
-    "time_start": 0.0,
-    "time_end": 0.0,
+    "time_start": 0.5,
+    "time_end": 10.0,
     "use_frame_segments": false,
-    "frame_segments": ""
+    "frame_segments": "0:4000"
   },
   "gain": {
     "image_folder": ".",

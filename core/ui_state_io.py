@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tkinter as tk
 from pathlib import Path
+from tkinter import ttk
 from typing import Any
 
 
@@ -37,6 +38,12 @@ class UIStateStore:
             values["__custom__"] = export_custom()
         pages[page_key] = values
 
+    def get_app_value(self, key: str, default: Any = None) -> Any:
+        return self.data.get("app", {}).get(key, default)
+
+    def set_app_value(self, key: str, value: Any) -> None:
+        self.data.setdefault("app", {})[key] = value
+
     def save(self) -> Path:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.path.with_name(f".{self.path.name}.tmp")
@@ -66,6 +73,9 @@ def _relative_widget_path(root: tk.Misc, widget: tk.Misc) -> str:
 
 
 def _capture_widget(widget: tk.Misc) -> Any | None:
+    if isinstance(widget, ttk.Notebook):
+        selected = widget.select()
+        return {"kind": "notebook", "value": widget.index(selected)} if selected else None
     if isinstance(widget, (tk.Entry, tk.Spinbox)) or widget.winfo_class() in {"TEntry", "TCombobox", "TSpinbox"}:
         return {"kind": "text", "value": widget.get()}
     if isinstance(widget, (tk.Checkbutton, tk.Radiobutton)) or widget.winfo_class() in {"TCheckbutton", "TRadiobutton"}:
@@ -97,5 +107,7 @@ def _restore_widget(widget: tk.Misc, state: Any) -> None:
                 widget.setvar(variable, value)
         elif kind == "scale":
             widget.set(value)
+        elif kind == "notebook":
+            widget.select(int(value))
     except (tk.TclError, ValueError):
         pass

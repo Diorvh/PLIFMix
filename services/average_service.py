@@ -3,9 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import re
+import time
 import uuid
 
-from PLIFv2.algorithms.average import average_images
+from PLIFv2.algorithms.average import AverageSetError, average_image_sets
 from PLIFv2.core.image_io import list_image_files, save_float_image
 from PLIFv2.core.paths import path_is_set
 from PLIFv2.domain.settings import AverageSettings
@@ -16,6 +17,7 @@ class AverageResult:
     selected_count: int
     outputs: dict[str, Path]
     items: list["AverageItem"]
+    calculation_seconds: float
 
 
 @dataclass
@@ -25,23 +27,65 @@ class AverageItem:
     outputs: dict[str, Path]
 
 
+@dataclass
+class _PreparedAverage:
+    source_folder: Path
+    save_name: str
+    selected: list[Path]
+    output_folder: Path
+
+
+class AverageExperimentError(RuntimeError):
+    def __init__(self, experiment_name: str, stage: str, message: str):
+        self.experiment_name = experiment_name
+        self.stage = stage
+        self.message = message
+        super().__init__(experiment_name, stage, message)
+
+    def __str__(self) -> str:
+        return f"{self.experiment_name} {self.stage}失败: {self.message}"
+
+
 class AverageImageService:
     def run(self, settings: AverageSettings) -> AverageResult:
         source_root = Path(settings.source_folder)
         if not source_root.exists():
             raise FileNotFoundError(f"Source folder does not exist: {source_root}")
-        experiments = _resolve_experiment_folders(source_root, settings.experiment_numbers)
+        experiment_numbers = settings.experiment_numbers if settings.use_experiment_numbers else ""
+        experiments = _resolve_experiment_folders(source_root, experiment_numbers)
+        prepared: list[_PreparedAverage] = []
+        for folder, save_name in experiments:
+            try:
+                prepared.append(self._prepare_folder(folder, save_name, settings))
+            except Exception as exc:
+                raise AverageExperimentError(save_name, "准备图像", str(exc)) from exc
 
-        # Experiments are intentionally processed one by one. Multiprocessing is
-        # used only to split the selected image range inside each experiment.
-        items = [self._run_folder(folder, save_name, settings) for folder, save_name in experiments]
+        calculation_start = time.perf_counter()
+        try:
+            averages = average_image_sets(
+                [item.selected for item in prepared],
+                settings.process_count,
+                settings.denoise_threshold,
+            )
+        except AverageSetError as exc:
+            raise AverageExperimentError(prepared[exc.set_index].save_name, "图像计算", str(exc)) from exc
+        calculation_seconds = time.perf_counter() - calculation_start
+
+        items: list[AverageItem] = []
+        for item, average in zip(prepared, averages):
+            try:
+                outputs = save_float_image(average, item.output_folder, item.save_name)
+            except Exception as exc:
+                raise AverageExperimentError(item.save_name, "保存结果", str(exc)) from exc
+            items.append(AverageItem(item.source_folder, len(item.selected), outputs))
         return AverageResult(
             selected_count=sum(item.selected_count for item in items),
             outputs=items[0].outputs if len(items) == 1 else {},
             items=items,
+            calculation_seconds=calculation_seconds,
         )
 
-    def _run_folder(self, folder: Path, save_name: str, settings: AverageSettings) -> AverageItem:
+    def _prepare_folder(self, folder: Path, save_name: str, settings: AverageSettings) -> _PreparedAverage:
         files = list_image_files(folder, (".png", ".tif", ".tiff", ".bmp"))
         if not files:
             raise ValueError(f"No image files found in: {folder}")
@@ -50,9 +94,7 @@ class AverageImageService:
         if not selected:
             raise ValueError(f"No files selected in {folder}. Check frame selection.")
         output_folder = Path(settings.output_folder) if path_is_set(settings.output_folder) else folder.parent
-        avg = average_images(selected, settings.process_count, settings.denoise_threshold)
-        outputs = save_float_image(avg, output_folder, save_name)
-        return AverageItem(folder, len(selected), outputs)
+        return _PreparedAverage(folder, save_name, selected, output_folder)
 
 
 def _select_files(files: list[Path], settings: AverageSettings) -> list[Path]:

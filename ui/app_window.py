@@ -47,6 +47,7 @@ class PLIFAppWindow(tk.Tk):
         self.title("PLIFv2 - 互击式喷嘴混合特性处理")
         self.geometry("1180x760")
         self.minsize(960, 620)
+        self.after_idle(lambda: self.state("zoomed"))
         self.state_model = AppState()
         self.ui_state = UIStateStore()
         self.actions = PLIFActions(self.state_model)
@@ -84,6 +85,11 @@ class PLIFAppWindow(tk.Tk):
         ]
         for page, (_, title) in zip(self.pages, page_specs):
             self.notebook.add(page, text=title)
+        try:
+            saved_tab = int(self.ui_state.get_app_value("main_tab", 0))
+        except (TypeError, ValueError):
+            saved_tab = 0
+        self.notebook.select(min(max(0, saved_tab), len(self.pages) - 1))
         self.notebook.bind("<<NotebookTabChanged>>", self._activate_current_page)
         self.after_idle(self._activate_current_page)
 
@@ -95,6 +101,7 @@ class PLIFAppWindow(tk.Tk):
             set_canvas_tree_active(page, page is selected)
 
     def _on_close(self) -> None:
+        self.ui_state.set_app_value("main_tab", self.notebook.index(self.notebook.select()))
         for page in self.pages:
             page.capture_state()
         self.ui_state.save()
