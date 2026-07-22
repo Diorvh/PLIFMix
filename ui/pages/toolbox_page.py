@@ -19,16 +19,8 @@ from PLIFv2.algorithms.mixing import shift_image
 from PLIFv2.algorithms.visualization import blacked_jet_colormap
 from PLIFv2.core.image_io import read_image, write_tif
 from PLIFv2.tools.image_tools import create_colorbar, export_gif, save_colorbar, top_k_values, transform_npy
+from PLIFv2.ui.components.display_pane import HorizontalDisplayPane
 from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
-
-
-class HorizontalDisplayPane(ttk.PanedWindow):
-    def __init__(self, master, primary_weight: int = 3, secondary_weight: int = 1):
-        super().__init__(master, orient=tk.HORIZONTAL)
-        self.primary_host = ttk.Frame(self)
-        self.secondary_host = ttk.Frame(self)
-        self.add(self.primary_host, weight=primary_weight)
-        self.add(self.secondary_host, weight=secondary_weight)
 
 
 class ImageViewerTool(ttk.Frame):
