@@ -593,8 +593,7 @@ class ImagePlayerTool(ttk.Frame):
         self.cache_processes = tk.StringVar(value=str(default_cache_processes))
         self.use_frame_segments = tk.BooleanVar(value=False)
         self.frame_segments = tk.StringVar()
-        self._selected_indices: tuple[int, ...] = ()
-        self._selected_index_set: set[int] = set()
+        self._plot_index_set: set[int] = set()
         self.pixel_x = tk.StringVar(value="0")
         self.pixel_y = tk.StringVar(value="0")
         self.pixel_top_k = tk.StringVar(value="10")
@@ -614,11 +613,11 @@ class ImagePlayerTool(ttk.Frame):
             row1,
             text="非连续区间",
             variable=self.use_frame_segments,
-            command=self._reload_for_frame_segments,
+            command=self._update_plot_range,
         ).pack(side="left", padx=(8, 2))
         self.segment_entry = ttk.Entry(row1, textvariable=self.frame_segments, width=28)
         self.segment_entry.pack(side="left")
-        self.segment_entry.bind("<Return>", self.load_folder)
+        self.segment_entry.bind("<Return>", self._update_plot_range)
 
         row2 = ttk.Frame(self)
         row2.pack(anchor="w", padx=8, pady=2)
@@ -681,10 +680,6 @@ class ImagePlayerTool(ttk.Frame):
         entry.pack(side="left")
         entry.bind("<Return>", command)
 
-    def _reload_for_frame_segments(self) -> None:
-        if self.folder.get().strip():
-            self.load_folder()
-
     def _refresh_display(self, event=None) -> None:
         self.show()
 
@@ -703,8 +698,7 @@ class ImagePlayerTool(ttk.Frame):
         self.play_delta = 0
         self.pixel_plot.reset()
         self._frame_cache = []
-        self._selected_indices = ()
-        self._selected_index_set = set()
+        self._plot_index_set = set()
         self.files = sorted(
             path for path in folder.iterdir()
             if path.suffix.lower() in {".png", ".tif", ".tiff", ".bmp", ".npy"}
@@ -712,40 +706,37 @@ class ImagePlayerTool(ttk.Frame):
         if not self.files:
             self.info.config(text="文件夹中没有可读取的图像")
             return
-        if not self._select_cache_indices():
-            return
-        self.index = self._selected_indices[0]
-        self.current_frame.set(str(self.index))
+        self.index = 0
+        self.current_frame.set("0")
         if not self._cache_frames():
             return
+        self._update_plot_range()
         self.show()
 
-    def _select_cache_indices(self) -> bool:
+    def _update_plot_range(self, event=None) -> None:
+        if not self.files:
+            return
         if not self.use_frame_segments.get():
-            self._selected_indices = tuple(range(len(self.files)))
-            self._selected_index_set = set(self._selected_indices)
-            return True
-        if not self.frame_segments.get().strip():
-            self.info.config(text="非连续区间已启用，但尚未输入区间")
-            return False
-        indices: list[int] = []
-        for segment in re.split(r"[,，;；]+", self.frame_segments.get()):
-            try:
-                start_text, end_text = segment.strip().split(":", 1)
-                start, end = int(start_text), int(end_text)
-            except ValueError:
-                self.info.config(text=f"非连续区间格式错误: {segment}")
-                return False
-            if start < 0 or end <= start or end > len(self.files):
-                self.info.config(text=f"非连续区间超出范围: {start}:{end}，可用范围为 0:{len(self.files)}")
-                return False
-            indices.extend(range(start, end))
-        self._selected_indices = tuple(sorted(set(indices)))
-        self._selected_index_set = set(self._selected_indices)
-        if not self._selected_indices:
-            self.info.config(text="缓存范围没有选中任何图像")
-            return False
-        return True
+            self._plot_index_set = set(range(len(self.files)))
+        elif not self.frame_segments.get().strip():
+            self.pixel_plot.set_error("非连续区间已启用，但尚未输入区间")
+            return
+        else:
+            indices: list[int] = []
+            for segment in re.split(r"[,，;；]+", self.frame_segments.get()):
+                try:
+                    start_text, end_text = segment.strip().split(":", 1)
+                    start, end = int(start_text), int(end_text)
+                except ValueError:
+                    self.pixel_plot.set_error(f"非连续区间格式错误: {segment}")
+                    return
+                if start < 0 or end <= start or end > len(self.files):
+                    self.pixel_plot.set_error(f"非连续区间超出范围: {start}:{end}，可用范围为 0:{len(self.files)}")
+                    return
+                indices.extend(range(start, end))
+            self._plot_index_set = set(indices)
+        if self.pixel_plot.point is not None:
+            self._request_pixel_series(*self.pixel_plot.point)
 
     def _cache_frames(self) -> bool:
         cache_started = time.perf_counter()
@@ -758,10 +749,9 @@ class ImagePlayerTool(ttk.Frame):
             return False
 
         total = len(self.files)
-        selected_total = len(self._selected_indices)
-        worker_count = min(requested_processes, selected_total)
-        batch_size, remainder = divmod(selected_total, worker_count)
-        indexed_files = tuple((index, self.files[index]) for index in self._selected_indices)
+        worker_count = min(requested_processes, total)
+        batch_size, remainder = divmod(total, worker_count)
+        indexed_files = tuple(enumerate(self.files))
         batches: list[tuple[tuple[int, Path], ...]] = []
         start_index = 0
         for batch_index in range(worker_count):
@@ -773,7 +763,7 @@ class ImagePlayerTool(ttk.Frame):
         self._cache_loaded = 0
         self._cache_failed = 0
         self._cache_bytes = 0
-        self.cache_status.set(f"正在用 {worker_count} 个进程缓存：0/{selected_total} 张（总 {total} 张）")
+        self.cache_status.set(f"正在用 {worker_count} 个进程缓存：0/{total} 张")
         self.update_idletasks()
 
         if worker_count == 1:
@@ -801,7 +791,7 @@ class ImagePlayerTool(ttk.Frame):
                     self._cache_bytes += frame.nbytes
         memory_gib = self._cache_bytes / (1024 ** 3)
         elapsed_seconds = time.perf_counter() - cache_started
-        text = f"已缓存：{self._cache_loaded}/{selected_total} 张（总 {total} 张），{memory_gib:.2f} GiB，耗时：{elapsed_seconds:.2f} s"
+        text = f"已缓存：{self._cache_loaded}/{total} 张，{memory_gib:.2f} GiB，耗时：{elapsed_seconds:.2f} s"
         if self._cache_failed:
             text += f"，失败：{self._cache_failed}"
         self.cache_status.set(text)
@@ -811,13 +801,6 @@ class ImagePlayerTool(ttk.Frame):
         if 0 <= frame_index < len(self._frame_cache):
             return self._frame_cache[frame_index]
         return None
-
-    def _next_selected_index(self, delta: int) -> int:
-        try:
-            position = self._selected_indices.index(self.index)
-        except ValueError:
-            return self._selected_indices[0] if delta > 0 else self._selected_indices[-1]
-        return self._selected_indices[(position + delta) % len(self._selected_indices)]
 
     def show(self) -> None:
         if not self.files:
@@ -880,7 +863,7 @@ class ImagePlayerTool(ttk.Frame):
             self._tick()
 
     def _tick(self) -> None:
-        if not self.play_delta or not self.files or not self._selected_indices:
+        if not self.play_delta or not self.files:
             return
         try:
             frame_rate = float(self.frame_rate.get())
@@ -890,7 +873,7 @@ class ImagePlayerTool(ttk.Frame):
             self.play_delta = 0
             self.info.config(text="帧率必须是大于0的数值")
             return
-        next_index = self._next_selected_index(self.play_delta)
+        next_index = (self.index + self.play_delta) % len(self.files)
         if self._cached_frame(next_index) is None:
             self.play_delta = 0
             self.info.config(text=f"Image {next_index} was not cached; playback stopped.")
@@ -905,23 +888,19 @@ class ImagePlayerTool(ttk.Frame):
             self.after_idle(self._tick)
 
     def step(self, delta: int) -> None:
-        if not self.files or not self._selected_indices:
+        if not self.files:
             return
         self.play_delta = 0
-        self.index = self._next_selected_index(delta)
+        self.index = (self.index + delta) % len(self.files)
         self.show()
 
     def jump_to(self, event=None) -> None:
         if self.files:
             try:
-                target_index = min(max(0, int(self.current_frame.get())), len(self.files) - 1)
+                self.index = min(max(0, int(self.current_frame.get())), len(self.files) - 1)
             except ValueError:
                 self.info.config(text="当前帧必须是整数")
                 return
-            if target_index not in self._selected_index_set:
-                self.info.config(text="当前帧不在已缓存范围内")
-                return
-            self.index = target_index
             self.show()
 
     def _request_pixel_series(self, x: int, y: int) -> None:
@@ -947,7 +926,7 @@ class ImagePlayerTool(ttk.Frame):
 
         values = np.zeros(len(self.files), dtype=np.float64)
         for frame_index, raw_single in enumerate(self._frame_cache):
-            if frame_index not in self._selected_index_set:
+            if frame_index not in self._plot_index_set:
                 continue
             if raw_single is None:
                 self.pixel_plot.set_error(f"Image {frame_index} was not cached.")
