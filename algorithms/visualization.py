@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from functools import lru_cache
+
 import cv2
 import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg
@@ -10,6 +12,7 @@ from PLIFv2.core.plot_style import configure_matplotlib
 ZERO_COLOR = [128, 128, 128]
 
 
+@lru_cache(maxsize=1)
 def blacked_jet_colormap() -> np.ndarray:
     colormap = cv2.applyColorMap(np.arange(256, dtype=np.uint8).reshape(256, 1), cv2.COLORMAP_JET)
     colormap[0] = ZERO_COLOR

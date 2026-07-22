@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import re
+import time
 import tkinter as tk
+from math import ceil
 from pathlib import Path
 from tkinter import filedialog, ttk
 
@@ -313,19 +315,23 @@ class ViewerPanel(ttk.Frame):
         quad,
         zero_threshold_8bit: float = 0,
     ) -> None:
-        image = self.raw_single.copy()
+        image = self.raw_single
         if zero_threshold_8bit < 0:
             raise ValueError("去噪阈值不能小于0")
-        image[image <= zero_threshold_8bit * 256] = 0
+        if zero_threshold_8bit > 0:
+            image = image.copy()
+            image[image <= zero_threshold_8bit * 256] = 0
         if denoise > 0:
+            if image is self.raw_single:
+                image = image.copy()
             image[image < np.max(image) * denoise] = 0
         if rotate:
             h, w = image.shape
             matrix = cv2.getRotationMatrix2D((w / 2, h / 2), -rotate, 1)
             image = cv2.warpAffine(image, matrix, (w, h))
-        image = shift_image(image, shift)
-        raw_for_hist = image.copy()
-        self.value_image = raw_for_hist
+        if shift:
+            image = shift_image(image, shift)
+        self.value_image = image
         self._refresh_info()
         computed_gain = None
         if auto_gain:
@@ -347,7 +353,7 @@ class ViewerPanel(ttk.Frame):
         self.zoom = zoom
         self._render_canvas()
         if self.show_histogram and self.axis is not None and self.hist_canvas is not None:
-            values = _quad_values(raw_for_hist, quad)
+            values = _quad_values(image, quad)
             self.axis.clear()
             self.axis.hist(values.ravel(), bins=100)
             self.axis.set_title("灰度直方图")
@@ -558,18 +564,19 @@ class ImagePlayerTool(ttk.Frame):
     def _tick(self) -> None:
         if not self.play_delta or not self.files:
             return
-        self.index = (self.index + self.play_delta) % len(self.files)
-        self.show()
         try:
             frame_rate = float(self.frame_rate.get())
             if frame_rate <= 0:
                 raise ValueError
-            delay_ms = max(1, int(1000 / frame_rate))
         except ValueError:
             self.play_delta = 0
             self.info.config(text="帧率必须是大于0的数值")
             return
-        self.after(delay_ms, self._tick)
+        frame_started = time.perf_counter()
+        self.index = (self.index + self.play_delta) % len(self.files)
+        self.show()
+        remaining_seconds = (1 / frame_rate) - (time.perf_counter() - frame_started)
+        self.after(max(0, ceil(remaining_seconds * 1000)), self._tick)
 
     def step(self, delta: int) -> None:
         if not self.files:
