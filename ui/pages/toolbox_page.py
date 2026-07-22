@@ -576,7 +576,10 @@ class ImagePlayerTool(ttk.Frame):
         self.index = (self.index + self.play_delta) % len(self.files)
         self.show()
         remaining_seconds = (1 / frame_rate) - (time.perf_counter() - frame_started)
-        self.after(max(0, ceil(remaining_seconds * 1000)), self._tick)
+        if remaining_seconds > 0:
+            self.after(ceil(remaining_seconds * 1000), self._tick)
+        else:
+            self.after_idle(self._tick)
 
     def step(self, delta: int) -> None:
         if not self.files:
