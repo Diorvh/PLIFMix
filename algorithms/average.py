@@ -41,16 +41,30 @@ def average_image_chunk(args: tuple[list[Path], float]) -> tuple[np.ndarray | No
 
 def split_average_tasks(
     image_sets: Sequence[Sequence[Path]],
-    process_count: int | None = None,
+    best_process_count: int | None = None,
 ) -> list[tuple[int, list[Path]]]:
-    """Split image sets into balanced, contiguous tasks for one shared pool."""
+    """Split image sets into contiguous tasks for one shared process pool."""
+    tasks, _ = _build_average_task_plan(image_sets, best_process_count)
+    return tasks
+
+
+def _build_average_task_plan(
+    image_sets: Sequence[Sequence[Path]],
+    best_process_count: int | None,
+) -> tuple[list[tuple[int, list[Path]]], int]:
     sets = [list(paths) for paths in image_sets]
     if not sets or any(not paths for paths in sets):
         raise ValueError("No image files selected for averaging.")
 
-    requested_workers = _requested_workers(process_count)
     set_count = len(sets)
-    parts_per_set = 1 if set_count >= requested_workers else ceil((requested_workers + 1) / set_count)
+    best_workers = _requested_best_workers(best_process_count)
+    logical_threads = _logical_thread_count()
+    worker_limit = min(logical_threads, set_count * best_workers)
+    parts_per_set = 1 if set_count >= logical_threads else min(
+        best_workers,
+        ceil((logical_threads + 1) / set_count),
+    )
+
     tasks: list[tuple[int, list[Path]]] = []
     for set_index, paths in enumerate(sets):
         chunk_count = min(parts_per_set, len(paths))
@@ -60,18 +74,17 @@ def split_average_tasks(
             stop = start + base_size + (1 if chunk_index < extra else 0)
             tasks.append((set_index, paths[start:stop]))
             start = stop
-    return tasks
+    return tasks, min(worker_limit, len(tasks))
 
 
 def average_image_sets(
     image_sets: Sequence[Sequence[Path]],
-    process_count: int | None = None,
+    best_process_count: int | None = None,
     denoise_threshold: float = 2,
 ) -> list[np.ndarray]:
     """Average multiple image sets through one multiprocessing pool."""
     sets = [list(paths) for paths in image_sets]
-    tasks = split_average_tasks(sets, process_count)
-    workers = min(_requested_workers(process_count), len(tasks))
+    tasks, workers = _build_average_task_plan(sets, best_process_count)
     task_args = [(set_index, chunk, denoise_threshold) for set_index, chunk in tasks]
     if workers <= 1:
         results = [_average_set_chunk(args) for args in task_args]
@@ -98,10 +111,10 @@ def average_image_sets(
 
 def average_images(
     paths: Sequence[Path],
-    process_count: int | None = None,
+    best_process_count: int | None = None,
     denoise_threshold: float = 2,
 ) -> np.ndarray:
-    return average_image_sets([paths], process_count, denoise_threshold)[0]
+    return average_image_sets([paths], best_process_count, denoise_threshold)[0]
 
 
 def _average_set_chunk(args: tuple[int, list[Path], float]) -> tuple[int, np.ndarray | None, int]:
@@ -113,7 +126,11 @@ def _average_set_chunk(args: tuple[int, list[Path], float]) -> tuple[int, np.nda
     return set_index, accum, count
 
 
-def _requested_workers(process_count: int | None) -> int:
-    if process_count is not None and process_count < 1:
-        raise ValueError("Process count must be at least 1.")
-    return process_count or cpu_count()
+def _requested_best_workers(best_process_count: int | None) -> int:
+    if best_process_count is not None and best_process_count < 1:
+        raise ValueError("Best process count must be at least 1.")
+    return best_process_count or _logical_thread_count()
+
+
+def _logical_thread_count() -> int:
+    return max(1, cpu_count())

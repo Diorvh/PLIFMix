@@ -64,7 +64,7 @@ class AverageImageService:
         try:
             averages = average_image_sets(
                 [item.selected for item in prepared],
-                settings.process_count,
+                settings.best_process_count,
                 settings.denoise_threshold,
             )
         except AverageSetError as exc:

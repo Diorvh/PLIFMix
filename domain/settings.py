@@ -11,7 +11,7 @@ class AverageSettings:
     output_folder: Path = Path()
     experiment_numbers: str = ""
     use_experiment_numbers: bool = True
-    process_count: int = 4
+    best_process_count: int = 4
     denoise_threshold: float = 2
     sample_frequency: float = 400
     time_start: float = 8

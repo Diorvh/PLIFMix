@@ -42,6 +42,8 @@ def _migrate_average_settings(data: dict[str, Any]) -> None:
         return
     if "denoise_threshold" not in average and "zero_threshold" in average:
         average["denoise_threshold"] = average["zero_threshold"]
+    if "best_process_count" not in average and "process_count" in average:
+        average["best_process_count"] = average["process_count"]
     average.setdefault("experiment_numbers", "")
     average.setdefault("use_frame_segments", bool(str(average.get("frame_segments", "")).strip()))
     if average.get("selection_mode", "frame").lower() == "frame":

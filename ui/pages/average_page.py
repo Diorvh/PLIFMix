@@ -17,7 +17,7 @@ class AveragePage(ttk.Frame):
             "source_folder": tk.StringVar(value=_path_text(self.settings.source_folder)),
             "output_folder": tk.StringVar(value=_path_text(self.settings.output_folder)),
             "experiment_numbers": tk.StringVar(value=self.settings.experiment_numbers),
-            "process_count": tk.StringVar(value=str(self.settings.process_count)),
+            "best_process_count": tk.StringVar(value=str(self.settings.best_process_count)),
             "denoise_threshold": tk.StringVar(value=str(self.settings.denoise_threshold)),
             "time_start": tk.StringVar(value=str(self.settings.time_start)),
             "time_end": tk.StringVar(value=str(self.settings.time_end)),
@@ -56,7 +56,7 @@ class AveragePage(ttk.Frame):
 
         processing_row = ttk.Frame(self)
         processing_row.pack(anchor="w", padx=8, pady=3)
-        _labeled_entry(processing_row, "进程数", self.vars["process_count"], 6)
+        _labeled_entry(processing_row, "最佳进程数", self.vars["best_process_count"], 6)
         _labeled_entry(processing_row, "去噪阈值", self.vars["denoise_threshold"], 8)
 
         self.range_row = ttk.Frame(self)
@@ -102,7 +102,7 @@ class AveragePage(ttk.Frame):
         self.settings.output_folder = _to_path(self.vars["output_folder"].get())
         self.settings.experiment_numbers = self.vars["experiment_numbers"].get().strip()
         self.settings.use_experiment_numbers = self.use_experiment_numbers.get()
-        self.settings.process_count = int(self.vars["process_count"].get())
+        self.settings.best_process_count = int(self.vars["best_process_count"].get())
         self.settings.denoise_threshold = float(self.vars["denoise_threshold"].get())
         self.settings.time_start = float(self.vars["time_start"].get())
         self.settings.time_end = float(self.vars["time_end"].get())

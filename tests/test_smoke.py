@@ -56,7 +56,7 @@ class WorkflowSmokeTests(unittest.TestCase):
                 use_frame_segments=True,
                 frame_segments="1:3",
                 denoise_threshold=250,
-                process_count=3,
+                best_process_count=3,
             )
         )
         self.assertEqual(len(result.items), 2)
@@ -84,7 +84,7 @@ class WorkflowSmokeTests(unittest.TestCase):
                 use_frame_segments=False,
                 frame_segments="invalid-but-ignored",
                 denoise_threshold=0,
-                process_count=1,
+                best_process_count=1,
             )
         )
         self.assertEqual(result.selected_count, 2)
@@ -107,7 +107,7 @@ class WorkflowSmokeTests(unittest.TestCase):
                 time_start=0,
                 time_end=1,
                 sample_frequency=2,
-                process_count=1,
+                best_process_count=1,
             )
         )
         self.assertEqual(len(result.items), 1)
@@ -126,7 +126,7 @@ class WorkflowSmokeTests(unittest.TestCase):
 
         average = average_images(
             [folder / "0000.png", folder / "0001.png"],
-            process_count=1,
+            best_process_count=1,
             denoise_threshold=2,
         )
 
@@ -150,8 +150,8 @@ class WorkflowSmokeTests(unittest.TestCase):
         filtered = green_frames.astype(np.float64)
         filtered[filtered <= 2] = 0
         expected = filtered.mean(axis=0) * 256
-        single = average_images(paths, process_count=1, denoise_threshold=2)
-        multiple = average_images(paths, process_count=3, denoise_threshold=2)
+        single = average_images(paths, best_process_count=1, denoise_threshold=2)
+        multiple = average_images(paths, best_process_count=3, denoise_threshold=2)
 
         np.testing.assert_array_equal(single, expected)
         np.testing.assert_array_equal(multiple, expected)
@@ -161,13 +161,13 @@ class WorkflowSmokeTests(unittest.TestCase):
             [Path(f"experiment_{experiment}_{frame}.png") for frame in range(12)]
             for experiment in range(3)
         ]
-        tasks = split_average_tasks(image_sets, process_count=10)
+        tasks = split_average_tasks(image_sets, best_process_count=10)
         self.assertGreater(len(tasks), 10)
         for experiment in range(3):
             assigned = [path for task_experiment, paths in tasks if task_experiment == experiment for path in paths]
             self.assertEqual(assigned, image_sets[experiment])
 
-        equal_tasks = split_average_tasks(image_sets, process_count=3)
+        equal_tasks = split_average_tasks(image_sets, best_process_count=1)
         self.assertEqual(len(equal_tasks), 3)
 
     def test_average_batch_matches_individual_averages(self) -> None:
@@ -184,7 +184,7 @@ class WorkflowSmokeTests(unittest.TestCase):
                 paths.append(path)
             image_sets.append(paths)
 
-        averages = average_image_sets(image_sets, process_count=3, denoise_threshold=0)
+        averages = average_image_sets(image_sets, best_process_count=3, denoise_threshold=0)
         self.assertAlmostEqual(float(averages[0][0, 0]), 8 * 256)
         self.assertAlmostEqual(float(averages[1][0, 0]), 24 * 256)
 
@@ -204,7 +204,7 @@ class WorkflowSmokeTests(unittest.TestCase):
                     experiment_numbers="1,2",
                     use_frame_segments=True,
                     frame_segments="0:1",
-                    process_count=2,
+                    best_process_count=2,
                 )
             )
 
