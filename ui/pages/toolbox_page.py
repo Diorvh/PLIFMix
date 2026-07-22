@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import time
 import tkinter as tk
+from concurrent.futures import Future, ThreadPoolExecutor
 from math import ceil
 from pathlib import Path
 from tkinter import filedialog, ttk
@@ -240,7 +241,13 @@ class ImageViewerTool(ttk.Frame):
 
 
 class ViewerPanel(ttk.Frame):
-    def __init__(self, master, path: Path, show_histogram: bool = True):
+    def __init__(
+        self,
+        master,
+        path: Path,
+        show_histogram: bool = True,
+        raw_single: np.ndarray | None = None,
+    ):
         super().__init__(master)
         self.show_histogram = show_histogram
         self.path = Path()
@@ -290,13 +297,17 @@ class ViewerPanel(ttk.Frame):
                 message_label.configure(width=28, anchor="e")
         self.info = ttk.Label(self, text="坐标(-, -)  值=-  最小=-  最大=-")
         self.info.pack(anchor="w")
-        self.set_path(path)
+        self.set_path(path, raw_single)
 
-    def set_path(self, path: Path) -> None:
+    def set_path(self, path: Path, raw_single: np.ndarray | None = None) -> None:
         self.path = path
-        self.original = read_image(path)
-        self.raw_single = _to_16bit_single_channel(self.original)
-        self.value_image = self.raw_single.copy()
+        if raw_single is None:
+            self.original = read_image(path)
+            self.raw_single = _to_16bit_single_channel(self.original)
+        else:
+            self.original = np.empty((0, 0), dtype=np.float64)
+            self.raw_single = raw_single
+        self.value_image = self.raw_single
         self._refresh_info()
 
     def update_display(
@@ -416,17 +427,26 @@ def _to_16bit_single_channel(image: np.ndarray) -> np.ndarray:
     return image
 
 
+def _read_player_raw_frame(path: Path) -> np.ndarray:
+    return _to_16bit_single_channel(read_image(path))
+
+
 def _scale_gray_for_display(image: np.ndarray, gain: float) -> np.ndarray:
     scaled = image * gain / 256
     return np.clip(scaled, 0, 255).astype(np.uint8)
 
 
 class ImagePlayerTool(ttk.Frame):
+    PREFETCH_FRAME_COUNT = 10
+
     def __init__(self, master):
         super().__init__(master)
         self.files: list[Path] = []
         self.index = 0
         self.play_delta = 0
+        self._prefetch_direction = 1
+        self._prefetch_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="plif-player")
+        self._prefetch_futures: dict[int, Future[np.ndarray]] = {}
         self.folder = tk.StringVar()
         self.frame_rate = tk.StringVar(value="20")
         self.current_frame = tk.StringVar(value="0")
@@ -500,6 +520,8 @@ class ImagePlayerTool(ttk.Frame):
         if not folder.is_dir():
             self.info.config(text=f"文件夹不存在: {folder}")
             return
+        self.play_delta = 0
+        self._reset_prefetch()
         self.files = sorted(
             path for path in folder.iterdir()
             if path.suffix.lower() in {".png", ".tif", ".tiff", ".bmp", ".npy"}
@@ -515,6 +537,7 @@ class ImagePlayerTool(ttk.Frame):
         if not self.files:
             return
         path = self.files[self.index]
+        raw_single = self._take_prefetched_frame(self.index)
         try:
             auto_gain = self.auto_gain.get()
             gain = 1.0 if auto_gain else float(self.gain.get())
@@ -531,10 +554,10 @@ class ImagePlayerTool(ttk.Frame):
             self.info.config(text=f"显示参数错误: {exc}")
             return
         if self.panel is None:
-            self.panel = ViewerPanel(self.display_host, path, show_histogram=False)
+            self.panel = ViewerPanel(self.display_host, path, show_histogram=False, raw_single=raw_single)
             self.panel.pack(fill="both", expand=True)
         else:
-            self.panel.set_path(path)
+            self.panel.set_path(path, raw_single)
         computed_gain = self.panel.update_display(
             gain=gain,
             auto_gain=auto_gain,
@@ -555,10 +578,12 @@ class ImagePlayerTool(ttk.Frame):
         )
         self.current_frame.set(str(self.index))
         self.info.config(text="")
+        self._schedule_prefetch()
 
     def start(self, delta: int) -> None:
         self.play_delta = delta
         if delta:
+            self._set_prefetch_direction(delta)
             self._tick()
 
     def _tick(self) -> None:
@@ -585,6 +610,7 @@ class ImagePlayerTool(ttk.Frame):
         if not self.files:
             return
         self.play_delta = 0
+        self._set_prefetch_direction(delta)
         self.index = (self.index + delta) % len(self.files)
         self.show()
 
@@ -595,7 +621,54 @@ class ImagePlayerTool(ttk.Frame):
             except ValueError:
                 self.info.config(text="当前帧必须是整数")
                 return
+            self._reset_prefetch()
             self.show()
+
+    def _set_prefetch_direction(self, direction: int) -> None:
+        if direction != self._prefetch_direction:
+            self._prefetch_direction = direction
+            self._reset_prefetch()
+
+    def _schedule_prefetch(self) -> None:
+        if not self.files:
+            return
+        direction = self.play_delta or self._prefetch_direction
+        desired = [
+            (self.index + direction * offset) % len(self.files)
+            for offset in range(1, self.PREFETCH_FRAME_COUNT + 1)
+        ]
+        desired_set = set(desired)
+        for frame_index, future in tuple(self._prefetch_futures.items()):
+            if frame_index not in desired_set:
+                future.cancel()
+                del self._prefetch_futures[frame_index]
+        for frame_index in desired:
+            if frame_index not in self._prefetch_futures:
+                self._prefetch_futures[frame_index] = self._prefetch_executor.submit(
+                    _read_player_raw_frame,
+                    self.files[frame_index],
+                )
+
+    def _take_prefetched_frame(self, frame_index: int) -> np.ndarray | None:
+        future = self._prefetch_futures.pop(frame_index, None)
+        if future is None or not future.done():
+            if future is not None:
+                future.cancel()
+            return None
+        try:
+            return future.result()
+        except Exception:
+            return None
+
+    def _reset_prefetch(self) -> None:
+        for future in self._prefetch_futures.values():
+            future.cancel()
+        self._prefetch_futures.clear()
+
+    def destroy(self) -> None:
+        self._reset_prefetch()
+        self._prefetch_executor.shutdown(wait=False, cancel_futures=True)
+        super().destroy()
 
 
 class NpyTool(ttk.Frame):
