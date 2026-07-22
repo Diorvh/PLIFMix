@@ -22,22 +22,6 @@ from PLIFv2.tools.image_tools import create_colorbar, export_gif, save_colorbar,
 from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
 
 
-class ToolboxPage(ttk.Frame):
-    def __init__(self, master):
-        super().__init__(master)
-        notebook = ttk.Notebook(self)
-        notebook.pack(fill="both", expand=True)
-        for title, page_type in [
-            ("图像查看器", ImageViewerTool),
-            ("图片播放器", ImagePlayerTool),
-            ("NPY矩阵", NpyTool),
-            ("GIF导出", GifTool),
-            ("Colorbar", ColorbarTool),
-            ("分布对比", DistributionComparisonTool),
-        ]:
-            notebook.add(page_type(notebook), text=title)
-
-
 class ImageViewerTool(ttk.Frame):
     def __init__(self, master):
         super().__init__(master)

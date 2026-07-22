@@ -17,7 +17,14 @@ from PLIFv2.ui.pages.intensifier_page import IntensifierPage
 from PLIFv2.ui.pages.manual_mixing_page import ManualMixingPage
 from PLIFv2.ui.pages.noise_page import NoisePage
 from PLIFv2.ui.pages.shift_search_page import ShiftSearchPage
-from PLIFv2.ui.pages.toolbox_page import ToolboxPage
+from PLIFv2.ui.pages.toolbox_page import (
+    ColorbarTool,
+    DistributionComparisonTool,
+    GifTool,
+    ImagePlayerTool,
+    ImageViewerTool,
+    NpyTool,
+)
 
 
 class LazyPage(ttk.Frame):
@@ -40,6 +47,27 @@ class LazyPage(ttk.Frame):
             self._ui_state.capture_page(self.page_key, self.content)
 
 
+class TabRow(ttk.Frame):
+    def __init__(self, master, command: Callable[[str], None]):
+        super().__init__(master)
+        self._command = command
+        self._buttons: dict[str, ttk.Button] = {}
+
+    def add_tab(self, key: str, label: str) -> None:
+        button = ttk.Button(
+            self,
+            text=label,
+            style="Navigation.TButton",
+            command=lambda: self._command(key),
+        )
+        button.pack(side="left", padx=(0, 2))
+        self._buttons[key] = button
+
+    def select(self, key: str | None) -> None:
+        for tab_key, button in self._buttons.items():
+            button.state(["pressed"] if tab_key == key else ["!pressed"])
+
+
 class PLIFAppWindow(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -59,6 +87,11 @@ class PLIFAppWindow(tk.Tk):
         style = ttk.Style(self)
         if "vista" in style.theme_names():
             style.theme_use("vista")
+        style.configure("Navigation.TButton", padding=(10, 4))
+        style.map(
+            "Navigation.TButton",
+            relief=[("pressed", "sunken"), ("!pressed", "raised")],
+        )
 
     def _setup_ui(self) -> None:
         header = ttk.Frame(self)
@@ -66,43 +99,91 @@ class PLIFAppWindow(tk.Tk):
         ttk.Label(header, text="PLIFv2", font=("Microsoft YaHei UI", 16, "bold")).pack(side="left")
         ttk.Label(header, text="平均图 -> 像增强器修正 -> Davis -> 平移搜索 -> 手动调参").pack(side="left", padx=16)
 
-        self.notebook = ttk.Notebook(self)
-        self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
-        page_specs = [
-            (lambda master: AveragePage(master, self.actions), "1 平均图"),
-            (lambda master: IntensifierPage(master, self.actions), "2 像增强器"),
-            (lambda master: CalibrationPage(master, self.actions), "2.1 标定诊断"),
-            (lambda master: DavisPage(master, self.actions), "3 Davis 整理"),
-            (lambda master: ShiftSearchPage(master, self.actions), "4 平移搜索"),
-            (lambda master: ManualMixingPage(master, self.actions), "5 手动调参"),
-            (lambda master: DistributionPage(master, self.actions), "6 质量分布拟合"),
-            (lambda master: NoisePage(master, self.actions), "底噪分析"),
-            (lambda master: ToolboxPage(master), "工具箱"),
+        self.workflow_specs = [
+            ("1 平均图", lambda master: AveragePage(master, self.actions)),
+            ("2 像增强器", lambda master: IntensifierPage(master, self.actions)),
+            ("2.1 标定诊断", lambda master: CalibrationPage(master, self.actions)),
+            ("3 Davis 整理", lambda master: DavisPage(master, self.actions)),
+            ("4 平移搜索", lambda master: ShiftSearchPage(master, self.actions)),
+            ("5 手动调参", lambda master: ManualMixingPage(master, self.actions)),
+            ("6 质量分布拟合", lambda master: DistributionPage(master, self.actions)),
+            ("底噪分析", lambda master: NoisePage(master, self.actions)),
         ]
-        self.pages = [
-            LazyPage(self.notebook, title, factory, self.ui_state)
-            for factory, title in page_specs
+        self.tool_specs = [
+            ("图像查看器", ImageViewerTool),
+            ("图片播放器", ImagePlayerTool),
+            ("NPY矩阵", NpyTool),
+            ("GIF导出", GifTool),
+            ("Colorbar", ColorbarTool),
+            ("分布对比", DistributionComparisonTool),
         ]
-        for page, (_, title) in zip(self.pages, page_specs):
-            self.notebook.add(page, text=title)
+        self.content_host = ttk.Frame(self)
+        navigation = ttk.Frame(self)
+        navigation.pack(fill="x", padx=10, pady=(2, 0))
+        self.primary_tabs = TabRow(navigation, self._select_primary_tab)
+        self.primary_tabs.pack(fill="x")
+        self.secondary_tabs = TabRow(navigation, self._select_tool_tab)
+        self.secondary_tabs.pack(fill="x", pady=(2, 0))
+        self.content_host.pack(fill="both", expand=True, padx=10, pady=(2, 10))
+
+        self.pages: dict[str, LazyPage] = {}
+        for key, factory in [*self.workflow_specs, *self.tool_specs]:
+            self.pages[key] = LazyPage(self.content_host, key, factory, self.ui_state)
+        for key, _factory in self.workflow_specs:
+            self.primary_tabs.add_tab(key, key)
+        self.primary_tabs.add_tab("工具箱", "工具箱")
+        for key, _factory in self.tool_specs:
+            self.secondary_tabs.add_tab(key, key)
+
+        self.active_page_key: str | None = None
+        self.last_tool_key = self.ui_state.get_app_value("last_tool_page", self.tool_specs[0][0])
+        if self.last_tool_key not in self.pages or self.last_tool_key in {key for key, _factory in self.workflow_specs}:
+            self.last_tool_key = self.tool_specs[0][0]
+        saved_key = self.ui_state.get_app_value("active_page", None)
+        if saved_key not in self.pages:
+            saved_key = self._legacy_saved_page_key()
+        self.after_idle(lambda: self._show_page(saved_key))
+
+    def _legacy_saved_page_key(self) -> str:
         try:
             saved_tab = int(self.ui_state.get_app_value("main_tab", 0))
         except (TypeError, ValueError):
             saved_tab = 0
-        self.notebook.select(min(max(0, saved_tab), len(self.pages) - 1))
-        self.notebook.bind("<<NotebookTabChanged>>", self._activate_current_page)
-        self.after_idle(self._activate_current_page)
+        if 0 <= saved_tab < len(self.workflow_specs):
+            return self.workflow_specs[saved_tab][0]
+        return self.last_tool_key
 
-    def _activate_current_page(self, _event=None) -> None:
-        selected = self.notebook.nametowidget(self.notebook.select())
-        if isinstance(selected, LazyPage):
-            selected.ensure_loaded()
-        for page in self.pages:
-            set_canvas_tree_active(page, page is selected)
+    def _select_primary_tab(self, key: str) -> None:
+        self._show_page(self.last_tool_key if key == "工具箱" else key)
+
+    def _select_tool_tab(self, key: str) -> None:
+        self.last_tool_key = key
+        self._show_page(key)
+
+    def _show_page(self, key: str) -> None:
+        if key not in self.pages:
+            key = self.workflow_specs[0][0]
+        selected = self.pages[key]
+        if self.active_page_key != key:
+            if self.active_page_key is not None:
+                self.pages[self.active_page_key].pack_forget()
+            selected.pack(fill="both", expand=True)
+            self.active_page_key = key
+        selected.ensure_loaded()
+        is_tool = key in {tool_key for tool_key, _factory in self.tool_specs}
+        self.primary_tabs.select("工具箱" if is_tool else key)
+        self.secondary_tabs.select(key if is_tool else None)
+        for page_key, page in self.pages.items():
+            set_canvas_tree_active(page, page_key == key)
 
     def _on_close(self) -> None:
-        self.ui_state.set_app_value("main_tab", self.notebook.index(self.notebook.select()))
-        for page in self.pages:
+        self.ui_state.set_app_value("active_page", self.active_page_key)
+        self.ui_state.set_app_value("last_tool_page", self.last_tool_key)
+        if self.active_page_key in {key for key, _factory in self.workflow_specs}:
+            self.ui_state.set_app_value("main_tab", [key for key, _factory in self.workflow_specs].index(self.active_page_key))
+        else:
+            self.ui_state.set_app_value("main_tab", len(self.workflow_specs))
+        for page in self.pages.values():
             page.capture_state()
         self.ui_state.save()
         self.state_model.save()
