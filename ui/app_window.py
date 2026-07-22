@@ -131,7 +131,6 @@ class PLIFAppWindow(tk.Tk):
             self.pages[key] = LazyPage(self.content_host, key, factory, self.ui_state)
         for key, _factory in self.workflow_specs:
             self.primary_tabs.add_tab(key, key)
-        self.primary_tabs.add_tab("工具箱", "工具箱")
         for key, _factory in self.tool_specs:
             self.secondary_tabs.add_tab(key, key)
 
@@ -154,7 +153,7 @@ class PLIFAppWindow(tk.Tk):
         return self.last_tool_key
 
     def _select_primary_tab(self, key: str) -> None:
-        self._show_page(self.last_tool_key if key == "工具箱" else key)
+        self._show_page(key)
 
     def _select_tool_tab(self, key: str) -> None:
         self.last_tool_key = key
@@ -171,7 +170,7 @@ class PLIFAppWindow(tk.Tk):
             self.active_page_key = key
         selected.ensure_loaded()
         is_tool = key in {tool_key for tool_key, _factory in self.tool_specs}
-        self.primary_tabs.select("工具箱" if is_tool else key)
+        self.primary_tabs.select(None if is_tool else key)
         self.secondary_tabs.select(key if is_tool else None)
         for page_key, page in self.pages.items():
             set_canvas_tree_active(page, page_key == key)
