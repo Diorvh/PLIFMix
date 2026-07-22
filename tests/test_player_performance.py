@@ -13,7 +13,7 @@ from PIL import Image, ImageTk
 
 from PLIFv2.algorithms.visualization import blacked_jet_colormap
 from PLIFv2.core.image_io import read_image
-from PLIFv2.ui.pages.toolbox_page import _scale_gray_for_display, _to_16bit_single_channel
+from PLIFv2.ui.components.viewer_panel import _scale_gray_for_display, _to_16bit_single_channel
 
 
 class PlayerPerformanceTests(unittest.TestCase):
