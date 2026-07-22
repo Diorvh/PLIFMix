@@ -11,27 +11,34 @@ from matplotlib.figure import Figure
 from PIL import Image, ImageTk
 
 from PLIFv2.algorithms.mixing import shift_image
-from PLIFv2.algorithms.visualization import blacked_jet_colormap
-from PLIFv2.core.image_io import read_image, to_16bit_plif_signal
+from PLIFv2.algorithms.visualization import blacked_jet_colormap, blue_white_red_colormap
+from PLIFv2.core.image_io import read_image, to_16bit_plif_signal, write_tif
 from PLIFv2.ui.components.display_pane import HorizontalDisplayPane
 from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
 
+
 class ViewerPanel(ttk.Frame):
+    """Shared image canvas for file-backed and computed image displays."""
+
     def __init__(
         self,
         master,
-        path: Path,
+        path: Path | None = None,
         show_histogram: bool = True,
         raw_single: np.ndarray | None = None,
         point_selected_callback=None,
+        name: str | None = None,
+        show_save_button: bool = False,
     ):
         super().__init__(master)
         self.show_histogram = show_histogram
+        self.name = name or ""
         self.path = Path()
         self.original = np.empty((0, 0), dtype=np.float64)
         self.raw_single = np.empty((0, 0), dtype=np.float64)
         self.value_image = np.empty((0, 0), dtype=np.float64)
-        self.display = None
+        self.image: np.ndarray | None = None
+        self.display: np.ndarray | None = None
         self.zoom = 1.0
         self.render_scale = 1.0
         self.image_offset = (0, 0)
@@ -40,6 +47,18 @@ class ViewerPanel(ttk.Frame):
         self.canvas_image_id: int | None = None
         self._canvas_image_size: tuple[int, int] | None = None
         self.point_selected_callback = point_selected_callback
+        self.save_name_suffix = ""
+        self.save_folder = Path("manual_outputs")
+
+        if name is not None:
+            header = ttk.Frame(self)
+            header.pack(anchor="w")
+            ttk.Label(header, text=name, width=12).pack(side="left")
+            self.info = ttk.Label(header, text="坐标(-, -)  值=-  最小=-  最大=-")
+            self.info.pack(side="left")
+            if show_save_button:
+                ttk.Button(header, text="保存图像", command=self.save_image).pack(side="left", padx=(4, 0))
+
         body = ttk.Frame(self)
         body.pack(fill="both", expand=True)
         self.display_pane = None
@@ -50,16 +69,11 @@ class ViewerPanel(ttk.Frame):
             self.display_pane.pack(fill="both", expand=True)
             image_host = self.display_pane.primary_host
             self.histogram_panel = self.display_pane.secondary_host
-        self.canvas = tk.Canvas(
-            image_host,
-            width=640,
-            height=480,
-            highlightthickness=1,
-            highlightbackground="#aaa",
-        )
+        self.canvas = tk.Canvas(image_host, width=640, height=480, highlightthickness=1, highlightbackground="#aaa")
         self.canvas.pack(fill="both", expand=True)
         self.canvas.bind("<Motion>", self.mouse_info)
         self.canvas.bind("<Button-1>", self._select_point)
+
         self.figure = None
         self.axis = None
         self.hist_canvas = None
@@ -75,18 +89,18 @@ class ViewerPanel(ttk.Frame):
             message_label = getattr(self.hist_toolbar, "_message_label", None)
             if message_label is not None:
                 message_label.configure(width=28, anchor="e")
-        self.info = ttk.Label(self, text="坐标(-, -)  值=-  最小=-  最大=-")
-        self.info.pack(anchor="w")
-        self.set_path(path, raw_single)
+        if name is None:
+            self.info = ttk.Label(self, text="坐标(-, -)  值=-  最小=-  最大=-")
+            self.info.pack(anchor="w")
+        if path is not None:
+            self.set_path(path, raw_single)
 
     def set_path(self, path: Path, raw_single: np.ndarray | None = None) -> None:
         self.path = path
-        if raw_single is None:
-            self.original = read_image(path)
-            self.raw_single = _to_16bit_single_channel(self.original)
-        else:
-            self.original = raw_single
-            self.raw_single = _to_16bit_single_channel(raw_single)
+        source = read_image(path) if raw_single is None else raw_single
+        self.original = source
+        self.image = source
+        self.raw_single = _to_16bit_single_channel(source)
         self.value_image = self.raw_single
         self._refresh_info()
 
@@ -105,7 +119,7 @@ class ViewerPanel(ttk.Frame):
         line_width,
         quad,
         zero_threshold_8bit: float = 0,
-    ) -> None:
+    ) -> float | None:
         image = self.raw_single
         if zero_threshold_8bit < 0:
             raise ValueError("去噪阈值不能小于0")
@@ -117,9 +131,9 @@ class ViewerPanel(ttk.Frame):
                 image = image.copy()
             image[image < np.max(image) * denoise] = 0
         if rotate:
-            h, w = image.shape
-            matrix = cv2.getRotationMatrix2D((w / 2, h / 2), -rotate, 1)
-            image = cv2.warpAffine(image, matrix, (w, h))
+            height, width = image.shape
+            matrix = cv2.getRotationMatrix2D((width / 2, height / 2), -rotate, 1)
+            image = cv2.warpAffine(image, matrix, (width, height))
         if shift:
             image = shift_image(image, shift)
         self.value_image = image
@@ -130,19 +144,9 @@ class ViewerPanel(ttk.Frame):
             computed_gain = 65535.0 / maximum if maximum > 0 else None
             gain = computed_gain if computed_gain is not None else 0.0
         scaled = _scale_gray_for_display(image, gain)
-        display = cv2.applyColorMap(scaled, blacked_jet_colormap()) if pseudo else cv2.cvtColor(scaled, cv2.COLOR_GRAY2BGR)
-        if crosshair:
-            cv2.line(display, (center[0], 0), (center[0], display.shape[0]), (0, 0, 255), line_width)
-            cv2.line(display, (0, center[1]), (display.shape[1], center[1]), (0, 0, 255), line_width)
-        if ellipse:
-            cv2.ellipse(display, center, ellipse, 0, 0, 360, (0, 0, 255), line_width)
-        if quad is not None:
-            cv2.polylines(display, [quad], True, (0, 0, 255), line_width)
-        self.display = display
-        if zoom <= 0:
-            raise ValueError("缩小倍数必须大于0")
-        self.zoom = zoom
-        self._render_canvas()
+        self.display = cv2.applyColorMap(scaled, blacked_jet_colormap()) if pseudo else cv2.cvtColor(scaled, cv2.COLOR_GRAY2BGR)
+        self._draw_overlays(center, ellipse, crosshair, line_width, quad, None)
+        self._set_zoom_and_render(zoom)
         if self.show_histogram and self.axis is not None and self.hist_canvas is not None:
             values = _quad_values(image, quad)
             self.axis.clear()
@@ -152,6 +156,79 @@ class ViewerPanel(ttk.Frame):
                 self.hist_toolbar.update()
             self.hist_canvas.request_draw()
         return computed_gain
+
+    def update_image(
+        self,
+        image: np.ndarray,
+        gain: float = 1,
+        colormap: str = "jet",
+        zoom: float = 1,
+        crosshair: tuple[int, int, int] | None = None,
+        ellipse: tuple[int, int, int, int, int] | None = None,
+        denoise: float = 0,
+        save_name_suffix: str = "",
+        special_points=None,
+        save_folder: str | Path | None = None,
+    ) -> None:
+        """Render a computed scalar or BGR image with all legacy ImageDisplay features."""
+        self.image = image
+        self.original = image
+        self.save_name_suffix = save_name_suffix
+        if save_folder is not None:
+            self.save_folder = Path(save_folder)
+        if image.ndim == 2:
+            self.value_image = image
+            shown = image.copy()
+            if denoise > 0:
+                shown[shown < np.max(shown) * denoise] = 0
+            if gain == 0:
+                maximum = float(np.nanmax(shown)) if shown.size else 0
+                gain = 65535 / maximum if maximum else 1
+            shown = shown * gain
+            if shown.dtype != np.uint8:
+                shown = shown / 256
+            shown = np.clip(shown, 0, 255).astype(np.uint8)
+            if colormap == "bwr":
+                self.display = cv2.applyColorMap(shown, blue_white_red_colormap())
+            elif colormap == "none":
+                self.display = cv2.cvtColor(shown, cv2.COLOR_GRAY2BGR)
+            else:
+                self.display = cv2.applyColorMap(shown, blacked_jet_colormap())
+        else:
+            self.value_image = image
+            self.display = np.clip(image, 0, 255).astype(np.uint8)
+        center = (crosshair[0], crosshair[1]) if crosshair else (0, 0)
+        line_width = crosshair[2] if crosshair else 1
+        self._draw_overlays(center, ellipse, crosshair is not None, line_width, None, special_points)
+        self._refresh_info()
+        self._set_zoom_and_render(zoom)
+
+    def _draw_overlays(self, center, ellipse, crosshair, line_width, quad, special_points) -> None:
+        if self.display is None:
+            return
+        if special_points is not None and len(special_points):
+            try:
+                y, x = special_points
+                self.display[y, x] = [255, 255, 255]
+            except (IndexError, TypeError, ValueError):
+                pass
+        if crosshair:
+            cv2.line(self.display, (center[0], 0), (center[0], self.display.shape[0]), (0, 0, 255), line_width)
+            cv2.line(self.display, (0, center[1]), (self.display.shape[1], center[1]), (0, 0, 255), line_width)
+        if ellipse:
+            if len(ellipse) == 2:
+                cv2.ellipse(self.display, center, ellipse, 0, 0, 360, (0, 0, 255), line_width)
+            else:
+                x, y, major, minor, ellipse_width = ellipse
+                cv2.ellipse(self.display, (x, y), (major, minor), 0, 0, 360, (0, 0, 255), ellipse_width)
+        if quad is not None:
+            cv2.polylines(self.display, [quad], True, (0, 0, 255), line_width)
+
+    def _set_zoom_and_render(self, zoom: float) -> None:
+        if zoom <= 0:
+            raise ValueError("缩小倍数必须大于0")
+        self.zoom = zoom
+        self._render_canvas()
 
     def _render_canvas(self) -> None:
         if self.display is None or not self.winfo_exists():
@@ -193,23 +270,32 @@ class ViewerPanel(ttk.Frame):
         image = self.value_image
         if image.size == 0:
             return
-        if self.cursor_position is not None:
-            x, y = self.cursor_position
-        else:
-            x, y = -1, -1
+        x, y = self.cursor_position if self.cursor_position is not None else (-1, -1)
+        minimum = float(np.nanmin(image))
+        maximum = float(np.nanmax(image))
         if 0 <= x < image.shape[1] and 0 <= y < image.shape[0]:
-            self.info.config(
-                text=f"坐标({x}, {y})  值={image[y, x]:g}  最小={np.min(image):g}  最大={np.max(image):g}"
-            )
+            value = image[y, x]
+            value_text = ", ".join(f"{item:g}" for item in value) if np.ndim(value) else f"{value:g}"
+            self.info.config(text=f"坐标({x}, {y})  值={value_text}  最小={minimum:g}  最大={maximum:g}")
         else:
-            self.info.config(text=f"坐标(-, -)  值=-  最小={np.min(image):g}  最大={np.max(image):g}")
+            self.info.config(text=f"坐标(-, -)  值=-  最小={minimum:g}  最大={maximum:g}")
+
+    def save_image(self) -> None:
+        if self.display is None:
+            return
+        folder = self.save_folder / "images" / self.name
+        name = self.save_name_suffix or self.name
+        write_tif(folder / f"{name}-{self.name}.tif", self.display)
+
 
 def _to_16bit_single_channel(image: np.ndarray) -> np.ndarray:
     return to_16bit_plif_signal(image)
 
+
 def _scale_gray_for_display(image: np.ndarray, gain: float) -> np.ndarray:
     scaled = image.astype(np.float32, copy=False) * np.float32(gain / 256)
     return np.clip(scaled, 0, 255).astype(np.uint8)
+
 
 def _quad_values(image: np.ndarray, quad):
     if quad is None:

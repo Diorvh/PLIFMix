@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+import tkinter as tk
 import unittest
 from pathlib import Path
 
@@ -29,6 +30,7 @@ from PLIFv2.services.intensifier_service import IntensifierCorrectionService
 from PLIFv2.services.mixing_service import MixingService
 from PLIFv2.services.noise_service import NoiseAnalysisService
 from PLIFv2.tools.image_tools import create_colorbar, export_gif, top_k_values, transform_npy
+from PLIFv2.ui.image_display import ImageDisplay
 
 
 class WorkflowSmokeTests(unittest.TestCase):
@@ -301,6 +303,26 @@ class WorkflowSmokeTests(unittest.TestCase):
 
         result = NoiseAnalysisService().run(NoiseSettings(source_folder=folder, frame_start=0, frame_end=1, process_count=1))
         self.assertEqual(float(result.maximum), 7.0)
+
+    def test_manual_display_uses_shared_viewport_for_scalar_and_color_images(self) -> None:
+        try:
+            root = tk.Tk()
+        except tk.TclError:
+            self.skipTest("Tk is unavailable")
+        root.withdraw()
+        try:
+            display = ImageDisplay(root, "result")
+            scalar = np.array([[0, 256], [512, 1024]], dtype=np.float64)
+            display.update(scalar, gain=1, zoom=2, crosshair=(1, 1, 1), ellipse=(1, 1, 1, 1, 1), special_points=[])
+            self.assertEqual(display.display.shape, (2, 2, 3))
+            self.assertEqual(display.value_image.shape, (2, 2))
+
+            color = np.full((3, 4, 3), 50, dtype=np.uint8)
+            display.update(color, colormap="none", zoom=1)
+            self.assertEqual(display.display.shape, (3, 4, 3))
+            self.assertEqual(display.value_image.shape, (3, 4, 3))
+        finally:
+            root.destroy()
 
     def test_shift_manual_and_distribution(self) -> None:
         folder = self.root / "mixing"
