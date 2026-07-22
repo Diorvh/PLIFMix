@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 import re
 import time
 import tkinter as tk
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from math import ceil
 from pathlib import Path
 from tkinter import filedialog, ttk
@@ -447,6 +449,18 @@ def _read_player_raw_frame(path: Path) -> np.ndarray:
     return np.ascontiguousarray(image)
 
 
+def _read_player_raw_batch(start_index: int, paths: tuple[Path, ...]) -> tuple[int, list[np.ndarray | None], int]:
+    frames: list[np.ndarray | None] = []
+    failed = 0
+    for path in paths:
+        try:
+            frames.append(_read_player_raw_frame(path))
+        except Exception:
+            frames.append(None)
+            failed += 1
+    return start_index, frames, failed
+
+
 def _scale_gray_for_display(image: np.ndarray, gain: float) -> np.ndarray:
     scaled = image.astype(np.float32, copy=False) * np.float32(gain / 256)
     return np.clip(scaled, 0, 255).astype(np.uint8)
@@ -558,6 +572,8 @@ class ImagePlayerTool(ttk.Frame):
         self.shift = tk.StringVar(value="0")
         self.denoise_threshold = tk.StringVar(value="0")
         self.pseudo = tk.BooleanVar(value=False)
+        default_cache_processes = max(1, min(8, (os.cpu_count() or 1) - 1))
+        self.cache_processes = tk.StringVar(value=str(default_cache_processes))
         self.pixel_x = tk.StringVar(value="0")
         self.pixel_y = tk.StringVar(value="0")
         self.pixel_top_k = tk.StringVar(value="10")
@@ -569,6 +585,10 @@ class ImagePlayerTool(ttk.Frame):
         folder_entry = ttk.Entry(row1, textvariable=self.folder, width=62)
         folder_entry.pack(side="left", padx=3)
         folder_entry.bind("<Return>", self.load_folder)
+        ttk.Label(row1, text="缓存进程数").pack(side="left", padx=(8, 2))
+        process_entry = ttk.Entry(row1, textvariable=self.cache_processes, width=5)
+        process_entry.pack(side="left")
+        process_entry.bind("<Return>", self.load_folder)
 
         row2 = ttk.Frame(self)
         row2.pack(anchor="w", padx=8, pady=2)
@@ -658,32 +678,65 @@ class ImagePlayerTool(ttk.Frame):
         if not self.files:
             self.info.config(text="文件夹中没有可读取的图像")
             return
-        self._cache_frames()
+        if not self._cache_frames():
+            return
         self.show()
 
-    def _cache_frames(self) -> None:
-        self._frame_cache = []
+    def _cache_frames(self) -> bool:
+        try:
+            requested_processes = int(self.cache_processes.get())
+            if requested_processes < 1:
+                raise ValueError
+        except ValueError:
+            self.info.config(text="缓存进程数必须是大于等于 1 的整数")
+            return False
+
+        total = len(self.files)
+        worker_count = min(requested_processes, total)
+        batch_size, remainder = divmod(total, worker_count)
+        batches: list[tuple[int, tuple[Path, ...]]] = []
+        start_index = 0
+        for batch_index in range(worker_count):
+            stop_index = start_index + batch_size + (1 if batch_index < remainder else 0)
+            batches.append((start_index, tuple(self.files[start_index:stop_index])))
+            start_index = stop_index
+
+        self._frame_cache = [None] * total
         self._cache_loaded = 0
         self._cache_failed = 0
         self._cache_bytes = 0
-        self.cache_status.set(f"正在缓存：0/{len(self.files)} 张")
+        self.cache_status.set(f"正在用 {worker_count} 个进程缓存：0/{total} 张")
         self.update_idletasks()
-        for path in self.files:
-            try:
-                raw_single = _read_player_raw_frame(path)
-            except Exception:
-                self._frame_cache.append(None)
-                self._cache_failed += 1
-            else:
-                self._frame_cache.append(raw_single)
-                self._cache_loaded += 1
-                self._cache_bytes += raw_single.nbytes
-        total = len(self.files)
+
+        if worker_count == 1:
+            results = [_read_player_raw_batch(*batches[0])]
+        else:
+            results = []
+            with ProcessPoolExecutor(max_workers=worker_count) as executor:
+                future_batches = {
+                    executor.submit(_read_player_raw_batch, start, paths): (start, len(paths))
+                    for start, paths in batches
+                }
+                for future in as_completed(future_batches):
+                    start, count = future_batches[future]
+                    try:
+                        results.append(future.result())
+                    except Exception:
+                        results.append((start, [None] * count, count))
+
+        for start, frames, failed in results:
+            self._frame_cache[start:start + len(frames)] = frames
+            self._cache_failed += failed
+            for frame in frames:
+                if frame is not None:
+                    self._cache_loaded += 1
+                    self._cache_bytes += frame.nbytes
         memory_gib = self._cache_bytes / (1024 ** 3)
         text = f"已缓存：{self._cache_loaded}/{total} 张，{memory_gib:.2f} GiB"
         if self._cache_failed:
             text += f"，失败：{self._cache_failed}"
         self.cache_status.set(text)
+        return True
 
     def _cached_frame(self, frame_index: int) -> np.ndarray | None:
         if 0 <= frame_index < len(self._frame_cache):
