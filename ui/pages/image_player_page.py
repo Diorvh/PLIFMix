@@ -429,3 +429,6 @@ class ImagePlayerPage(ttk.Frame):
 
     def destroy(self) -> None:
         super().destroy()
+
+    def on_page_hidden(self) -> None:
+        self.play_delta = 0

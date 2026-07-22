@@ -44,6 +44,12 @@ class LazyPage(ttk.Frame):
         if self.content is not None:
             self._ui_state.capture_page(self.page_key, self.content)
 
+    def notify_hidden(self) -> None:
+        if self.content is not None:
+            callback = getattr(self.content, "on_page_hidden", None)
+            if callable(callback):
+                callback()
+
 
 class TabRow(ttk.Frame):
     def __init__(self, master, command: Callable[[str], None]):
@@ -163,6 +169,7 @@ class PLIFAppWindow(tk.Tk):
         selected = self.pages[key]
         if self.active_page_key != key:
             if self.active_page_key is not None:
+                self.pages[self.active_page_key].notify_hidden()
                 self.pages[self.active_page_key].pack_forget()
             selected.pack(fill="both", expand=True)
             self.active_page_key = key

@@ -6,7 +6,7 @@ from tkinter import filedialog, ttk
 
 from PLIFv2.application.actions import PLIFActions
 from PLIFv2.ui.image_display import ImageDisplay
-from PLIFv2.ui.widgets import run_in_background
+from PLIFv2.ui.widgets import LatestTaskRunner
 
 
 class DistributionPage(ttk.Frame):
@@ -22,6 +22,7 @@ class DistributionPage(ttk.Frame):
         self.latest_result = None
         self.request_id = 0
         self._setup_ui()
+        self.live_task = LatestTaskRunner(self, LabelLog(self.status))
 
     def _setup_ui(self) -> None:
         controls = ttk.Frame(self)
@@ -112,7 +113,7 @@ class DistributionPage(ttk.Frame):
         def done(result) -> None:
             if request_id == self.request_id:
                 self._show(result)
-        run_in_background(self, LabelLog(self.status), lambda: self.actions.run_distribution_display(q_mode, image_mode), done, "计算质量分布...")
+        self.live_task.submit(lambda: self.actions.run_distribution_display(q_mode, image_mode), done, "计算质量分布...")
 
     def _show(self, result) -> None:
         self.latest_result = result

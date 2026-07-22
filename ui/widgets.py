@@ -114,6 +114,59 @@ def run_in_background(
     owner.after(50, poll)
 
 
+class LatestTaskRunner:
+    """Run at most one calculation and retain only the newest pending request."""
+
+    def __init__(self, owner: tk.Misc, log, delay_ms: int = 80):
+        self.owner = owner
+        self.log = log
+        self.delay_ms = delay_ms
+        self._running = False
+        self._pending: tuple[Callable[[], Any], Callable[[Any], None], str] | None = None
+        self._delay_job: str | None = None
+
+    def submit(self, work: Callable[[], Any], on_success: Callable[[Any], None], start_message: str) -> None:
+        self._pending = (work, on_success, start_message)
+        if self._running:
+            return
+        if self._delay_job is not None:
+            self.owner.after_cancel(self._delay_job)
+        self._delay_job = self.owner.after(self.delay_ms, self._start_pending)
+
+    def _start_pending(self) -> None:
+        self._delay_job = None
+        if self._running or self._pending is None:
+            return
+        work, on_success, start_message = self._pending
+        self._pending = None
+        self._running = True
+        self.log.write(start_message)
+        results: Queue[tuple[str, Any]] = Queue()
+
+        def task() -> None:
+            try:
+                results.put(("success", work()))
+            except Exception as exc:
+                results.put(("error", exc))
+
+        def poll() -> None:
+            try:
+                status, value = results.get_nowait()
+            except Empty:
+                self.owner.after(50, poll)
+                return
+            self._running = False
+            if status == "error":
+                self.log.write(f"错误: {value}")
+            else:
+                on_success(value)
+            if self._pending is not None:
+                self._start_pending()
+
+        Thread(target=task, daemon=True).start()
+        self.owner.after(50, poll)
+
+
 def _stringify(value: Any) -> str:
     if isinstance(value, Path):
         return "" if str(value) == "." else str(value)
