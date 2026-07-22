@@ -43,7 +43,7 @@ class IntensifierCorrectionService:
         if not matrix_path.exists():
             raise FileNotFoundError(f"Correction matrix does not exist: {matrix_path}")
         suffixes = {".npy", ".tif", ".tiff", ".png"} if settings.include_tif else {".npy"}
-        files = [path for path in sorted(image_folder.iterdir()) if path.is_file() and path.suffix.lower() in suffixes]
+        files = list_image_files(image_folder, tuple(suffixes))
         return self.apply_paths(settings, files)
 
     def apply_paths(self, settings: GainCorrectionSettings, paths: list[Path]) -> CorrectionResult:
@@ -89,7 +89,7 @@ class IntensifierCorrectionService:
         output_folder = Path(settings.output_folder) if path_is_set(settings.output_folder) else image_folder.parent / "intensifier_corrected"
         records: list[CorrectionRecord] = []
         suffixes = {".npy", ".tif", ".tiff", ".png"} if settings.include_tif else {".npy"}
-        image_paths = [path for path in sorted(image_folder.iterdir()) if path.is_file() and path.suffix.lower() in suffixes]
+        image_paths = list_image_files(image_folder, tuple(suffixes))
         for image_path in image_paths:
             exp_no = _experiment_number(image_path.stem)
             if exp_no is None or exp_no not in gain_by_experiment:

@@ -11,7 +11,7 @@ from tkinter import filedialog, ttk
 
 import numpy as np
 
-from PLIFv2.core.image_io import extract_plif_signal, read_image
+from PLIFv2.core.image_io import extract_plif_signal, list_image_files, read_image
 from PLIFv2.ui.components.display_pane import HorizontalDisplayPane
 from PLIFv2.ui.components.player_pixel_plot import PlayerPixelPlot
 from PLIFv2.ui.components.viewer_panel import ViewerPanel
@@ -165,10 +165,7 @@ class ImagePlayerPage(ttk.Frame):
         self.pixel_plot.reset()
         self._frame_cache = []
         self._plot_index_set = set()
-        self.files = sorted(
-            path for path in folder.iterdir()
-            if path.suffix.lower() in {".png", ".tif", ".tiff", ".bmp", ".npy"}
-        )
+        self.files = list_image_files(folder, (".png", ".tif", ".tiff", ".bmp", ".npy"))
         if not self.files:
             self.info.config(text="文件夹中没有可读取的图像")
             return

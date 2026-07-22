@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from PLIFv2.core.image_io import read_image, write_tif
+from PLIFv2.core.image_io import list_image_files, read_image, write_tif
 
 
 def export_gif(
@@ -18,7 +18,7 @@ def export_gif(
     duration_ms: int = 50,
     max_width: int = 400,
 ) -> Path:
-    files = sorted(path for path in folder.iterdir() if path.is_file() and path.suffix.lower() in {".png", ".tif", ".tiff", ".bmp", ".npy"})[start:end]
+    files = list_image_files(folder, (".png", ".tif", ".tiff", ".bmp", ".npy"))[start:end]
     if not files:
         raise ValueError("No frames selected for GIF export.")
     images: list[Image.Image] = []

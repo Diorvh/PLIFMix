@@ -145,13 +145,22 @@ def _ensure_numbered_sequence(files: list[Path]) -> list[Path]:
         return files
     token = uuid.uuid4().hex
     temporary: list[tuple[Path, Path]] = []
-    for index, path in enumerate(files):
-        temp = path.with_name(f".plifv2_{token}_{index}{path.suffix}")
-        path.rename(temp)
-        temporary.append((temp, path))
-    renamed: list[Path] = []
-    for index, (temp, original) in enumerate(temporary):
-        final = original.with_name(f"{index:04d}{original.suffix.upper()}")
-        temp.rename(final)
-        renamed.append(final)
+    renamed: list[tuple[Path, Path]] = []
+    try:
+        for index, path in enumerate(files):
+            temp = path.with_name(f".plifv2_{token}_{index}{path.suffix}")
+            path.rename(temp)
+            temporary.append((temp, path))
+        for index, (temp, original) in enumerate(temporary):
+            final = original.with_name(f"{index:04d}{original.suffix.upper()}")
+            temp.rename(final)
+            renamed.append((final, original))
+    except Exception:
+        for final, original in reversed(renamed):
+            if final.exists():
+                final.rename(original)
+        for temp, original in reversed(temporary):
+            if temp.exists():
+                temp.rename(original)
+        raise
     return list_image_files(files[0].parent, (".png", ".tif", ".tiff", ".bmp"))

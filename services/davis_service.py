@@ -55,7 +55,8 @@ class DavisService:
 
         tif_count = 0
         npy_count = 0
-        for path in list(source.iterdir()):
+        source_by_experiment: dict[str, Path] = {}
+        for path in sorted(source.iterdir(), key=lambda item: item.name):
             if path.is_dir():
                 path = _first_file(path)
                 if path is None:
@@ -65,6 +66,12 @@ class DavisService:
             exp_name = _extract_experiment_name(path.name)
             if not exp_name:
                 continue
+            previous = source_by_experiment.get(exp_name)
+            if previous is not None and previous.resolve() != path.resolve():
+                raise FileExistsError(f"Duplicate Davis output for {exp_name}: {previous.name}, {path.name}")
+            source_by_experiment[exp_name] = path
+
+        for exp_name, path in source_by_experiment.items():
             tif_path = output / f"{exp_name}.tif"
             if path.resolve() != tif_path.resolve():
                 shutil.copy2(path, tif_path)
@@ -79,7 +86,7 @@ class DavisService:
 
 
 def _first_file(folder: Path) -> Path | None:
-    for item in folder.iterdir():
+    for item in sorted(folder.iterdir(), key=lambda item: item.name):
         if item.is_file():
             return item
     return None

@@ -269,6 +269,14 @@ class WorkflowSmokeTests(unittest.TestCase):
         self.assertEqual(imported.npy_count, 1)
         self.assertAlmostEqual(float(np.load(self.root / "davis_out" / "实验编号1.npy")[0, 0]), 10)
 
+    def test_davis_rejects_duplicate_experiment_output(self) -> None:
+        export = self.root / "davis-duplicate"
+        export.mkdir()
+        write_tif(export / "a_实验编号1-GAIN2_Image.tif", np.ones((2, 2), dtype=np.uint16))
+        write_tif(export / "b_实验编号1-GAIN2_Image.tif", np.ones((2, 2), dtype=np.uint16))
+        with self.assertRaisesRegex(FileExistsError, "Duplicate Davis output"):
+            DavisService().import_export_folder(DavisSettings(davis_export_folder=export))
+
     def test_calibration_noise_and_matrix_tools(self) -> None:
         folder = self.root / "calibration"
         folder.mkdir()
