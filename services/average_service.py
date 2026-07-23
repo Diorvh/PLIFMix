@@ -56,7 +56,14 @@ class AverageImageService:
         prepared: list[_PreparedAverage] = []
         for folder, save_name in experiments:
             try:
-                prepared.append(self._prepare_folder(folder, save_name, settings))
+                prepared.append(
+                    self._prepare_folder(
+                        folder,
+                        save_name,
+                        settings,
+                        select_all=not settings.use_experiment_numbers,
+                    )
+                )
             except Exception as exc:
                 raise AverageExperimentError(save_name, "准备图像", str(exc)) from exc
 

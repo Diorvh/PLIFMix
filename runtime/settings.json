@@ -1,14 +1,14 @@
 {
   "average": {
-    "source_folder": "E:\\实验数据\\20250820孔径比影响-正式\\像增强器标定\\Gain60",
-    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.1-像增强器标定平均图\\Gain60",
+    "source_folder": "E:\\实验数据\\20250820孔径比影响-正式\\标定板",
+    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪",
     "experiment_numbers": "228",
-    "use_experiment_numbers": true,
+    "use_experiment_numbers": false,
     "best_process_count": 1,
     "denoise_threshold": 2.0,
     "sample_frequency": 500.0,
-    "time_start": 0.0,
-    "time_end": 0.0,
+    "time_start": 2.8,
+    "time_end": 10.0,
     "use_frame_segments": false,
     "frame_segments": "0:3000"
   },
@@ -123,8 +123,8 @@
   },
   "ui": {
     "app": {
-      "main_tab": 2,
-      "active_page": "3 Davis 整理",
+      "main_tab": 0,
+      "active_page": "1 平均图",
       "last_tool_page": "图片播放器",
       "last_secondary_page": "图像查看器"
     },
@@ -132,15 +132,15 @@
       "1 平均图": {
         "!frame.!entry": {
           "kind": "text",
-          "value": "E:/实验数据/20250820孔径比影响-正式/像增强器标定/Gain60"
+          "value": "E:/实验数据/20250820孔径比影响-正式/标定板"
         },
         "!frame.!entry2": {
           "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.1-像增强器标定平均图/Gain60"
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪"
         },
         "!frame.!checkbutton": {
           "kind": "variable",
-          "value": 1
+          "value": "0"
         },
         "!frame.!entry3": {
           "kind": "text",
@@ -386,11 +386,11 @@
       "3 Davis 整理": {
         "!boundform.!entry": {
           "kind": "text",
-          "value": ""
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.3-修正后平均图"
         },
         "!boundform.!entry2": {
           "kind": "text",
-          "value": ""
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/3.1-Davis输入图像"
         },
         "!boundform.!entry3": {
           "kind": "text",
