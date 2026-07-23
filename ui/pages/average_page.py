@@ -45,31 +45,38 @@ class AveragePage(ttk.Frame):
             )
             self.path_entries[name] = entry
 
-        ttk.Checkbutton(
-            paths,
-            text="实验编号",
-            variable=self.use_experiment_numbers,
-            command=self._sync_experiment_state,
-        ).grid(row=0, column=3, sticky="w", padx=(12, 3), pady=3)
-        self.experiment_entry = ttk.Entry(paths, textvariable=self.vars["experiment_numbers"], width=66)
-        self.experiment_entry.grid(row=0, column=4, sticky="w", pady=3)
-
         processing_row = ttk.Frame(self)
         processing_row.pack(anchor="w", padx=8, pady=3)
         _labeled_entry(processing_row, "最佳进程数", self.vars["best_process_count"], 6)
         _labeled_entry(processing_row, "去噪阈值", self.vars["denoise_threshold"], 8)
 
-        self.range_row = ttk.Frame(self)
-        self.range_row.pack(anchor="w", padx=8, pady=3)
-        _labeled_entry(self.range_row, "开始时间/s", self.vars["time_start"], 8)
-        _labeled_entry(self.range_row, "结束时间/s", self.vars["time_end"], 8)
-        _labeled_entry(self.range_row, "采样频率/Hz", self.vars["sample_frequency"], 8)
+        experiment_section = ttk.LabelFrame(self, text="实验编号与取样范围")
+        experiment_section.pack(anchor="w", padx=8, pady=3)
+        experiment_row = ttk.Frame(experiment_section)
+        experiment_row.pack(anchor="w", padx=6, pady=(4, 2))
         ttk.Checkbutton(
+            experiment_row,
+            text="实验编号",
+            variable=self.use_experiment_numbers,
+            command=self._sync_experiment_state,
+        ).pack(side="left", padx=(0, 3))
+        self.experiment_entry = ttk.Entry(experiment_row, textvariable=self.vars["experiment_numbers"], width=66)
+        self.experiment_entry.pack(side="left")
+
+        self.range_row = ttk.Frame(experiment_section)
+        self.range_row.pack(anchor="w", padx=6, pady=(2, 4))
+        self.range_entries = [
+            _labeled_entry(self.range_row, "开始时间/s", self.vars["time_start"], 8),
+            _labeled_entry(self.range_row, "结束时间/s", self.vars["time_end"], 8),
+            _labeled_entry(self.range_row, "采样频率/Hz", self.vars["sample_frequency"], 8),
+        ]
+        self.segment_checkbutton = ttk.Checkbutton(
             self.range_row,
             text="非连续区间",
             variable=self.use_frame_segments,
             command=self._sync_segment_state,
-        ).pack(side="left", padx=(8, 2))
+        )
+        self.segment_checkbutton.pack(side="left", padx=(8, 2))
         self.segment_entry = ttk.Entry(self.range_row, textvariable=self.vars["frame_segments"], width=34)
         self.segment_entry.pack(side="left")
         ttk.Label(self.range_row, text="格式：200:600,3200:3700（帧序号，左闭右开）").pack(side="left", padx=(4, 0))
@@ -116,15 +123,23 @@ class AveragePage(ttk.Frame):
             self.vars[name].set(path)
 
     def _sync_segment_state(self) -> None:
-        self.segment_entry.configure(state="normal" if self.use_frame_segments.get() else "disabled")
+        enabled = self.use_experiment_numbers.get() and self.use_frame_segments.get()
+        self.segment_entry.configure(state="normal" if enabled else "disabled")
 
     def _sync_experiment_state(self) -> None:
-        self.experiment_entry.configure(state="normal" if self.use_experiment_numbers.get() else "disabled")
+        state = "normal" if self.use_experiment_numbers.get() else "disabled"
+        self.experiment_entry.configure(state=state)
+        for entry in self.range_entries:
+            entry.configure(state=state)
+        self.segment_checkbutton.configure(state=state)
+        self._sync_segment_state()
 
 
-def _labeled_entry(parent, label: str, variable: tk.StringVar, width: int) -> None:
+def _labeled_entry(parent, label: str, variable: tk.StringVar, width: int) -> ttk.Entry:
     ttk.Label(parent, text=label).pack(side="left", padx=(0, 2))
-    ttk.Entry(parent, textvariable=variable, width=width).pack(side="left", padx=(0, 8))
+    entry = ttk.Entry(parent, textvariable=variable, width=width)
+    entry.pack(side="left", padx=(0, 8))
+    return entry
 
 
 def _path_text(path: Path) -> str:

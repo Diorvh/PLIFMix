@@ -123,8 +123,8 @@
   },
   "ui": {
     "app": {
-      "main_tab": 1,
-      "active_page": "2 像增强器",
+      "main_tab": 2,
+      "active_page": "3 Davis 整理",
       "last_tool_page": "图片播放器",
       "last_secondary_page": "图像查看器"
     },
@@ -262,15 +262,15 @@
         },
         "!notebook.!frame2.!calibrationdiagnosticsnotebook": {
           "kind": "notebook",
-          "value": 0
+          "value": 1
         },
         "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame.!frame.!entry": {
           "kind": "text",
-          "value": ""
+          "value": "E:/实验数据/20250820孔径比影响-正式/像增强器标定/Gain43/1000ns"
         },
         "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame.!frame.!entry2": {
           "kind": "text",
-          "value": ""
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.1-像增强器标定平均图/Gain43/1000ns.npy"
         },
         "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame.!frame.!entry3": {
           "kind": "text",
@@ -462,27 +462,27 @@
           "kind": "text",
           "value": "4"
         },
-        "!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-5": {
+        "!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-3": {
           "kind": "variable",
           "value": 0
         },
-        "!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-6": {
+        "!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-4": {
           "kind": "variable",
           "value": 0
         },
-        "!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-7": {
+        "!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-5": {
           "kind": "variable",
           "value": 0
         },
-        "!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-8": {
+        "!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-6": {
           "kind": "variable",
           "value": 0
         },
-        "!frame.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-9": {
+        "!frame.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-7": {
           "kind": "variable",
           "value": 0
         },
-        "!frame.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-10": {
+        "!frame.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-8": {
           "kind": "variable",
           "value": 0
         }
@@ -592,11 +592,11 @@
           "kind": "text",
           "value": "4"
         },
-        "!frame.!navigationtoolbar2tk.!checkbutton-1": {
+        "!frame.!navigationtoolbar2tk.!checkbutton-9": {
           "kind": "variable",
           "value": 0
         },
-        "!frame.!navigationtoolbar2tk.!checkbutton-2": {
+        "!frame.!navigationtoolbar2tk.!checkbutton-10": {
           "kind": "variable",
           "value": 0
         }
