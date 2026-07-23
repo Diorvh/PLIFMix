@@ -7,6 +7,7 @@ from tkinter import filedialog, ttk
 import numpy as np
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.figure import Figure
+from matplotlib.patches import Circle
 
 from PLIFv2.application.actions import PLIFActions
 from PLIFv2.core.image_io import read_image
@@ -23,6 +24,7 @@ class MatrixFitWorkspace:
         self.settings = actions.state.settings.calibration
         self.analysis_result = None
         self.analysis_colorbar = None
+        self.analysis_circle = None
         self.owner: tk.Misc | None = None
         self.source_var = tk.StringVar(value=_path_text(self.settings.source_folder))
         self.output_var = tk.StringVar(value=_path_text(self.settings.output_folder))
@@ -94,6 +96,7 @@ class MatrixFitWorkspace:
             self.log.write(f"错误: {exc}")
             return
         value = self.analysis_result.region_average_error(self.settings.analysis_radius)
+        self._draw_analysis_circle()
         self.info.config(text=f"圆形区域平均误差: {value:.4%}")
 
     def _show_analysis(self, result) -> None:
@@ -108,12 +111,30 @@ class MatrixFitWorkspace:
         max_x_value = result.x_values[max_x_index]
         self.image_ax.imshow(result.image_stack[:, :, max_x_index], cmap="gray")
         self.image_ax.set_title(f"标定图（x={max_x_value:g}）")
+        self.analysis_circle = None
+        self._draw_analysis_circle()
         vmax = self.settings.display_vmax if self.settings.display_vmax > 0 else float(np.nanmax(result.error_map))
         image = self.error_ax.imshow(result.error_map, cmap="viridis", vmin=0, vmax=vmax)
         self.error_ax.set_title("最大相对误差")
         self.analysis_colorbar = self.figure.colorbar(image, ax=self.error_ax, fraction=0.046)
         self.canvas.request_draw()
         self.info.config(text=f"{len(result.files)} 张标定图；点击左图或误差图查看单点拟合")
+
+    def _draw_analysis_circle(self) -> None:
+        if self.analysis_result is None:
+            return
+        if self.analysis_circle is not None:
+            self.analysis_circle.remove()
+        height, width = self.analysis_result.error_map.shape
+        self.analysis_circle = Circle(
+            (width / 2, height / 2),
+            radius=self.settings.analysis_radius,
+            fill=False,
+            edgecolor="red",
+            linewidth=1.5,
+        )
+        self.image_ax.add_patch(self.analysis_circle)
+        self.canvas.request_draw()
 
     def _analysis_click(self, event) -> None:
         if self.analysis_result is None or event.inaxes not in {self.image_ax, self.error_ax}:
