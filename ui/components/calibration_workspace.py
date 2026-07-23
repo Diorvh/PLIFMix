@@ -98,6 +98,9 @@ class MatrixFitWorkspace:
 
     def _show_analysis(self, result) -> None:
         self.analysis_result = result
+        if self.analysis_colorbar is not None:
+            self.analysis_colorbar.remove()
+            self.analysis_colorbar = None
         self.image_ax.clear()
         self.error_ax.clear()
         self.curve_ax.clear()
@@ -108,8 +111,6 @@ class MatrixFitWorkspace:
         vmax = self.settings.display_vmax if self.settings.display_vmax > 0 else float(np.nanmax(result.error_map))
         image = self.error_ax.imshow(result.error_map, cmap="viridis", vmin=0, vmax=vmax)
         self.error_ax.set_title("最大相对误差")
-        if self.analysis_colorbar is not None:
-            self.analysis_colorbar.remove()
         self.analysis_colorbar = self.figure.colorbar(image, ax=self.error_ax, fraction=0.046)
         self.canvas.request_draw()
         self.info.config(text=f"{len(result.files)} 张标定图；点击左图或误差图查看单点拟合")

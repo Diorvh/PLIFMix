@@ -31,7 +31,7 @@
     "source_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.1-像增强器标定平均图\\Gain43",
     "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.2-像增强器修正矩阵",
     "display_vmax": 0.0,
-    "analysis_radius": 550,
+    "analysis_radius": 500,
     "compare_folder": ".",
     "compare_files": "",
     "compare_center_x": 640,
@@ -210,7 +210,7 @@
         },
         "!notebook.!frame.!frame.!frame.!labelframe2.!frame2.!entry2": {
           "kind": "text",
-          "value": "550"
+          "value": "500"
         },
         "!notebook.!frame.!frame.!frame2.!labelframe.!notebook": {
           "kind": "notebook",
