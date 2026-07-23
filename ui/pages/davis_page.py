@@ -33,7 +33,6 @@ class DavisPage(ttk.Frame):
             [
                 FormField("davis_export_folder", "Davis 导出目录", Path, 78, "dir"),
                 FormField("output_folder", "整理输出目录", Path, 78, "dir"),
-                FormField("restore_gain", "按 GAIN 还原", bool, 12),
             ],
             columns=1,
         )

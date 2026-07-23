@@ -45,7 +45,6 @@ class DavisSettings:
     davis_input_folder: Path = Path()
     davis_export_folder: Path = Path()
     output_folder: Path = Path()
-    restore_gain: bool = True
 
 
 @dataclass

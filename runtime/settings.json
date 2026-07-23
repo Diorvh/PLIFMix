@@ -42,8 +42,8 @@
   "davis": {
     "corrected_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.3-修正后平均图",
     "davis_input_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\3.1-Davis输入图像",
-    "davis_export_folder": ".",
-    "output_folder": ".",
+    "davis_export_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\3.3-Davis导出图像",
+    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\3.4-视场修正后图像",
     "restore_gain": true
   },
   "noise": {
@@ -384,23 +384,23 @@
         }
       },
       "3 Davis 整理": {
-        "!boundform.!entry": {
+        "!labelframe.!boundform.!entry": {
           "kind": "text",
           "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.3-修正后平均图"
         },
-        "!boundform.!entry2": {
+        "!labelframe.!boundform.!entry2": {
           "kind": "text",
           "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/3.1-Davis输入图像"
         },
-        "!boundform.!entry3": {
+        "!labelframe2.!boundform.!entry": {
           "kind": "text",
-          "value": ""
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/3.2-Davis导出图像"
         },
-        "!boundform.!entry4": {
+        "!labelframe2.!boundform.!entry2": {
           "kind": "text",
-          "value": ""
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/3.3-视场修正后图像"
         },
-        "!boundform.!entry5": {
+        "!labelframe2.!boundform.!entry3": {
           "kind": "text",
           "value": "True"
         }

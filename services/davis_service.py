@@ -63,25 +63,23 @@ class DavisService:
                     continue
             if not path.is_file():
                 continue
-            exp_name = _extract_experiment_name(path.name)
-            if not exp_name:
+            experiment_name = _extract_experiment_name(path.name)
+            if not experiment_name:
                 continue
-            previous = source_by_experiment.get(exp_name)
+            experiment_name = experiment_name.split("-", 1)[0]
+            previous = source_by_experiment.get(experiment_name)
             if previous is not None and previous.resolve() != path.resolve():
-                raise FileExistsError(f"Duplicate Davis output for {exp_name}: {previous.name}, {path.name}")
-            source_by_experiment[exp_name] = path
+                raise FileExistsError(f"Duplicate Davis output for {experiment_name}: {previous.name}, {path.name}")
+            source_by_experiment[experiment_name] = path
 
-        for exp_name, path in source_by_experiment.items():
-            tif_path = output / f"{exp_name}.tif"
-            if path.resolve() != tif_path.resolve():
-                shutil.copy2(path, tif_path)
+        for experiment_name, path in source_by_experiment.items():
+            gain = _extract_gain(path.name)
+            if gain is None:
+                raise ValueError(f"Davis output has no GAIN value in its file name: {path.name}")
+            image = read_image(path).astype(np.float64) / gain
+            save_float_image(image, output, experiment_name)
             tif_count += 1
-            if settings.restore_gain:
-                gain = _extract_gain(tif_path.name)
-                if gain:
-                    image = read_image(tif_path).astype(np.float64) / gain
-                    save_float_image(image, output, exp_name.split("-")[0])
-                    npy_count += 1
+            npy_count += 1
         return DavisImportResult(tif_count=tif_count, npy_count=npy_count, output_folder=output)
 
 
