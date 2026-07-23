@@ -63,7 +63,7 @@ class AverageImageService:
         return self._calculate_and_save(prepared, settings)
 
     def run_intensifier_average(self, settings: IntensifierAverageSettings) -> AverageResult:
-        """Average every direct child folder into the selected output folder."""
+        """Average calibration images from every Gain/exposure folder pair."""
         source_root = Path(settings.source_folder)
         if not source_root.exists():
             raise FileNotFoundError(f"Source folder does not exist: {source_root}")
@@ -71,24 +71,33 @@ class AverageImageService:
             raise ValueError("Select an average-image output folder for intensifier calibration.")
         output_folder = Path(settings.output_folder)
 
-        folders = sorted(path for path in source_root.iterdir() if path.is_dir())
-        if not folders:
-            raise ValueError(f"No calibration image folders found in: {source_root}")
+        gain_folders = sorted(
+            path
+            for path in source_root.iterdir()
+            if path.is_dir() and re.fullmatch(r"gain\d+", path.name, flags=re.IGNORECASE)
+        )
+        if not gain_folders:
+            raise ValueError(f"No Gainxx calibration folders found in: {source_root}")
 
         prepared: list[_PreparedAverage] = []
-        for folder in folders:
-            try:
-                prepared.append(
-                    self._prepare_folder(
-                        folder,
-                        folder.name,
-                        settings,
-                        output_folder=output_folder,
-                        select_all=True,
+        for gain_folder in gain_folders:
+            exposure_folders = sorted(path for path in gain_folder.iterdir() if path.is_dir())
+            if not exposure_folders:
+                raise AverageExperimentError(gain_folder.name, "准备图像", "No exposure folders found.")
+            for exposure_folder in exposure_folders:
+                try:
+                    prepared.append(
+                        self._prepare_folder(
+                            exposure_folder,
+                            exposure_folder.name,
+                            settings,
+                            output_folder=output_folder / gain_folder.name,
+                            select_all=True,
+                        )
                     )
-                )
-            except Exception as exc:
-                raise AverageExperimentError(folder.name, "准备图像", str(exc)) from exc
+                except Exception as exc:
+                    name = f"{gain_folder.name}/{exposure_folder.name}"
+                    raise AverageExperimentError(name, "准备图像", str(exc)) from exc
 
         return self._calculate_and_save(prepared, settings)
 

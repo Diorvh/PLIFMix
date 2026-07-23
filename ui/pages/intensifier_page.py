@@ -55,7 +55,7 @@ class IntensifierPage(ttk.Frame):
         paths = ttk.Frame(section)
         paths.pack(anchor="w", padx=6, pady=(4, 2))
         for row, (name, label) in enumerate(
-            [("source_folder", "标定原始图像根目录"), ("output_folder", "平均图输出目录")]
+            [("source_folder", "像增强器标定根目录"), ("output_folder", "标定平均图根目录")]
         ):
             ttk.Label(paths, text=label).grid(row=row, column=0, sticky="e", padx=(0, 4), pady=3)
             ttk.Entry(paths, textvariable=self.average_vars[name], width=92).grid(row=row, column=1, sticky="w", pady=3)
@@ -86,7 +86,8 @@ class IntensifierPage(ttk.Frame):
                 f"图像计算耗时 {result.calculation_seconds:.2f} s"
             )
             for item in result.items:
-                self.log.write(f"{item.source_folder.name}: {item.selected_count} 张 -> {item.outputs.get('npy')}")
+                source_name = f"{item.source_folder.parent.name}/{item.source_folder.name}"
+                self.log.write(f"{source_name}: {item.selected_count} 张 -> {item.outputs.get('npy')}")
 
         run_in_background(
             self,

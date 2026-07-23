@@ -121,8 +121,8 @@
   },
   "ui": {
     "app": {
-      "main_tab": 0,
-      "active_page": "1 平均图",
+      "main_tab": 1,
+      "active_page": "2 像增强器",
       "last_tool_page": "图片播放器",
       "last_secondary_page": "图像查看器"
     },
@@ -130,11 +130,11 @@
       "1 平均图": {
         "!frame.!entry": {
           "kind": "text",
-          "value": "E:/实验数据/20250820孔径比影响-正式/原始图像"
+          "value": "E:/实验数据/20250820孔径比影响-正式/像增强器标定/Gain60"
         },
         "!frame.!entry2": {
           "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/1-平均图"
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.1-像增强器标定平均图/Gain60"
         },
         "!frame.!checkbutton": {
           "kind": "variable",
@@ -146,11 +146,11 @@
         },
         "!frame2.!entry": {
           "kind": "text",
-          "value": "10"
+          "value": "1"
         },
         "!frame2.!entry2": {
           "kind": "text",
-          "value": "5"
+          "value": "2"
         },
         "!frame3.!entry": {
           "kind": "text",
