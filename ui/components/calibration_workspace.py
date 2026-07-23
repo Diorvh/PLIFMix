@@ -101,8 +101,10 @@ class MatrixFitWorkspace:
         self.image_ax.clear()
         self.error_ax.clear()
         self.curve_ax.clear()
-        self.image_ax.imshow(result.image_stack[:, :, -1], cmap="gray")
-        self.image_ax.set_title("标定图")
+        max_x_index = int(np.argmax(result.x_values))
+        max_x_value = result.x_values[max_x_index]
+        self.image_ax.imshow(result.image_stack[:, :, max_x_index], cmap="gray")
+        self.image_ax.set_title(f"标定图（x={max_x_value:g}）")
         vmax = self.settings.display_vmax if self.settings.display_vmax > 0 else float(np.nanmax(result.error_map))
         image = self.error_ax.imshow(result.error_map, cmap="viridis", vmin=0, vmax=vmax)
         self.error_ax.set_title("最大相对误差")
@@ -121,9 +123,13 @@ class MatrixFitWorkspace:
         if not (0 <= x < self.analysis_result.error_map.shape[1] and 0 <= y < self.analysis_result.error_map.shape[0]):
             return
         stats = self.analysis_result.pixel_stats(x, y)
+        order = np.argsort(self.analysis_result.x_values, kind="stable")
+        x_values = self.analysis_result.x_values[order]
+        values = np.asarray(stats["values"])[order]
+        predicted = np.asarray(stats["predicted"])[order]
         self.curve_ax.clear()
-        self.curve_ax.plot(self.analysis_result.x_values, stats["values"], "b.-", label="原始数据")
-        self.curve_ax.plot(self.analysis_result.x_values, stats["predicted"], "r-", label="拟合")
+        self.curve_ax.plot(x_values, values, "b.-", label="原始数据")
+        self.curve_ax.plot(x_values, predicted, "r-", label="拟合")
         self.curve_ax.set_title(f"({x}, {y}) k={stats['k']:.4e}, R²={stats['r_squared']:.4f}")
         self.curve_ax.grid(True, alpha=0.3)
         self.curve_ax.legend()

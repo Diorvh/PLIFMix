@@ -23,18 +23,14 @@
     "matrix_folder": ".",
     "output_folder": ".",
     "matrix_path": ".",
-    "operation": "multiply",
     "excel_path": ".",
     "experiment_column": 1,
-    "gain_column": 4,
-    "gain_scale": 100,
-    "matrix_name_template": "Gain{gain}.npy",
-    "include_tif": false
+    "gain_column": 4
   },
   "calibration": {
-    "source_folder": ".",
-    "output_folder": ".",
-    "display_vmax": 0,
+    "source_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.1-像增强器标定平均图\\Gain43",
+    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.2-像增强器修正矩阵",
+    "display_vmax": 0.0,
     "analysis_radius": 550,
     "compare_folder": ".",
     "compare_files": "",
@@ -180,65 +176,137 @@
         }
       },
       "2 像增强器": {
-        "!labelframe.!frame.!entry": {
-          "kind": "text",
-          "value": "E:/实验数据/20250820孔径比影响-正式/像增强器标定"
+        "!notebook": {
+          "kind": "notebook",
+          "value": 0
         },
-        "!labelframe.!frame.!entry2": {
+        "!notebook.!frame.!frame.!frame.!labelframe.!frame.!entry": {
           "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.1-像增强器标定平均图"
+          "value": "E:\\实验数据\\20250820孔径比影响-正式\\像增强器标定"
         },
-        "!labelframe.!frame2.!entry": {
+        "!notebook.!frame.!frame.!frame.!labelframe.!frame.!entry2": {
           "kind": "text",
-          "value": "1"
+          "value": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.1-像增强器标定平均图"
         },
-        "!labelframe.!frame2.!entry2": {
-          "kind": "text",
-          "value": "2"
-        },
-        "!boundform.!entry": {
-          "kind": "text",
-          "value": ""
-        },
-        "!boundform.!entry2": {
-          "kind": "text",
-          "value": ""
-        },
-        "!boundform.!entry3": {
-          "kind": "text",
-          "value": ""
-        },
-        "!boundform.!entry4": {
-          "kind": "text",
-          "value": ""
-        },
-        "!boundform.!entry5": {
-          "kind": "text",
-          "value": ""
-        },
-        "!boundform.!entry6": {
-          "kind": "text",
-          "value": "multiply"
-        },
-        "!boundform.!entry7": {
+        "!notebook.!frame.!frame.!frame.!labelframe.!frame2.!entry": {
           "kind": "text",
           "value": "1"
         },
-        "!boundform.!entry8": {
+        "!notebook.!frame.!frame.!frame.!labelframe.!frame2.!entry2": {
+          "kind": "text",
+          "value": "2.0"
+        },
+        "!notebook.!frame.!frame.!frame.!labelframe2.!frame.!entry": {
+          "kind": "text",
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.1-像增强器标定平均图/Gain43"
+        },
+        "!notebook.!frame.!frame.!frame.!labelframe2.!frame.!entry2": {
+          "kind": "text",
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.2-像增强器修正矩阵"
+        },
+        "!notebook.!frame.!frame.!frame.!labelframe2.!frame2.!entry": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!notebook.!frame.!frame.!frame.!labelframe2.!frame2.!entry2": {
+          "kind": "text",
+          "value": "550"
+        },
+        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook": {
+          "kind": "notebook",
+          "value": 0
+        },
+        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry2": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry3": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry4": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame2.!entry": {
+          "kind": "text",
+          "value": "1"
+        },
+        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame2.!entry2": {
           "kind": "text",
           "value": "4"
         },
-        "!boundform.!entry9": {
+        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame2.!frame.!entry": {
           "kind": "text",
-          "value": "100"
+          "value": ""
         },
-        "!boundform.!entry10": {
+        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame2.!frame.!entry2": {
           "kind": "text",
-          "value": "Gain{gain}.npy"
+          "value": ""
         },
-        "!boundform.!entry11": {
+        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame2.!frame.!entry3": {
           "kind": "text",
-          "value": "False"
+          "value": ""
+        },
+        "!notebook.!frame.!labelframe2.!frame.!navigationtoolbar2tk.!checkbutton-1": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!frame.!labelframe2.!frame.!navigationtoolbar2tk.!checkbutton-2": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!frame2.!calibrationdiagnosticsnotebook": {
+          "kind": "notebook",
+          "value": 0
+        },
+        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame.!frame.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame.!frame.!entry2": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame.!frame.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame.!frame.!entry4": {
+          "kind": "text",
+          "value": "5000"
+        },
+        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry2": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry3": {
+          "kind": "text",
+          "value": "640"
+        },
+        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry4": {
+          "kind": "text",
+          "value": "600"
+        },
+        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry5": {
+          "kind": "text",
+          "value": "550"
+        },
+        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry6": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry7": {
+          "kind": "text",
+          "value": ""
         }
       },
       "2.1 标定诊断": {
