@@ -28,10 +28,10 @@
     "gain_column": 4
   },
   "calibration": {
-    "source_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.1-像增强器标定平均图\\Gain43",
+    "source_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.1-像增强器标定平均图\\Gain60",
     "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.2-像增强器修正矩阵",
     "display_vmax": 0.0,
-    "analysis_radius": 500,
+    "analysis_radius": 200,
     "compare_folder": ".",
     "compare_files": "",
     "compare_center_x": 640,
@@ -198,7 +198,7 @@
         },
         "!notebook.!frame.!frame.!frame.!labelframe2.!frame.!entry": {
           "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.1-像增强器标定平均图/Gain43"
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.1-像增强器标定平均图/Gain47"
         },
         "!notebook.!frame.!frame.!frame.!labelframe2.!frame.!entry2": {
           "kind": "text",

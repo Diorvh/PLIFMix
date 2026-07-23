@@ -340,7 +340,7 @@ class LogProxy:
 
 def _path_row(parent, row: int, label: str, variable: tk.StringVar, command) -> None:
     ttk.Label(parent, text=label).grid(row=row, column=0, sticky="e", padx=(0, 4), pady=3)
-    ttk.Entry(parent, textvariable=variable, width=48).grid(row=row, column=1, sticky="w", pady=3)
+    ttk.Entry(parent, textvariable=variable, width=78).grid(row=row, column=1, sticky="w", pady=3)
     ttk.Button(parent, text="...", width=3, command=command).grid(row=row, column=2, sticky="w", padx=(3, 0), pady=3)
 
 
