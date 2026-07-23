@@ -70,7 +70,7 @@ class ManualMixingPage(ttk.Frame):
     def _row_files(self, parent) -> ttk.Frame:
         row = ttk.Frame(parent)
         ttk.Button(row, text="选择图像文件夹", command=self._select_image_folder).pack(side=tk.LEFT)
-        self._entry(row, "image_folder", "目录", 42)
+        self._entry(row, "image_folder", "目录", 78)
         self._entry(row, "fo_exp_no", "fo图像编号", 5)
         self._entry(row, "f_exp_no", "f图像编号", 5)
         self._entry(row, "o_exp_no", "o图像编号", 5)
@@ -114,7 +114,7 @@ class ManualMixingPage(ttk.Frame):
         self._entry(row, "f_shift", "f图像左平移量", 5)
         self._entry(row, "o_shift", "o图像左平移量", 5)
         self._entry(row, "denoise_ratio", "去噪阈值", 7)
-        self._entry(row, "output_folder", "输出目录", 28)
+        self._entry(row, "output_folder", "输出目录", 78)
         return row
 
     def _row_fit(self, parent) -> ttk.Frame:

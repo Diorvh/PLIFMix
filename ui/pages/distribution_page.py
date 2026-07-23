@@ -31,11 +31,11 @@ class DistributionPage(ttk.Frame):
         for row in rows:
             row.pack(anchor="w", pady=1)
         ttk.Button(rows[0], text="选择图像文件夹", command=self._choose_folder).pack(side="left")
-        self._entry(rows[0], "image_folder", "目录", 42)
+        self._entry(rows[0], "image_folder", "目录", 78)
         self._entry(rows[0], "f_exp_no", "f编号", 5)
         self._entry(rows[0], "o_exp_no", "o编号", 5)
         self._entry(rows[0], "save_name", "保存名称", 16)
-        self._entry(rows[0], "output_folder", "输出目录", 30)
+        self._entry(rows[0], "output_folder", "输出目录", 78)
         ttk.Button(rows[0], text="刷新", command=self.process).pack(side="left", padx=4)
         ttk.Button(rows[0], text="导出当前结果", command=self.export).pack(side="left", padx=4)
 

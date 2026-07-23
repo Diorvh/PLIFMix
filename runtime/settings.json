@@ -19,11 +19,11 @@
     "denoise_threshold": 2.0
   },
   "gain": {
-    "image_folder": ".",
-    "matrix_folder": ".",
-    "output_folder": ".",
+    "image_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\1-平均图",
+    "matrix_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.2-像增强器修正矩阵",
+    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.3-修正后平均图",
     "matrix_path": ".",
-    "excel_path": ".",
+    "excel_path": "D:\\工作文件同步\\20250826孔径比影响\\20250820孔径比影响-正式-混合数据.xlsx",
     "experiment_column": 1,
     "gain_column": 4
   },
@@ -198,11 +198,11 @@
         },
         "!notebook.!frame.!frame.!frame.!labelframe2.!frame.!entry": {
           "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.1-像增强器标定平均图/Gain60"
+          "value": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.1-像增强器标定平均图/Gain51"
         },
         "!notebook.!frame.!frame.!frame.!labelframe2.!frame.!entry2": {
           "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.2-像增强器修正矩阵"
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.2-像增强器修正矩阵/对比旧"
         },
         "!notebook.!frame.!frame.!frame.!labelframe2.!frame2.!entry": {
           "kind": "text",
@@ -218,19 +218,19 @@
         },
         "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry": {
           "kind": "text",
-          "value": ""
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/1-平均图"
         },
         "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry2": {
           "kind": "text",
-          "value": ""
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.2-像增强器修正矩阵"
         },
         "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry3": {
           "kind": "text",
-          "value": ""
+          "value": "D:/工作文件同步/20250826孔径比影响/20250820孔径比影响-正式-混合数据.xlsx"
         },
         "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry4": {
           "kind": "text",
-          "value": ""
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.3-修正后平均图"
         },
         "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame2.!entry": {
           "kind": "text",

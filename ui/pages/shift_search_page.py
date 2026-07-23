@@ -20,7 +20,7 @@ class ShiftSearchPage(ttk.Frame):
             self,
             actions.state.settings.shift,
             [
-                FormField("image_folder", "修正后图像目录", Path, 42, "dir"),
+                FormField("image_folder", "修正后图像目录", Path, 78, "dir"),
                 FormField("f_exp_no", "F 实验编号", str, 12),
                 FormField("o_exp_no", "O 实验编号", str, 12),
                 FormField("fo_exp_no", "FO 实验编号", str, 12),
