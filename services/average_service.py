@@ -60,6 +60,40 @@ class AverageImageService:
             except Exception as exc:
                 raise AverageExperimentError(save_name, "准备图像", str(exc)) from exc
 
+        return self._calculate_and_save(prepared, settings)
+
+    def run_intensifier_average(self, settings: AverageSettings) -> AverageResult:
+        """Average every direct child folder into the selected output folder."""
+        source_root = Path(settings.source_folder)
+        if not source_root.exists():
+            raise FileNotFoundError(f"Source folder does not exist: {source_root}")
+        if not path_is_set(settings.output_folder):
+            raise ValueError("Select an average-image output folder for intensifier calibration.")
+        output_folder = Path(settings.output_folder)
+
+        folders = sorted(path for path in source_root.iterdir() if path.is_dir())
+        if not folders:
+            raise ValueError(f"No calibration image folders found in: {source_root}")
+
+        prepared: list[_PreparedAverage] = []
+        for folder in folders:
+            try:
+                prepared.append(
+                    self._prepare_folder(
+                        folder,
+                        folder.name,
+                        settings,
+                        output_folder=output_folder,
+                        select_all=True,
+                    )
+                )
+            except Exception as exc:
+                raise AverageExperimentError(folder.name, "准备图像", str(exc)) from exc
+
+        return self._calculate_and_save(prepared, settings)
+
+    def _calculate_and_save(self, prepared: list[_PreparedAverage], settings: AverageSettings) -> AverageResult:
+
         calculation_start = time.perf_counter()
         try:
             averages = average_image_sets(
@@ -85,16 +119,23 @@ class AverageImageService:
             calculation_seconds=calculation_seconds,
         )
 
-    def _prepare_folder(self, folder: Path, save_name: str, settings: AverageSettings) -> _PreparedAverage:
+    def _prepare_folder(
+        self,
+        folder: Path,
+        save_name: str,
+        settings: AverageSettings,
+        output_folder: Path | None = None,
+        select_all: bool = False,
+    ) -> _PreparedAverage:
         files = list_image_files(folder, (".png", ".tif", ".tiff", ".bmp"))
         if not files:
             raise ValueError(f"No image files found in: {folder}")
         files = _ensure_numbered_sequence(files)
-        selected = _select_files(files, settings)
+        selected = files if select_all else _select_files(files, settings)
         if not selected:
             raise ValueError(f"No files selected in {folder}. Check frame selection.")
-        output_folder = Path(settings.output_folder) if path_is_set(settings.output_folder) else folder.parent
-        return _PreparedAverage(folder, save_name, selected, output_folder)
+        target_folder = output_folder or (Path(settings.output_folder) if path_is_set(settings.output_folder) else folder.parent)
+        return _PreparedAverage(folder, save_name, selected, target_folder)
 
 
 def _select_files(files: list[Path], settings: AverageSettings) -> list[Path]:

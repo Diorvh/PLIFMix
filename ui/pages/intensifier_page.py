@@ -16,7 +16,7 @@ class IntensifierPage(ttk.Frame):
             self,
             settings,
             [
-                FormField("image_folder", "图像/平均图目录", Path, 42, "dir"),
+                FormField("image_folder", "图像目录", Path, 42, "dir"),
                 FormField("matrix_path", "修正矩阵 .npy", Path, 42, "file"),
                 FormField("matrix_folder", "修正矩阵目录", Path, 42, "dir"),
                 FormField("excel_path", "实验增益 Excel", Path, 42, "file"),

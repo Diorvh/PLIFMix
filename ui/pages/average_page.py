@@ -76,7 +76,10 @@ class AveragePage(ttk.Frame):
         self._sync_segment_state()
         self._sync_experiment_state()
 
-        ttk.Button(self, text="计算平均图", command=self.run).pack(anchor="w", padx=8, pady=(5, 0))
+        buttons = ttk.Frame(self)
+        buttons.pack(anchor="w", padx=8, pady=(5, 0))
+        ttk.Button(buttons, text="计算平均图", command=self.run).pack(side="left", padx=(0, 8))
+        ttk.Button(buttons, text="像增强器求平均图", command=self.run_intensifier_average).pack(side="left")
         self.log = LogBox(self)
         self.log.pack(fill="both", expand=True, padx=8, pady=8)
 
@@ -97,6 +100,29 @@ class AveragePage(ttk.Frame):
 
         run_in_background(self, self.log, self.actions.run_average, done, "开始计算平均图...")
 
+    def run_intensifier_average(self) -> None:
+        try:
+            self._save_intensifier_average_settings()
+        except Exception as exc:
+            self.log.write(f"错误: {exc}")
+            return
+
+        def done(result) -> None:
+            self.log.write(
+                f"完成像增强器平均图: 共 {result.selected_count} 张，{len(result.items)} 个标定目录，"
+                f"图像计算耗时 {result.calculation_seconds:.2f} s"
+            )
+            for item in result.items:
+                self.log.write(f"{item.source_folder.name}: {item.selected_count} 张 -> {item.outputs.get('npy')}")
+
+        run_in_background(
+            self,
+            self.log,
+            self.actions.run_intensifier_average,
+            done,
+            "开始计算像增强器标定平均图...",
+        )
+
     def _save_to_settings(self) -> None:
         self.settings.source_folder = _to_path(self.vars["source_folder"].get())
         self.settings.output_folder = _to_path(self.vars["output_folder"].get())
@@ -109,6 +135,12 @@ class AveragePage(ttk.Frame):
         self.settings.sample_frequency = float(self.vars["sample_frequency"].get())
         self.settings.use_frame_segments = self.use_frame_segments.get()
         self.settings.frame_segments = self.vars["frame_segments"].get().strip()
+
+    def _save_intensifier_average_settings(self) -> None:
+        self.settings.source_folder = _to_path(self.vars["source_folder"].get())
+        self.settings.output_folder = _to_path(self.vars["output_folder"].get())
+        self.settings.best_process_count = int(self.vars["best_process_count"].get())
+        self.settings.denoise_threshold = float(self.vars["denoise_threshold"].get())
 
     def _choose_directory(self, name: str) -> None:
         path = filedialog.askdirectory(initialdir=self.vars[name].get() or None)

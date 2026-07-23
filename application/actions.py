@@ -27,6 +27,11 @@ class PLIFActions:
         self.state.save()
         return result
 
+    def run_intensifier_average(self) -> AverageResult:
+        result = self.average_service.run_intensifier_average(deepcopy(self.state.settings.average))
+        self.state.save()
+        return result
+
     def apply_intensifier_correction(self) -> CorrectionResult:
         result = self.intensifier_service.apply_folder(deepcopy(self.state.settings.gain))
         self.state.save()
