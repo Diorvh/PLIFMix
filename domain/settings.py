@@ -21,6 +21,14 @@ class AverageSettings:
 
 
 @dataclass
+class IntensifierAverageSettings:
+    source_folder: Path = Path()
+    output_folder: Path = Path()
+    best_process_count: int = 4
+    denoise_threshold: float = 2
+
+
+@dataclass
 class GainCorrectionSettings:
     image_folder: Path = Path()
     matrix_folder: Path = Path()
@@ -152,6 +160,7 @@ class UiStateSettings:
 @dataclass
 class AppSettings:
     average: AverageSettings = field(default_factory=AverageSettings)
+    intensifier_average: IntensifierAverageSettings = field(default_factory=IntensifierAverageSettings)
     gain: GainCorrectionSettings = field(default_factory=GainCorrectionSettings)
     calibration: CalibrationSettings = field(default_factory=CalibrationSettings)
     davis: DavisSettings = field(default_factory=DavisSettings)

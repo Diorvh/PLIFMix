@@ -28,7 +28,7 @@ class PLIFActions:
         return result
 
     def run_intensifier_average(self) -> AverageResult:
-        result = self.average_service.run_intensifier_average(deepcopy(self.state.settings.average))
+        result = self.average_service.run_intensifier_average(deepcopy(self.state.settings.intensifier_average))
         self.state.save()
         return result
 

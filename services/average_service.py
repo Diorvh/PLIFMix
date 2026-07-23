@@ -9,7 +9,7 @@ import uuid
 from PLIFv2.algorithms.average import AverageSetError, average_image_sets
 from PLIFv2.core.image_io import list_image_files, save_float_image
 from PLIFv2.core.paths import path_is_set
-from PLIFv2.domain.settings import AverageSettings
+from PLIFv2.domain.settings import AverageSettings, IntensifierAverageSettings
 
 
 @dataclass
@@ -62,7 +62,7 @@ class AverageImageService:
 
         return self._calculate_and_save(prepared, settings)
 
-    def run_intensifier_average(self, settings: AverageSettings) -> AverageResult:
+    def run_intensifier_average(self, settings: IntensifierAverageSettings) -> AverageResult:
         """Average every direct child folder into the selected output folder."""
         source_root = Path(settings.source_folder)
         if not source_root.exists():
@@ -92,7 +92,11 @@ class AverageImageService:
 
         return self._calculate_and_save(prepared, settings)
 
-    def _calculate_and_save(self, prepared: list[_PreparedAverage], settings: AverageSettings) -> AverageResult:
+    def _calculate_and_save(
+        self,
+        prepared: list[_PreparedAverage],
+        settings: AverageSettings | IntensifierAverageSettings,
+    ) -> AverageResult:
 
         calculation_start = time.perf_counter()
         try:
@@ -123,7 +127,7 @@ class AverageImageService:
         self,
         folder: Path,
         save_name: str,
-        settings: AverageSettings,
+        settings: AverageSettings | IntensifierAverageSettings,
         output_folder: Path | None = None,
         select_all: bool = False,
     ) -> _PreparedAverage:
@@ -131,7 +135,12 @@ class AverageImageService:
         if not files:
             raise ValueError(f"No image files found in: {folder}")
         files = _ensure_numbered_sequence(files)
-        selected = files if select_all else _select_files(files, settings)
+        if select_all:
+            selected = files
+        elif isinstance(settings, AverageSettings):
+            selected = _select_files(files, settings)
+        else:
+            raise TypeError("Time-range selection requires AverageSettings.")
         if not selected:
             raise ValueError(f"No files selected in {folder}. Check frame selection.")
         target_folder = output_folder or (Path(settings.output_folder) if path_is_set(settings.output_folder) else folder.parent)
