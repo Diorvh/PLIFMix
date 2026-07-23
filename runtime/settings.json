@@ -40,8 +40,8 @@
     "single_image_path": "."
   },
   "davis": {
-    "corrected_folder": ".",
-    "davis_input_folder": ".",
+    "corrected_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.3-修正后平均图",
+    "davis_input_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\3.1-Davis输入图像",
     "davis_export_folder": ".",
     "output_folder": ".",
     "restore_gain": true
@@ -123,8 +123,8 @@
   },
   "ui": {
     "app": {
-      "main_tab": 0,
-      "active_page": "1 平均图",
+      "main_tab": 2,
+      "active_page": "3 Davis 整理",
       "last_tool_page": "图片播放器",
       "last_secondary_page": "图像查看器"
     },

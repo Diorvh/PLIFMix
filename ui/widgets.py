@@ -23,14 +23,18 @@ class BoundForm(ttk.Frame):
         super().__init__(master)
         self.model = model
         self.fields = fields
-        self.vars: dict[str, tk.StringVar] = {}
+        self.vars: dict[str, tk.Variable] = {}
         for index, field in enumerate(fields):
             row = index // columns
             col = (index % columns) * 3
             ttk.Label(self, text=field.label).grid(row=row, column=col, sticky="e", padx=4, pady=3)
-            var = tk.StringVar(value=_stringify(getattr(model, field.name)))
+            value = getattr(model, field.name)
+            var = tk.BooleanVar(value=bool(value)) if field.kind is bool else tk.StringVar(value=_stringify(value))
             self.vars[field.name] = var
-            ttk.Entry(self, textvariable=var, width=field.width).grid(row=row, column=col + 1, sticky="w", padx=4, pady=3)
+            if field.kind is bool:
+                ttk.Checkbutton(self, variable=var).grid(row=row, column=col + 1, sticky="w", padx=4, pady=3)
+            else:
+                ttk.Entry(self, textvariable=var, width=field.width).grid(row=row, column=col + 1, sticky="w", padx=4, pady=3)
             if field.browse:
                 command = self._browse_dir if field.browse == "dir" else self._browse_file
                 ttk.Button(self, text="...", width=3, command=lambda name=field.name, cmd=command: cmd(name)).grid(
@@ -40,11 +44,13 @@ class BoundForm(ttk.Frame):
     def save_to_model(self) -> None:
         for field in self.fields:
             raw = self.vars[field.name].get()
-            setattr(self.model, field.name, _coerce(raw, field.kind))
+            value = bool(raw) if field.kind is bool else _coerce(raw, field.kind)
+            setattr(self.model, field.name, value)
 
     def load_from_model(self) -> None:
         for field in self.fields:
-            self.vars[field.name].set(_stringify(getattr(self.model, field.name)))
+            value = getattr(self.model, field.name)
+            self.vars[field.name].set(bool(value) if field.kind is bool else _stringify(value))
 
     def _browse_dir(self, name: str) -> None:
         path = filedialog.askdirectory()
