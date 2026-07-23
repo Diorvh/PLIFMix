@@ -11,15 +11,9 @@ def apply_correction_matrix(
     image_path: str | Path,
     matrix: np.ndarray,
     output_folder: str | Path,
-    operation: str = "multiply",
 ) -> dict[str, Path]:
     image = read_image(image_path).astype(np.float64)
-    if operation == "multiply":
-        corrected = image * matrix
-    elif operation == "subtract":
-        corrected = image - matrix
-    else:
-        raise ValueError(f"Unsupported correction operation: {operation}")
+    corrected = image * matrix
     corrected = np.clip(corrected, 0, None)
     return save_float_image(corrected, output_folder, Path(image_path).stem)
 
@@ -32,4 +26,3 @@ def fit_linear_gain_matrix(image_stack: np.ndarray, x_values: np.ndarray) -> tup
     norm = k_matrix / np.nanmax(k_matrix)
     correction = np.where(norm > 0, 1 / norm, 0)
     return k_matrix, correction
-

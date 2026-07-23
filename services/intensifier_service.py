@@ -12,6 +12,8 @@ from PLIFv2.core.image_io import extract_plif_signal, list_image_files, read_ima
 from PLIFv2.core.paths import path_is_set
 from PLIFv2.domain.settings import GainCorrectionSettings
 
+GAIN_SCALE = 100
+
 
 @dataclass
 class CorrectionResult:
@@ -42,8 +44,7 @@ class IntensifierCorrectionService:
             raise FileNotFoundError(f"Image folder does not exist: {image_folder}")
         if not matrix_path.exists():
             raise FileNotFoundError(f"Correction matrix does not exist: {matrix_path}")
-        suffixes = {".npy", ".tif", ".tiff", ".png"} if settings.include_tif else {".npy"}
-        files = list_image_files(image_folder, tuple(suffixes))
+        files = list_image_files(image_folder, (".npy",))
         return self.apply_paths(settings, files)
 
     def apply_paths(self, settings: GainCorrectionSettings, paths: list[Path]) -> CorrectionResult:
@@ -56,7 +57,7 @@ class IntensifierCorrectionService:
         output_folder = Path(settings.output_folder) if path_is_set(settings.output_folder) else Path(paths[0]).parent.parent / "intensifier_corrected"
         records: list[CorrectionRecord] = []
         for path in paths:
-            outputs = apply_correction_matrix(path, matrix, output_folder, settings.operation)
+            outputs = apply_correction_matrix(path, matrix, output_folder)
             records.append(CorrectionRecord(Path(path), matrix_path, None, outputs))
         return CorrectionResult(len(records), [record.outputs for record in records], records)
 
@@ -64,6 +65,8 @@ class IntensifierCorrectionService:
         image_folder = Path(settings.image_folder)
         excel_path = Path(settings.excel_path)
         matrix_folder = Path(settings.matrix_folder)
+        if settings.experiment_column < 1 or settings.gain_column < 1:
+            raise ValueError("Excel column numbers must be positive integers.")
         if not image_folder.exists():
             raise FileNotFoundError(f"Image folder does not exist: {image_folder}")
         if not excel_path.exists():
@@ -73,14 +76,14 @@ class IntensifierCorrectionService:
         workbook = openpyxl.load_workbook(excel_path, read_only=True, data_only=True)
         try:
             sheet = workbook.active
-            gain_by_experiment: dict[int, float] = {}
+            gain_by_experiment: dict[int, int] = {}
             for row in range(1, sheet.max_row + 1):
                 exp_value = sheet.cell(row=row, column=settings.experiment_column).value
                 gain_value = sheet.cell(row=row, column=settings.gain_column).value
                 if exp_value is None or gain_value is None:
                     continue
                 try:
-                    gain_by_experiment[int(exp_value)] = float(gain_value) * settings.gain_scale
+                    gain_by_experiment[int(exp_value)] = int(float(gain_value) * GAIN_SCALE)
                 except (TypeError, ValueError):
                     continue
         finally:
@@ -88,19 +91,16 @@ class IntensifierCorrectionService:
 
         output_folder = Path(settings.output_folder) if path_is_set(settings.output_folder) else image_folder.parent / "intensifier_corrected"
         records: list[CorrectionRecord] = []
-        suffixes = {".npy", ".tif", ".tiff", ".png"} if settings.include_tif else {".npy"}
-        image_paths = list_image_files(image_folder, tuple(suffixes))
+        image_paths = sorted(path for path in image_folder.rglob("*.npy") if path.is_file())
         for image_path in image_paths:
             exp_no = _experiment_number(image_path.stem)
             if exp_no is None or exp_no not in gain_by_experiment:
                 continue
             gain = gain_by_experiment[exp_no]
-            gain_token: int | float = int(round(gain)) if abs(gain - round(gain)) < 1e-9 else gain
-            matrix_name = settings.matrix_name_template.format(gain=gain_token, experiment=exp_no)
-            matrix_path = matrix_folder / matrix_name
+            matrix_path = matrix_folder / f"Gain{gain}.npy"
             if not matrix_path.exists():
                 raise FileNotFoundError(f"Experiment {exp_no}: matrix not found: {matrix_path}")
-            outputs = apply_correction_matrix(image_path, np.load(matrix_path), output_folder, settings.operation)
+            outputs = apply_correction_matrix(image_path, np.load(matrix_path), output_folder)
             records.append(CorrectionRecord(image_path, matrix_path, gain, outputs))
         return CorrectionResult(len(records), [record.outputs for record in records], records)
 

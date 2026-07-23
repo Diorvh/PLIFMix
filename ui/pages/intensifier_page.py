@@ -5,6 +5,7 @@ from pathlib import Path
 from tkinter import filedialog, ttk
 
 from PLIFv2.application.actions import PLIFActions
+from PLIFv2.core.paths import path_is_set
 from PLIFv2.ui.components.calibration_workspace import CalibrationDiagnosticsNotebook, MatrixFitWorkspace
 from PLIFv2.ui.widgets import LogBox, run_in_background
 
@@ -22,10 +23,19 @@ class IntensifierPage(ttk.Frame):
 
         status = ttk.LabelFrame(self.workflow_tab, text="状态")
         self.log = LogBox(status, height=3)
-        self._setup_average_controls()
+        controls = ttk.Frame(self.workflow_tab)
+        controls.pack(fill="x", padx=8, pady=(8, 0))
+        controls.columnconfigure(0, weight=1)
+        controls.columnconfigure(1, weight=1)
+        left = ttk.Frame(controls)
+        left.grid(row=0, column=0, sticky="new", padx=(0, 4))
+        right = ttk.Frame(controls)
+        right.grid(row=0, column=1, sticky="new", padx=(4, 0))
+
+        self._setup_average_controls(left)
         self.fit_workspace = MatrixFitWorkspace(actions, self.log)
-        self.fit_workspace.build_controls(self.workflow_tab)
-        self._setup_correction_controls()
+        self.fit_workspace.build_controls(left)
+        self._setup_correction_controls(right)
         self.fit_workspace.build_view(self.workflow_tab)
         status.pack(fill="x", padx=8, pady=(4, 8))
         self.log.pack(fill="x", padx=4, pady=3)
@@ -33,7 +43,7 @@ class IntensifierPage(ttk.Frame):
         self.diagnostics = CalibrationDiagnosticsNotebook(self.diagnostics_tab, actions)
         self.diagnostics.pack(fill="both", expand=True, padx=8, pady=8)
 
-    def _setup_average_controls(self) -> None:
+    def _setup_average_controls(self, parent: tk.Misc) -> None:
         self.average_settings = self.actions.state.settings.intensifier_average
         self.average_vars = {
             "source_folder": tk.StringVar(value=_path_text(self.average_settings.source_folder)),
@@ -41,8 +51,8 @@ class IntensifierPage(ttk.Frame):
             "best_process_count": tk.StringVar(value=str(self.average_settings.best_process_count)),
             "denoise_threshold": tk.StringVar(value=str(self.average_settings.denoise_threshold)),
         }
-        section = ttk.LabelFrame(self.workflow_tab, text="标定平均图")
-        section.pack(fill="x", padx=8, pady=(8, 4))
+        section = ttk.LabelFrame(parent, text="标定平均图")
+        section.pack(fill="x", pady=(0, 4))
         paths = ttk.Frame(section)
         paths.pack(anchor="w", padx=6, pady=(4, 2))
         _path_row(paths, 0, "像增强器标定根目录", self.average_vars["source_folder"], self._choose_average_source)
@@ -53,52 +63,50 @@ class IntensifierPage(ttk.Frame):
         _labeled_entry(controls, "去噪阈值", self.average_vars["denoise_threshold"], 8)
         ttk.Button(controls, text="计算标定平均图", command=self.run_intensifier_average).pack(side="left", padx=(4, 0))
 
-    def _setup_correction_controls(self) -> None:
+    def _setup_correction_controls(self, parent: tk.Misc) -> None:
         self.gain_settings = self.actions.state.settings.gain
-        self.correction_vars = {
+        self.batch_vars = {
             "image_folder": tk.StringVar(value=_path_text(self.gain_settings.image_folder)),
-            "matrix_path": tk.StringVar(value=_path_text(self.gain_settings.matrix_path)),
             "matrix_folder": tk.StringVar(value=_path_text(self.gain_settings.matrix_folder)),
             "excel_path": tk.StringVar(value=_path_text(self.gain_settings.excel_path)),
             "output_folder": tk.StringVar(value=_path_text(self.gain_settings.output_folder)),
-            "operation": tk.StringVar(value=self.gain_settings.operation),
             "experiment_column": tk.StringVar(value=str(self.gain_settings.experiment_column)),
             "gain_column": tk.StringVar(value=str(self.gain_settings.gain_column)),
-            "gain_scale": tk.StringVar(value=str(self.gain_settings.gain_scale)),
-            "matrix_name_template": tk.StringVar(value=self.gain_settings.matrix_name_template),
         }
-        self.include_tif = tk.BooleanVar(value=self.gain_settings.include_tif)
-        section = ttk.LabelFrame(self.workflow_tab, text="实验图像修正")
-        section.pack(fill="x", padx=8, pady=4)
-        paths = ttk.Frame(section)
-        paths.pack(anchor="w", padx=6, pady=(4, 2))
-        _path_row(paths, 0, "待修正平均图目录", self.correction_vars["image_folder"], self._choose_image_folder)
-        _path_row(paths, 1, "单个修正矩阵 .npy", self.correction_vars["matrix_path"], self._choose_matrix_path)
-        _path_row(paths, 2, "修正矩阵目录", self.correction_vars["matrix_folder"], self._choose_matrix_folder)
-        _path_row(paths, 3, "实验增益 Excel", self.correction_vars["excel_path"], self._choose_excel_path)
-        _path_row(paths, 4, "修正结果输出目录", self.correction_vars["output_folder"], self._choose_correction_output)
+        self.single_image_var = tk.StringVar()
+        self.single_matrix_var = tk.StringVar(value=_path_text(self.gain_settings.matrix_path))
+        self.single_output_var = tk.StringVar(value=_path_text(self.gain_settings.output_folder))
+        section = ttk.LabelFrame(parent, text="实验图像修正")
+        section.pack(fill="x")
+        notebook = ttk.Notebook(section)
+        notebook.pack(fill="both", expand=True, padx=6, pady=6)
+        batch_tab = ttk.Frame(notebook)
+        single_tab = ttk.Frame(notebook)
+        notebook.add(batch_tab, text="按 Excel 批量修正")
+        notebook.add(single_tab, text="单张修正")
+        self._setup_batch_correction(batch_tab)
+        self._setup_single_correction(single_tab)
 
-        options = ttk.Frame(section)
-        options.pack(anchor="w", padx=6, pady=(2, 2))
-        ttk.Label(options, text="运算").pack(side="left", padx=(0, 2))
-        ttk.Combobox(
-            options,
-            textvariable=self.correction_vars["operation"],
-            values=("multiply", "subtract"),
-            state="readonly",
-            width=12,
-        ).pack(side="left", padx=(0, 8))
-        _labeled_entry(options, "实验编号列", self.correction_vars["experiment_column"], 5)
-        _labeled_entry(options, "Gain列", self.correction_vars["gain_column"], 5)
-        _labeled_entry(options, "Gain倍率", self.correction_vars["gain_scale"], 7)
-        _labeled_entry(options, "矩阵命名模板", self.correction_vars["matrix_name_template"], 22)
-        ttk.Checkbutton(options, text="包含 tif/png", variable=self.include_tif).pack(side="left", padx=(0, 8))
+    def _setup_batch_correction(self, parent: tk.Misc) -> None:
+        paths = ttk.Frame(parent)
+        paths.pack(anchor="w", padx=2, pady=(2, 4))
+        _path_row(paths, 0, "待修正平均图目录", self.batch_vars["image_folder"], self._choose_batch_images)
+        _path_row(paths, 1, "修正矩阵目录", self.batch_vars["matrix_folder"], self._choose_batch_matrices)
+        _path_row(paths, 2, "实验增益 Excel", self.batch_vars["excel_path"], self._choose_batch_excel)
+        _path_row(paths, 3, "修正结果输出目录", self.batch_vars["output_folder"], self._choose_batch_output)
+        columns = ttk.Frame(parent)
+        columns.pack(anchor="w", padx=2, pady=(0, 4))
+        _labeled_entry(columns, "实验编号列", self.batch_vars["experiment_column"], 5)
+        _labeled_entry(columns, "Gain列", self.batch_vars["gain_column"], 5)
+        ttk.Button(parent, text="按 Excel 批量修正", command=self.apply_excel).pack(anchor="w", padx=2, pady=(0, 2))
 
-        buttons = ttk.Frame(section)
-        buttons.pack(anchor="w", padx=6, pady=(2, 5))
-        ttk.Button(buttons, text="应用单个修正矩阵", command=self.apply_matrix).pack(side="left", padx=(0, 8))
-        ttk.Button(buttons, text="选择若干文件修正", command=self.apply_selected).pack(side="left", padx=(0, 8))
-        ttk.Button(buttons, text="按 Excel 和 Gain 批量修正", command=self.apply_excel).pack(side="left")
+    def _setup_single_correction(self, parent: tk.Misc) -> None:
+        paths = ttk.Frame(parent)
+        paths.pack(anchor="w", padx=2, pady=(2, 4))
+        _path_row(paths, 0, "待修正图像", self.single_image_var, self._choose_single_image)
+        _path_row(paths, 1, "修正矩阵 .npy", self.single_matrix_var, self._choose_single_matrix)
+        _path_row(paths, 2, "修正结果输出目录", self.single_output_var, self._choose_single_output)
+        ttk.Button(parent, text="修正所选图像", command=self.apply_single).pack(anchor="w", padx=2, pady=(0, 2))
 
     def run_intensifier_average(self) -> None:
         try:
@@ -124,32 +132,21 @@ class IntensifierPage(ttk.Frame):
             "开始计算像增强器标定平均图...",
         )
 
-    def apply_matrix(self) -> None:
-        try:
-            self._save_correction_settings()
-        except Exception as exc:
-            self.log.write(f"错误: {exc}")
-            return
-        self._run(self.actions.apply_intensifier_correction, "开始应用单个修正矩阵...")
-
-    def apply_selected(self) -> None:
-        paths = [Path(path) for path in filedialog.askopenfilenames(filetypes=[("图像", "*.npy *.tif *.tiff *.png")])]
-        if not paths:
-            return
-        try:
-            self._save_correction_settings()
-        except Exception as exc:
-            self.log.write(f"错误: {exc}")
-            return
-        self._run(lambda: self.actions.apply_selected_intensifier_correction(paths), "开始修正所选文件...")
-
     def apply_excel(self) -> None:
         try:
-            self._save_correction_settings()
+            self._save_batch_settings()
         except Exception as exc:
             self.log.write(f"错误: {exc}")
             return
         self._run(self.actions.apply_excel_intensifier_correction, "开始读取 Excel 并匹配 Gain 矩阵...")
+
+    def apply_single(self) -> None:
+        try:
+            image_path = self._save_single_settings()
+        except Exception as exc:
+            self.log.write(f"错误: {exc}")
+            return
+        self._run(lambda: self.actions.apply_selected_intensifier_correction([image_path]), "开始修正所选图像...")
 
     def _save_average_settings(self) -> None:
         self.average_settings.source_folder = _to_path(self.average_vars["source_folder"].get())
@@ -157,18 +154,21 @@ class IntensifierPage(ttk.Frame):
         self.average_settings.best_process_count = int(self.average_vars["best_process_count"].get())
         self.average_settings.denoise_threshold = float(self.average_vars["denoise_threshold"].get())
 
-    def _save_correction_settings(self) -> None:
-        self.gain_settings.image_folder = _to_path(self.correction_vars["image_folder"].get())
-        self.gain_settings.matrix_path = _to_path(self.correction_vars["matrix_path"].get())
-        self.gain_settings.matrix_folder = _to_path(self.correction_vars["matrix_folder"].get())
-        self.gain_settings.excel_path = _to_path(self.correction_vars["excel_path"].get())
-        self.gain_settings.output_folder = _to_path(self.correction_vars["output_folder"].get())
-        self.gain_settings.operation = self.correction_vars["operation"].get()
-        self.gain_settings.experiment_column = int(self.correction_vars["experiment_column"].get())
-        self.gain_settings.gain_column = int(self.correction_vars["gain_column"].get())
-        self.gain_settings.gain_scale = float(self.correction_vars["gain_scale"].get())
-        self.gain_settings.matrix_name_template = self.correction_vars["matrix_name_template"].get().strip()
-        self.gain_settings.include_tif = self.include_tif.get()
+    def _save_batch_settings(self) -> None:
+        self.gain_settings.image_folder = _required_path(self.batch_vars["image_folder"].get(), "待修正平均图目录")
+        self.gain_settings.matrix_folder = _required_path(self.batch_vars["matrix_folder"].get(), "修正矩阵目录")
+        self.gain_settings.excel_path = _required_path(self.batch_vars["excel_path"].get(), "实验增益 Excel")
+        self.gain_settings.output_folder = _required_path(self.batch_vars["output_folder"].get(), "修正结果输出目录")
+        self.gain_settings.experiment_column = _positive_int(
+            self.batch_vars["experiment_column"].get(), "实验编号列"
+        )
+        self.gain_settings.gain_column = _positive_int(self.batch_vars["gain_column"].get(), "Gain列")
+
+    def _save_single_settings(self) -> Path:
+        image_path = _required_path(self.single_image_var.get(), "待修正图像")
+        self.gain_settings.matrix_path = _required_path(self.single_matrix_var.get(), "修正矩阵")
+        self.gain_settings.output_folder = _required_path(self.single_output_var.get(), "修正结果输出目录")
+        return image_path
 
     def _choose_average_source(self) -> None:
         self._choose_directory(self.average_vars["source_folder"])
@@ -176,20 +176,26 @@ class IntensifierPage(ttk.Frame):
     def _choose_average_output(self) -> None:
         self._choose_directory(self.average_vars["output_folder"])
 
-    def _choose_image_folder(self) -> None:
-        self._choose_directory(self.correction_vars["image_folder"])
+    def _choose_batch_images(self) -> None:
+        self._choose_directory(self.batch_vars["image_folder"])
 
-    def _choose_matrix_folder(self) -> None:
-        self._choose_directory(self.correction_vars["matrix_folder"])
+    def _choose_batch_matrices(self) -> None:
+        self._choose_directory(self.batch_vars["matrix_folder"])
 
-    def _choose_correction_output(self) -> None:
-        self._choose_directory(self.correction_vars["output_folder"])
+    def _choose_batch_excel(self) -> None:
+        self._choose_file(self.batch_vars["excel_path"], [("Excel", "*.xlsx *.xls")])
 
-    def _choose_matrix_path(self) -> None:
-        self._choose_file(self.correction_vars["matrix_path"], [("NumPy 矩阵", "*.npy")])
+    def _choose_batch_output(self) -> None:
+        self._choose_directory(self.batch_vars["output_folder"])
 
-    def _choose_excel_path(self) -> None:
-        self._choose_file(self.correction_vars["excel_path"], [("Excel", "*.xlsx *.xls")])
+    def _choose_single_image(self) -> None:
+        self._choose_file(self.single_image_var, [("NumPy 图像", "*.npy")])
+
+    def _choose_single_matrix(self) -> None:
+        self._choose_file(self.single_matrix_var, [("NumPy 矩阵", "*.npy")])
+
+    def _choose_single_output(self) -> None:
+        self._choose_directory(self.single_output_var)
 
     @staticmethod
     def _choose_directory(variable: tk.StringVar) -> None:
@@ -215,7 +221,7 @@ class IntensifierPage(ttk.Frame):
 
 def _path_row(parent, row: int, label: str, variable: tk.StringVar, command) -> None:
     ttk.Label(parent, text=label).grid(row=row, column=0, sticky="e", padx=(0, 4), pady=3)
-    ttk.Entry(parent, textvariable=variable, width=92).grid(row=row, column=1, sticky="w", pady=3)
+    ttk.Entry(parent, textvariable=variable, width=48).grid(row=row, column=1, sticky="w", pady=3)
     ttk.Button(parent, text="...", width=3, command=command).grid(row=row, column=2, sticky="w", padx=(3, 0), pady=3)
 
 
@@ -230,3 +236,20 @@ def _path_text(path: Path) -> str:
 
 def _to_path(text: str) -> Path:
     return Path(text) if text.strip() else Path()
+
+
+def _required_path(text: str, label: str) -> Path:
+    path = _to_path(text)
+    if not path_is_set(path):
+        raise ValueError(f"请选择{label}")
+    return path
+
+
+def _positive_int(text: str, label: str) -> int:
+    try:
+        value = int(text)
+    except ValueError as exc:
+        raise ValueError(f"{label}必须是正整数") from exc
+    if value < 1:
+        raise ValueError(f"{label}必须是正整数")
+    return value

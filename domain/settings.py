@@ -34,13 +34,9 @@ class GainCorrectionSettings:
     matrix_folder: Path = Path()
     output_folder: Path = Path()
     matrix_path: Path = Path()
-    operation: str = "multiply"
     excel_path: Path = Path()
     experiment_column: int = 1
     gain_column: int = 4
-    gain_scale: float = 100
-    matrix_name_template: str = "Gain{gain}.npy"
-    include_tif: bool = False
 
 
 @dataclass
