@@ -11,29 +11,40 @@ class DavisPage(ttk.Frame):
     def __init__(self, master, actions: PLIFActions):
         super().__init__(master)
         self.actions = actions
-        self.form = BoundForm(
-            self,
+        input_section = ttk.LabelFrame(self, text="准备 Davis 输入")
+        input_section.pack(fill="x", padx=8, pady=(8, 4))
+        self.input_form = BoundForm(
+            input_section,
             actions.state.settings.davis,
             [
                 FormField("corrected_folder", "像增强器修正后目录", Path, 78, "dir"),
                 FormField("davis_input_folder", "Davis 输入目录", Path, 78, "dir"),
+            ],
+            columns=1,
+        )
+        self.input_form.pack(anchor="w", padx=6, pady=(4, 2))
+        ttk.Button(input_section, text="准备 Davis 输入", command=self.prepare).pack(anchor="w", padx=6, pady=(0, 5))
+
+        output_section = ttk.LabelFrame(self, text="整理 Davis 输出")
+        output_section.pack(fill="x", padx=8, pady=4)
+        self.output_form = BoundForm(
+            output_section,
+            actions.state.settings.davis,
+            [
                 FormField("davis_export_folder", "Davis 导出目录", Path, 78, "dir"),
                 FormField("output_folder", "整理输出目录", Path, 78, "dir"),
                 FormField("restore_gain", "按 GAIN 还原", bool, 12),
             ],
             columns=1,
         )
-        self.form.pack(fill="x", padx=8, pady=8)
-        buttons = ttk.Frame(self)
-        buttons.pack(anchor="w", padx=8)
-        ttk.Button(buttons, text="准备 Davis 输入", command=self.prepare).pack(side="left", padx=(0, 8))
-        ttk.Button(buttons, text="整理 Davis 输出", command=self.run).pack(side="left")
+        self.output_form.pack(anchor="w", padx=6, pady=(4, 2))
+        ttk.Button(output_section, text="整理 Davis 输出", command=self.run).pack(anchor="w", padx=6, pady=(0, 5))
         self.log = LogBox(self)
         self.log.pack(fill="both", expand=True, padx=8, pady=8)
 
     def run(self) -> None:
         try:
-            self.form.save_to_model()
+            self.output_form.save_to_model()
         except Exception as exc:
             self.log.write(f"错误: {exc}")
             return
@@ -47,7 +58,7 @@ class DavisPage(ttk.Frame):
 
     def prepare(self) -> None:
         try:
-            self.form.save_to_model()
+            self.input_form.save_to_model()
         except Exception as exc:
             self.log.write(f"错误: {exc}")
             return

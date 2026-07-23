@@ -7,8 +7,8 @@
     "best_process_count": 1,
     "denoise_threshold": 2.0,
     "sample_frequency": 500.0,
-    "time_start": 2.8,
-    "time_end": 10.0,
+    "time_start": 0.0,
+    "time_end": 0.0,
     "use_frame_segments": false,
     "frame_segments": "0:3000"
   },
@@ -138,14 +138,6 @@
           "kind": "text",
           "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪"
         },
-        "!frame.!checkbutton": {
-          "kind": "variable",
-          "value": "0"
-        },
-        "!frame.!entry3": {
-          "kind": "text",
-          "value": "228"
-        },
         "!frame2.!entry": {
           "kind": "text",
           "value": "1"
@@ -154,23 +146,31 @@
           "kind": "text",
           "value": "2"
         },
-        "!frame3.!entry": {
-          "kind": "text",
-          "value": "2.8"
+        "!labelframe.!frame.!checkbutton": {
+          "kind": "variable",
+          "value": 0
         },
-        "!frame3.!entry2": {
+        "!labelframe.!frame.!entry": {
           "kind": "text",
-          "value": "10"
+          "value": "228"
         },
-        "!frame3.!entry3": {
+        "!labelframe.!frame2.!entry": {
+          "kind": "text",
+          "value": "0.0"
+        },
+        "!labelframe.!frame2.!entry2": {
+          "kind": "text",
+          "value": "0.0"
+        },
+        "!labelframe.!frame2.!entry3": {
           "kind": "text",
           "value": "500.0"
         },
-        "!frame3.!checkbutton": {
+        "!labelframe.!frame2.!checkbutton": {
           "kind": "variable",
-          "value": "0"
+          "value": 0
         },
-        "!frame3.!entry4": {
+        "!labelframe.!frame2.!entry4": {
           "kind": "text",
           "value": "0:3000"
         }
