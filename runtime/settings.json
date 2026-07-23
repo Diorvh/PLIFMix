@@ -12,6 +12,12 @@
     "use_frame_segments": false,
     "frame_segments": "0:3000"
   },
+  "intensifier_average": {
+    "source_folder": "E:\\实验数据\\20250820孔径比影响-正式\\像增强器标定",
+    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.1-像增强器标定平均图",
+    "best_process_count": 1,
+    "denoise_threshold": 2.0
+  },
   "gain": {
     "image_folder": ".",
     "matrix_folder": ".",
@@ -174,6 +180,22 @@
         }
       },
       "2 像增强器": {
+        "!labelframe.!frame.!entry": {
+          "kind": "text",
+          "value": "E:/实验数据/20250820孔径比影响-正式/像增强器标定/Gain60"
+        },
+        "!labelframe.!frame.!entry2": {
+          "kind": "text",
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.1-像增强器标定平均图/Gain60"
+        },
+        "!labelframe.!frame2.!entry": {
+          "kind": "text",
+          "value": "1"
+        },
+        "!labelframe.!frame2.!entry2": {
+          "kind": "text",
+          "value": "2"
+        },
         "!boundform.!entry": {
           "kind": "text",
           "value": ""

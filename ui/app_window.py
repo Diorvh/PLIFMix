@@ -10,7 +10,6 @@ from PLIFv2.core.plot_style import configure_matplotlib
 from PLIFv2.core.ui_state_io import UIStateStore
 from PLIFv2.ui.mpl_canvas import set_canvas_tree_active
 from PLIFv2.ui.pages.average_page import AveragePage
-from PLIFv2.ui.pages.calibration_page import CalibrationPage
 from PLIFv2.ui.pages.davis_page import DavisPage
 from PLIFv2.ui.pages.distribution_page import DistributionPage
 from PLIFv2.ui.pages.intensifier_page import IntensifierPage
@@ -106,7 +105,6 @@ class PLIFAppWindow(tk.Tk):
         self.workflow_specs = [
             ("1 平均图", lambda master: AveragePage(master, self.actions)),
             ("2 像增强器", lambda master: IntensifierPage(master, self.actions)),
-            ("2.1 标定诊断", lambda master: CalibrationPage(master, self.actions)),
             ("3 Davis 整理", lambda master: DavisPage(master, self.actions)),
             ("4 平移搜索", lambda master: ShiftSearchPage(master, self.actions)),
             ("5 手动调参", lambda master: ManualMixingPage(master, self.actions)),
@@ -143,6 +141,8 @@ class PLIFAppWindow(tk.Tk):
         if self.last_secondary_key not in self.pages or self.last_secondary_key in {key for key, _factory in self.workflow_specs}:
             self.last_secondary_key = self.secondary_specs[0][0]
         saved_key = self.ui_state.get_app_value("active_page", None)
+        if saved_key == "2.1 标定诊断":
+            saved_key = "2 像增强器"
         if saved_key not in self.pages:
             saved_key = self._legacy_saved_page_key()
         self.after_idle(lambda: self._show_page(saved_key))
@@ -152,6 +152,11 @@ class PLIFAppWindow(tk.Tk):
             saved_tab = int(self.ui_state.get_app_value("main_tab", 0))
         except (TypeError, ValueError):
             saved_tab = 0
+        # Older settings counted the removed "2.1 标定诊断" page as index 2.
+        if saved_tab == 2:
+            return "2 像增强器"
+        if saved_tab > 2:
+            saved_tab -= 1
         if 0 <= saved_tab < len(self.workflow_specs):
             return self.workflow_specs[saved_tab][0]
         return self.last_secondary_key
