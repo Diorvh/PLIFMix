@@ -124,8 +124,8 @@ class PLIFActions:
         self.state.save()
         return result
 
-    def export_manual_result(self, result: ManualDisplayResult):
-        output = self.mixing_service.export_manual(self.state.settings.manual, result)
+    def export_mix_curve_data(self, result: ManualDisplayResult):
+        output = self.mixing_service.export_mix_curve(self.state.settings.manual, result)
         self.state.save()
         return output
 

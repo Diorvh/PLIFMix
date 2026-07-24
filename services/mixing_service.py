@@ -14,7 +14,6 @@ from PLIFv2.algorithms.mixing import (
     generate_mask_coords,
     shift_image,
 )
-from PLIFv2.algorithms.visualization import plot_data_image
 from PLIFv2.core.image_io import read_image
 from PLIFv2.core.paths import path_is_set
 from PLIFv2.domain.settings import ManualMixingSettings, ShiftSearchSettings
@@ -83,7 +82,17 @@ class MixingService:
         if fo_sum:
             fo_img = fo_img / fo_sum * np.sum(combined)
 
-        coords = generate_mask_coords(settings.center_xfo, settings.center_yfo, settings.major_axis, settings.minor_axis, f_img.shape)
+        if settings.use_ellipse_region:
+            coords = generate_mask_coords(
+                settings.center_xfo,
+                settings.center_yfo,
+                settings.major_axis,
+                settings.minor_axis,
+                f_img.shape,
+            )
+        else:
+            ys, xs = np.indices(f_img.shape)
+            coords = xs.ravel(), ys.ravel()
         global_mix_ratio = settings.global_of / (1 + settings.global_of)
         abs_value, me_o_fo, me_f_fo, me_o_f = calc_result(f_img, o_img, fo_img, coords, global_mix_ratio)
         summary = ManualMixingResult(
@@ -134,11 +143,15 @@ class MixingService:
             float(np.max(mix_efficiency_o_f)),
             float(np.max(mix_efficiency_f_fo)),
             float(np.max(mix_efficiency_o_fo)),
-            1.0,
         )
-        mix_efficiency_o_f = np.array(mix_efficiency_o_f / max_eff * 255).astype(np.uint8)
-        mix_efficiency_f_fo = np.array(mix_efficiency_f_fo / max_eff * 255).astype(np.uint8)
-        mix_efficiency_o_fo = np.array(mix_efficiency_o_fo / max_eff * 255).astype(np.uint8)
+        if max_eff > 0:
+            mix_efficiency_o_f = np.array(mix_efficiency_o_f / max_eff * 255).astype(np.uint8)
+            mix_efficiency_f_fo = np.array(mix_efficiency_f_fo / max_eff * 255).astype(np.uint8)
+            mix_efficiency_o_fo = np.array(mix_efficiency_o_fo / max_eff * 255).astype(np.uint8)
+        else:
+            mix_efficiency_o_f = np.zeros_like(mix_efficiency_o_f, dtype=np.uint8)
+            mix_efficiency_f_fo = np.zeros_like(mix_efficiency_f_fo, dtype=np.uint8)
+            mix_efficiency_o_fo = np.zeros_like(mix_efficiency_o_fo, dtype=np.uint8)
         display_images.extend(
             [
                 DisplayImage("oDf+o", mix_ratio_o_f, "bwr"),
@@ -162,29 +175,12 @@ class MixingService:
         mask_curve = curve_y != 0
         curve_x = curve_x[mask_curve]
         curve_y = curve_y[mask_curve] - 1
-        curve_img = plot_data_image(
-            curve_x,
-            curve_y,
-            title="混合分数曲线",
-            xlabel="x",
-            ylabel="混合分数",
-            axislimit=[(500, 1000), (0.2, 0.9)],
-        )
-        display_images.append(DisplayImage("mix_curve", curve_img, "none"))
         return ManualDisplayResult(summary, display_images, (curve_x, curve_y))
 
-    def export_manual(self, settings: ManualMixingSettings, result: ManualDisplayResult) -> Path:
+    def export_mix_curve(self, settings: ManualMixingSettings, result: ManualDisplayResult) -> Path:
         output = Path(settings.output_folder) if path_is_set(settings.output_folder) else Path(settings.image_folder).parent / "manual_results"
         output.mkdir(parents=True, exist_ok=True)
         name = settings.save_name or f"F{settings.f_exp_no}_O{settings.o_exp_no}_FO{settings.fo_exp_no}"
-
-        workbook = openpyxl.Workbook()
-        sheet = workbook.active
-        sheet.title = "mixing_summary"
-        for key, value in result.summary.__dict__.items():
-            sheet.append([key, value])
-        workbook.save(output / f"{name}-mixing-results.xlsx")
-        workbook.close()
 
         curve_workbook = openpyxl.Workbook()
         curve_sheet = curve_workbook.active

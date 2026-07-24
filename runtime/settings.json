@@ -115,7 +115,7 @@
   "ui": {
     "app": {
       "main_tab": 3,
-      "active_page": "5 手动调参",
+      "active_page": "4 手动调参",
       "last_tool_page": "图片播放器",
       "last_secondary_page": "图像查看器"
     },
@@ -167,140 +167,6 @@
         }
       },
       "2 像增强器": {
-        "!notebook": {
-          "kind": "notebook",
-          "value": 0
-        },
-        "!notebook.!frame.!frame.!frame.!labelframe.!frame.!entry": {
-          "kind": "text",
-          "value": "E:\\实验数据\\20250820孔径比影响-正式\\像增强器标定"
-        },
-        "!notebook.!frame.!frame.!frame.!labelframe.!frame.!entry2": {
-          "kind": "text",
-          "value": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.1-像增强器标定平均图"
-        },
-        "!notebook.!frame.!frame.!frame.!labelframe.!frame2.!entry": {
-          "kind": "text",
-          "value": "1"
-        },
-        "!notebook.!frame.!frame.!frame.!labelframe.!frame2.!entry2": {
-          "kind": "text",
-          "value": "2.0"
-        },
-        "!notebook.!frame.!frame.!frame.!labelframe2.!frame.!entry": {
-          "kind": "text",
-          "value": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.1-像增强器标定平均图/Gain51"
-        },
-        "!notebook.!frame.!frame.!frame.!labelframe2.!frame.!entry2": {
-          "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.2-像增强器修正矩阵/对比旧"
-        },
-        "!notebook.!frame.!frame.!frame.!labelframe2.!frame2.!entry": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!notebook.!frame.!frame.!frame.!labelframe2.!frame2.!entry2": {
-          "kind": "text",
-          "value": "200"
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook": {
-          "kind": "notebook",
-          "value": 0
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry": {
-          "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/1-平均图"
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry2": {
-          "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.2-像增强器修正矩阵"
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry3": {
-          "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/20250820孔径比影响-正式-混合数据.xlsx"
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry4": {
-          "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.3-修正后平均图"
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame2.!entry": {
-          "kind": "text",
-          "value": "1"
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame2.!entry2": {
-          "kind": "text",
-          "value": "4"
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame2.!frame.!entry": {
-          "kind": "text",
-          "value": ""
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame2.!frame.!entry2": {
-          "kind": "text",
-          "value": ""
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame2.!frame.!entry3": {
-          "kind": "text",
-          "value": ""
-        },
-        "!notebook.!frame.!labelframe2.!frame.!navigationtoolbar2tk.!checkbutton-1": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!notebook.!frame.!labelframe2.!frame.!navigationtoolbar2tk.!checkbutton-2": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook": {
-          "kind": "notebook",
-          "value": 1
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame.!frame.!entry": {
-          "kind": "text",
-          "value": "E:/实验数据/20250820孔径比影响-正式/像增强器标定/Gain43/1000ns"
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame.!frame.!entry2": {
-          "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.1-像增强器标定平均图/Gain43/1000ns.npy"
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame.!frame.!entry3": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame.!frame.!entry4": {
-          "kind": "text",
-          "value": "5000"
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry": {
-          "kind": "text",
-          "value": ""
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry2": {
-          "kind": "text",
-          "value": ""
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry3": {
-          "kind": "text",
-          "value": "640"
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry4": {
-          "kind": "text",
-          "value": "600"
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry5": {
-          "kind": "text",
-          "value": "550"
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry6": {
-          "kind": "text",
-          "value": ""
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry7": {
-          "kind": "text",
-          "value": ""
-        }
-      },
-      "2.1 标定诊断": {
         "!notebook": {
           "kind": "notebook",
           "value": 0
@@ -390,176 +256,6 @@
         "!labelframe2.!boundform.!entry2": {
           "kind": "text",
           "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/3.4-视场修正后图像"
-        }
-      },
-      "4 平移搜索": {
-        "!boundform.!entry": {
-          "kind": "text",
-          "value": ""
-        },
-        "!boundform.!entry2": {
-          "kind": "text",
-          "value": ""
-        },
-        "!boundform.!entry3": {
-          "kind": "text",
-          "value": ""
-        },
-        "!boundform.!entry4": {
-          "kind": "text",
-          "value": ""
-        },
-        "!boundform.!entry5": {
-          "kind": "text",
-          "value": "-20"
-        },
-        "!boundform.!entry6": {
-          "kind": "text",
-          "value": "20"
-        },
-        "!boundform.!entry7": {
-          "kind": "text",
-          "value": "-20"
-        },
-        "!boundform.!entry8": {
-          "kind": "text",
-          "value": "20"
-        },
-        "!boundform.!entry9": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!boundform.!entry10": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!boundform.!entry11": {
-          "kind": "text",
-          "value": "1000"
-        },
-        "!boundform.!entry12": {
-          "kind": "text",
-          "value": "1000"
-        },
-        "!boundform.!entry13": {
-          "kind": "text",
-          "value": "1.0"
-        },
-        "!boundform.!entry14": {
-          "kind": "text",
-          "value": "4"
-        },
-        "!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-1": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-2": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-3": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-4": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-5": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-6": {
-          "kind": "variable",
-          "value": 0
-        }
-      },
-      "6 质量分布拟合": {
-        "!frame.!frame.!entry": {
-          "kind": "text",
-          "value": ""
-        },
-        "!frame.!frame.!entry2": {
-          "kind": "text",
-          "value": ""
-        },
-        "!frame.!frame.!entry3": {
-          "kind": "text",
-          "value": ""
-        },
-        "!frame.!frame.!entry4": {
-          "kind": "text",
-          "value": ""
-        },
-        "!frame.!frame.!entry5": {
-          "kind": "text",
-          "value": ""
-        },
-        "!frame.!frame2.!entry": {
-          "kind": "text",
-          "value": "3"
-        },
-        "!frame.!frame2.!entry2": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame.!frame2.!entry3": {
-          "kind": "text",
-          "value": "0.01"
-        },
-        "!frame.!frame2.!entry4": {
-          "kind": "text",
-          "value": "200"
-        },
-        "!frame.!frame3.!entry": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame.!frame3.!entry2": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame.!frame3.!entry3": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame.!frame3.!entry4": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame.!frame3.!entry5": {
-          "kind": "text",
-          "value": "2"
-        },
-        "!frame.!frame4.!entry": {
-          "kind": "text",
-          "value": "0.9"
-        },
-        "!frame.!frame4.!entry2": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame.!frame4.!entry3": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame.!frame4.!entry4": {
-          "kind": "text",
-          "value": "30"
-        },
-        "!frame.!frame4.!entry5": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame.!frame4.!entry6": {
-          "kind": "text",
-          "value": "0"
-        },
-        "__custom__": {
-          "is_pseudo": true,
-          "show_crosshair": true,
-          "show_q_center": "nonshow",
-          "show_img": "ori_img"
         }
       },
       "底噪分析": {
@@ -854,145 +550,6 @@
           "value": 0
         }
       },
-      "5 手动调参": {
-        "!frame.!frame.!entry": {
-          "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/4-最终图像"
-        },
-        "!frame.!frame.!entry2": {
-          "kind": "text",
-          "value": "16"
-        },
-        "!frame.!frame.!entry3": {
-          "kind": "text",
-          "value": "2"
-        },
-        "!frame.!frame.!entry4": {
-          "kind": "text",
-          "value": "30"
-        },
-        "!frame.!frame.!entry5": {
-          "kind": "text",
-          "value": ""
-        },
-        "!frame.!frame2.!entry": {
-          "kind": "text",
-          "value": "1.0"
-        },
-        "!frame.!frame2.!entry2": {
-          "kind": "text",
-          "value": "2"
-        },
-        "!frame.!frame2.!entry3": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame.!frame3.!entry": {
-          "kind": "text",
-          "value": "646"
-        },
-        "!frame.!frame3.!entry2": {
-          "kind": "text",
-          "value": "444"
-        },
-        "!frame.!frame3.!entry3": {
-          "kind": "text",
-          "value": "646"
-        },
-        "!frame.!frame3.!entry4": {
-          "kind": "text",
-          "value": "444"
-        },
-        "!frame.!frame3.!entry5": {
-          "kind": "text",
-          "value": "646"
-        },
-        "!frame.!frame3.!entry6": {
-          "kind": "text",
-          "value": "444"
-        },
-        "!frame.!frame3.!entry7": {
-          "kind": "text",
-          "value": "200"
-        },
-        "!frame.!frame3.!entry8": {
-          "kind": "text",
-          "value": "400"
-        },
-        "!frame.!frame3.!entry9": {
-          "kind": "text",
-          "value": "2"
-        },
-        "!frame.!frame4.!entry": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame.!frame4.!entry2": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame.!frame4.!entry3": {
-          "kind": "text",
-          "value": "0.03"
-        },
-        "!frame.!frame4.!entry4": {
-          "kind": "text",
-          "value": ""
-        },
-        "!notebook": {
-          "kind": "notebook",
-          "value": 0
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry": {
-          "kind": "text",
-          "value": "-20"
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry2": {
-          "kind": "text",
-          "value": "20"
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry3": {
-          "kind": "text",
-          "value": "-20"
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry4": {
-          "kind": "text",
-          "value": "20"
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry5": {
-          "kind": "text",
-          "value": "4"
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame.!frame.!navigationtoolbar2tk.!checkbutton-1": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame.!frame.!navigationtoolbar2tk.!checkbutton-2": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-3": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-4": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-5": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-6": {
-          "kind": "variable",
-          "value": 0
-        },
-        "__custom__": {
-          "is_pseudo": true,
-          "show_crosshair": true,
-          "show_ellipse": true
-        }
-      },
       "图像查看器": {
         "!frame2.!checkbutton": {
           "kind": "variable",
@@ -1195,6 +752,233 @@
         "!frame6.!horizontaldisplaypane.!frame2.!playerpixelplot.!frame2.!navigationtoolbar2tk.!checkbutton-2": {
           "kind": "variable",
           "value": 0
+        }
+      },
+      "4 手动调参": {
+        "!frame.!frame.!entry": {
+          "kind": "text",
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/4-最终图像"
+        },
+        "!frame.!frame.!entry2": {
+          "kind": "text",
+          "value": "16"
+        },
+        "!frame.!frame.!entry3": {
+          "kind": "text",
+          "value": "2"
+        },
+        "!frame.!frame.!entry4": {
+          "kind": "text",
+          "value": "30"
+        },
+        "!frame.!frame.!entry5": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame2.!entry": {
+          "kind": "text",
+          "value": "1.0"
+        },
+        "!frame.!frame2.!entry2": {
+          "kind": "text",
+          "value": "2"
+        },
+        "!frame.!frame2.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry": {
+          "kind": "text",
+          "value": "646"
+        },
+        "!frame.!frame3.!entry2": {
+          "kind": "text",
+          "value": "444"
+        },
+        "!frame.!frame3.!entry3": {
+          "kind": "text",
+          "value": "646"
+        },
+        "!frame.!frame3.!entry4": {
+          "kind": "text",
+          "value": "444"
+        },
+        "!frame.!frame3.!entry5": {
+          "kind": "text",
+          "value": "646"
+        },
+        "!frame.!frame3.!entry6": {
+          "kind": "text",
+          "value": "444"
+        },
+        "!frame.!frame3.!entry7": {
+          "kind": "text",
+          "value": "200"
+        },
+        "!frame.!frame3.!entry8": {
+          "kind": "text",
+          "value": "400"
+        },
+        "!frame.!frame3.!entry9": {
+          "kind": "text",
+          "value": "2"
+        },
+        "!frame.!frame4.!entry": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame4.!entry2": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame4.!entry3": {
+          "kind": "text",
+          "value": "0.03"
+        },
+        "!frame.!frame4.!entry4": {
+          "kind": "text",
+          "value": ""
+        },
+        "!notebook": {
+          "kind": "notebook",
+          "value": 0
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry": {
+          "kind": "text",
+          "value": "-20"
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry2": {
+          "kind": "text",
+          "value": "20"
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry3": {
+          "kind": "text",
+          "value": "-20"
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry4": {
+          "kind": "text",
+          "value": "20"
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry5": {
+          "kind": "text",
+          "value": "4"
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame.!frame.!navigationtoolbar2tk.!checkbutton-1": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame.!frame.!navigationtoolbar2tk.!checkbutton-2": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-3": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-4": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-5": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-6": {
+          "kind": "variable",
+          "value": 0
+        },
+        "__custom__": {
+          "is_pseudo": true,
+          "show_crosshair": true,
+          "show_ellipse": true
+        }
+      },
+      "5 质量分布拟合": {
+        "!frame.!frame.!entry": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame.!entry2": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame.!entry3": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame.!entry4": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame.!entry5": {
+          "kind": "text",
+          "value": ""
+        },
+        "!frame.!frame2.!entry": {
+          "kind": "text",
+          "value": "3"
+        },
+        "!frame.!frame2.!entry2": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame2.!entry3": {
+          "kind": "text",
+          "value": "0.01"
+        },
+        "!frame.!frame2.!entry4": {
+          "kind": "text",
+          "value": "200"
+        },
+        "!frame.!frame3.!entry": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry2": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry4": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame3.!entry5": {
+          "kind": "text",
+          "value": "2"
+        },
+        "!frame.!frame4.!entry": {
+          "kind": "text",
+          "value": "0.9"
+        },
+        "!frame.!frame4.!entry2": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame4.!entry3": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame4.!entry4": {
+          "kind": "text",
+          "value": "30"
+        },
+        "!frame.!frame4.!entry5": {
+          "kind": "text",
+          "value": "0"
+        },
+        "!frame.!frame4.!entry6": {
+          "kind": "text",
+          "value": "0"
+        },
+        "__custom__": {
+          "is_pseudo": true,
+          "show_crosshair": true,
+          "show_q_center": "nonshow",
+          "show_img": "ori_img"
         }
       }
     }

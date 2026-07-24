@@ -133,6 +133,7 @@ class ManualMixingSettings:
     line_width: int = 2
     global_of: float = 1.0
     denoise_ratio: float = 0.01
+    use_ellipse_region: bool = True
     output_folder: Path = Path()
 
 
