@@ -118,6 +118,13 @@ class ManualMixingPage(ttk.Frame):
         row = ttk.Frame(parent)
         self._entry(row, "line_width", "线宽", 6)
         ttk.Checkbutton(row, text="十字线", variable=self.show_crosshair, command=self.process).pack(side=tk.LEFT, padx=(5, 2))
+        ttk.Label(row, text="F").pack(side=tk.LEFT, padx=(5, 0))
+        self._entry(row, "center_xf", "X", 6)
+        self._entry(row, "center_yf", "Y", 6)
+        ttk.Label(row, text="O").pack(side=tk.LEFT, padx=(5, 0))
+        self._entry(row, "center_xo", "X", 6)
+        self._entry(row, "center_yo", "Y", 6)
+        ttk.Label(row, text="FO").pack(side=tk.LEFT, padx=(5, 0))
         self._entry(row, "center_xfo", "X", 6)
         self._entry(row, "center_yfo", "Y", 6)
         ttk.Checkbutton(row, text="椭圆", variable=self.show_ellipse, command=self.process).pack(side=tk.LEFT, padx=(5, 2))
@@ -172,10 +179,6 @@ class ManualMixingPage(ttk.Frame):
                 value = raw
             setattr(self.settings, attr, value)
         self.settings.use_ellipse_region = self.use_ellipse_region.get()
-        self.settings.center_xf = self.settings.center_xfo
-        self.settings.center_yf = self.settings.center_yfo
-        self.settings.center_xo = self.settings.center_xfo
-        self.settings.center_yo = self.settings.center_yfo
 
     def process(self, event=None) -> None:
         try:
@@ -212,16 +215,12 @@ class ManualMixingPage(ttk.Frame):
                 self.settings.minor_axis,
                 self.settings.line_width,
             ) if self.show_ellipse.get() else None
-            crosshair = (
-                self.settings.center_xfo,
-                self.settings.center_yfo,
-                self.settings.line_width,
-            ) if self.show_crosshair.get() else None
             for item in result.images:
                 display = self.displays.get(item.name)
                 if display is None:
                     continue
                 colormap = item.colormap if self.is_pseudo.get() else "none"
+                crosshair = self._crosshair_for(item.name) if self.show_crosshair.get() else None
                 display.update(
                     item.image,
                     gain=gain if item.colormap == "jet" else 1,
@@ -247,6 +246,13 @@ class ManualMixingPage(ttk.Frame):
             self.summary_label.config(text=f"混合曲线数据已导出到: {output}")
         except Exception as exc:
             self.summary_label.config(text=f"导出错误: {exc}")
+
+    def _crosshair_for(self, name: str) -> tuple[int, int, int]:
+        if name == "f":
+            return self.settings.center_xf, self.settings.center_yf, self.settings.line_width
+        if name == "o":
+            return self.settings.center_xo, self.settings.center_yo, self.settings.line_width
+        return self.settings.center_xfo, self.settings.center_yfo, self.settings.line_width
 
     def export_ui_state(self) -> dict[str, object]:
         return {
