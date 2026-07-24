@@ -69,27 +69,27 @@
   },
   "manual": {
     "image_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\4-最终图像",
-    "f_exp_no": "16",
-    "o_exp_no": "2",
-    "fo_exp_no": "30",
-    "save_name": "2",
-    "zoom": 444,
-    "gain": 646,
-    "f_shift": 444,
-    "o_shift": 646,
+    "f_exp_no": "2",
+    "o_exp_no": "30",
+    "fo_exp_no": "16",
+    "save_name": "DR1.0_U40",
+    "zoom": 2,
+    "gain": 1,
+    "f_shift": 0,
+    "o_shift": 0,
     "center_xf": 646,
-    "center_yf": 444,
+    "center_yf": 400,
     "center_xo": 646,
-    "center_yo": 444,
-    "center_xfo": 0,
-    "center_yfo": 0,
+    "center_yo": 400,
+    "center_xfo": 646,
+    "center_yfo": 400,
     "major_axis": 200,
     "minor_axis": 400,
-    "line_width": 0,
-    "global_of": 444.0,
-    "denoise_ratio": 646.0,
+    "line_width": 2,
+    "global_of": 1.0,
+    "denoise_ratio": 0.02,
     "use_ellipse_region": true,
-    "output_folder": "1.0"
+    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪"
   },
   "distribution": {
     "image_folder": ".",
@@ -814,23 +814,23 @@
         },
         "!frame.!frame.!entry2": {
           "kind": "text",
-          "value": "16"
+          "value": "2"
         },
         "!frame.!frame.!entry3": {
           "kind": "text",
-          "value": "2"
+          "value": "30"
         },
         "!frame.!frame.!entry4": {
           "kind": "text",
-          "value": "30"
+          "value": "16"
         },
         "!frame.!frame2.!entry": {
           "kind": "text",
-          "value": "1.0"
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪"
         },
         "!frame.!frame2.!entry2": {
           "kind": "text",
-          "value": "2"
+          "value": "DR1.0_U40"
         },
         "!frame.!frame3.!checkbutton": {
           "kind": "variable",
@@ -838,31 +838,31 @@
         },
         "!frame.!frame3.!entry": {
           "kind": "text",
-          "value": "646"
+          "value": "1"
         },
         "!frame.!frame3.!entry2": {
           "kind": "text",
-          "value": "444"
+          "value": "2"
         },
         "!frame.!frame3.!entry3": {
           "kind": "text",
-          "value": "646"
+          "value": "0.02"
         },
         "!frame.!frame3.!entry4": {
           "kind": "text",
-          "value": "444"
+          "value": "0"
         },
         "!frame.!frame3.!entry5": {
           "kind": "text",
-          "value": "646"
+          "value": "0"
         },
         "!frame.!frame3.!entry6": {
           "kind": "text",
-          "value": "444"
+          "value": "1"
         },
         "!frame.!frame4.!entry": {
           "kind": "text",
-          "value": "0"
+          "value": "2"
         },
         "!frame.!frame4.!checkbutton": {
           "kind": "variable",
@@ -870,21 +870,37 @@
         },
         "!frame.!frame4.!entry2": {
           "kind": "text",
-          "value": "0"
+          "value": "646"
         },
         "!frame.!frame4.!entry3": {
           "kind": "text",
-          "value": "0"
+          "value": "400"
+        },
+        "!frame.!frame4.!entry4": {
+          "kind": "text",
+          "value": "646"
+        },
+        "!frame.!frame4.!entry5": {
+          "kind": "text",
+          "value": "400"
+        },
+        "!frame.!frame4.!entry6": {
+          "kind": "text",
+          "value": "646"
+        },
+        "!frame.!frame4.!entry7": {
+          "kind": "text",
+          "value": "400"
         },
         "!frame.!frame4.!checkbutton2": {
           "kind": "variable",
           "value": 1
         },
-        "!frame.!frame4.!entry4": {
+        "!frame.!frame4.!entry8": {
           "kind": "text",
-          "value": ""
+          "value": "200"
         },
-        "!frame.!frame4.!entry5": {
+        "!frame.!frame4.!entry9": {
           "kind": "text",
           "value": "400"
         },

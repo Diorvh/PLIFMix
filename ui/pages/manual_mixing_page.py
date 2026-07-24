@@ -22,6 +22,7 @@ class ManualMixingPage(ttk.Frame):
         self.actions = actions
         self.settings = actions.state.settings.manual
         self.is_pseudo = tk.BooleanVar(value=True)
+        self.auto_gain = tk.BooleanVar(value=self.settings.auto_gain)
         self.show_crosshair = tk.BooleanVar(value=True)
         self.show_ellipse = tk.BooleanVar(value=True)
         self.use_ellipse_region = tk.BooleanVar(value=self.settings.use_ellipse_region)
@@ -107,6 +108,7 @@ class ManualMixingPage(ttk.Frame):
         row = ttk.Frame(parent)
         ttk.Checkbutton(row, text="伪彩图", variable=self.is_pseudo, command=self.process).pack(side=tk.LEFT, padx=(3, 5))
         self._entry(row, "gain", "增益", 6)
+        ttk.Checkbutton(row, text="自动", variable=self.auto_gain, command=self.process).pack(side=tk.LEFT, padx=(4, 5))
         self._entry(row, "zoom", "缩小倍数", 6)
         self._entry(row, "denoise_ratio", "相对去噪阈值", 7)
         self._entry(row, "f_shift", "F 平移", 6)
@@ -121,6 +123,7 @@ class ManualMixingPage(ttk.Frame):
         ttk.Label(row, text="F").pack(side=tk.LEFT, padx=(5, 0))
         self._entry(row, "center_xf", "X", 6)
         self._entry(row, "center_yf", "Y", 6)
+        ttk.Button(row, text="一键填充", command=self._fill_centers_from_f).pack(side=tk.LEFT, padx=(4, 2))
         ttk.Label(row, text="O").pack(side=tk.LEFT, padx=(5, 0))
         self._entry(row, "center_xo", "X", 6)
         self._entry(row, "center_yo", "Y", 6)
@@ -179,10 +182,22 @@ class ManualMixingPage(ttk.Frame):
                 value = raw
             setattr(self.settings, attr, value)
         self.settings.use_ellipse_region = self.use_ellipse_region.get()
+        self.settings.auto_gain = self.auto_gain.get()
+
+    def _fill_centers_from_f(self) -> None:
+        x_value = self.vars["center_xf"].get()
+        y_value = self.vars["center_yf"].get()
+        self.vars["center_xo"].set(x_value)
+        self.vars["center_yo"].set(y_value)
+        self.vars["center_xfo"].set(x_value)
+        self.vars["center_yfo"].set(y_value)
+        self.process()
 
     def process(self, event=None) -> None:
         try:
             self._save_vars()
+            if not self.settings.auto_gain and self.settings.gain <= 0:
+                raise ValueError("关闭自动增益后，手动增益必须大于 0")
         except Exception as exc:
             self.summary_label.config(text=f"错误: {exc}")
             return
@@ -223,7 +238,7 @@ class ManualMixingPage(ttk.Frame):
                 crosshair = self._crosshair_for(item.name) if self.show_crosshair.get() else None
                 display.update(
                     item.image,
-                    gain=gain if item.colormap == "jet" else 1,
+                    gain=0 if self.settings.auto_gain and item.colormap == "jet" else gain if item.colormap == "jet" else 1,
                     colormap=colormap,
                     zoom=zoom,
                     crosshair=crosshair,
@@ -257,12 +272,14 @@ class ManualMixingPage(ttk.Frame):
     def export_ui_state(self) -> dict[str, object]:
         return {
             "is_pseudo": self.is_pseudo.get(),
+            "auto_gain": self.auto_gain.get(),
             "show_crosshair": self.show_crosshair.get(),
             "show_ellipse": self.show_ellipse.get(),
         }
 
     def restore_ui_state(self, state: dict[str, object]) -> None:
         self.is_pseudo.set(bool(state.get("is_pseudo", self.is_pseudo.get())))
+        self.auto_gain.set(bool(state.get("auto_gain", self.auto_gain.get())))
         self.show_crosshair.set(bool(state.get("show_crosshair", self.show_crosshair.get())))
         self.show_ellipse.set(bool(state.get("show_ellipse", self.show_ellipse.get())))
 

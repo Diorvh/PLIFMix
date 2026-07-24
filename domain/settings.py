@@ -120,6 +120,7 @@ class ManualMixingSettings:
     save_name: str = ""
     zoom: float = 3
     gain: float = 0
+    auto_gain: bool = True
     f_shift: int = 0
     o_shift: int = 0
     center_xf: int = 0
