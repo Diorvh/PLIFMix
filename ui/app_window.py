@@ -23,6 +23,10 @@ from PLIFv2.ui.pages.image_viewer_page import ImageViewerPage
 from PLIFv2.ui.pages.npy_page import NpyPage
 
 
+MANUAL_MIXING_PAGE_KEY = "4 手动调参"
+DISTRIBUTION_PAGE_KEY = "5 质量分布拟合"
+
+
 class LazyPage(ttk.Frame):
     def __init__(self, master, page_key: str, factory: Callable[[tk.Misc], ttk.Frame], ui_state: UIStateStore):
         super().__init__(master)
@@ -105,8 +109,8 @@ class PLIFAppWindow(tk.Tk):
             ("1 平均图", lambda master: AveragePage(master, self.actions)),
             ("2 像增强器", lambda master: IntensifierPage(master, self.actions)),
             ("3 Davis 整理", lambda master: DavisPage(master, self.actions)),
-            ("5 手动调参", lambda master: ManualMixingPage(master, self.actions)),
-            ("6 质量分布拟合", lambda master: DistributionPage(master, self.actions)),
+            (MANUAL_MIXING_PAGE_KEY, lambda master: ManualMixingPage(master, self.actions)),
+            (DISTRIBUTION_PAGE_KEY, lambda master: DistributionPage(master, self.actions)),
             ("底噪分析", lambda master: NoisePage(master, self.actions)),
         ]
         self.secondary_specs = [
@@ -134,32 +138,40 @@ class PLIFAppWindow(tk.Tk):
         for key, _factory in self.secondary_specs:
             self.secondary_tabs.add_tab(key, key)
 
+        self._migrate_saved_page_keys()
         self.active_page_key: str | None = None
         self.last_secondary_key = self.ui_state.get_app_value("last_secondary_page", self.secondary_specs[0][0])
         if self.last_secondary_key not in self.pages or self.last_secondary_key in {key for key, _factory in self.workflow_specs}:
             self.last_secondary_key = self.secondary_specs[0][0]
         saved_key = self.ui_state.get_app_value("active_page", None)
-        if saved_key == "2.1 标定诊断":
-            saved_key = "2 像增强器"
-        elif saved_key == "4 平移搜索":
-            saved_key = "5 手动调参"
         if saved_key not in self.pages:
             saved_key = self._legacy_saved_page_key()
         self.after_idle(lambda: self._show_page(saved_key))
+
+    def _migrate_saved_page_keys(self) -> None:
+        page_key_mapping = [
+            ("2.1 标定诊断", "2 像增强器"),
+            ("4 平移搜索", MANUAL_MIXING_PAGE_KEY),
+            ("5 手动调参", MANUAL_MIXING_PAGE_KEY),
+            ("6 质量分布拟合", DISTRIBUTION_PAGE_KEY),
+        ]
+        pages = self.ui_state.data.pages
+        for old_key, new_key in page_key_mapping:
+            old_state = pages.pop(old_key, None)
+            if old_state is not None:
+                pages[new_key] = old_state
+
+        active_page = self.ui_state.get_app_value("active_page")
+        for old_key, new_key in page_key_mapping:
+            if active_page == old_key:
+                self.ui_state.set_app_value("active_page", new_key)
+                break
 
     def _legacy_saved_page_key(self) -> str:
         try:
             saved_tab = int(self.ui_state.get_app_value("main_tab", 0))
         except (TypeError, ValueError):
             saved_tab = 0
-        # Older settings counted the removed "2.1 标定诊断" page as index 2.
-        if saved_tab == 2:
-            return "2 像增强器"
-        if saved_tab > 2:
-            saved_tab -= 1
-        # The former shift-search page is now a subfunction of manual mixing.
-        if saved_tab >= 3:
-            saved_tab -= 1
         if 0 <= saved_tab < len(self.workflow_specs):
             return self.workflow_specs[saved_tab][0]
         return self.last_secondary_key

@@ -35,12 +35,12 @@ class ManualMixingPage(ttk.Frame):
         self._row_centers(controls).pack(anchor=tk.W, pady=1)
         self._row_shift(controls).pack(anchor=tk.W, pady=1)
 
-        result_tabs = ttk.Notebook(self)
-        result_tabs.pack(fill=tk.BOTH, expand=True, padx=8, pady=6)
-        mixing_tab = ttk.Frame(result_tabs)
-        search_tab = ttk.Frame(result_tabs)
-        result_tabs.add(mixing_tab, text="混合特性")
-        result_tabs.add(search_tab, text="平移搜索")
+        self.result_tabs = ttk.Notebook(self)
+        self.result_tabs.pack(fill=tk.BOTH, expand=True, padx=8, pady=6)
+        mixing_tab = ttk.Frame(self.result_tabs)
+        search_tab = ttk.Frame(self.result_tabs)
+        self.result_tabs.add(mixing_tab, text="混合特性")
+        self.result_tabs.add(search_tab, text="平移搜索")
 
         self.summary_label = ttk.Label(mixing_tab, text="计算结果")
         self.summary_label.pack(anchor=tk.W)

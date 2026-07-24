@@ -32,6 +32,7 @@ from PLIFv2.services.mixing_service import MixingService
 from PLIFv2.services.noise_service import NoiseAnalysisService
 from PLIFv2.tools.image_tools import create_colorbar, export_gif, top_k_values, transform_npy
 from PLIFv2.ui.image_display import ImageDisplay
+from PLIFv2.ui.app_window import DISTRIBUTION_PAGE_KEY, MANUAL_MIXING_PAGE_KEY, PLIFAppWindow
 
 
 class WorkflowSmokeTests(unittest.TestCase):
@@ -332,6 +333,29 @@ class WorkflowSmokeTests(unittest.TestCase):
             self.assertEqual(display.value_image.shape, (3, 4, 3))
         finally:
             root.destroy()
+
+    def test_manual_and_distribution_pages_load(self) -> None:
+        try:
+            app = PLIFAppWindow()
+        except tk.TclError:
+            self.skipTest("Tk is unavailable")
+        try:
+            app.withdraw()
+            app._show_page(MANUAL_MIXING_PAGE_KEY)
+            app.update_idletasks()
+            manual_page = app.pages[MANUAL_MIXING_PAGE_KEY].ensure_loaded()
+            self.assertEqual(app.active_page_key, MANUAL_MIXING_PAGE_KEY)
+            self.assertEqual(
+                [manual_page.result_tabs.tab(tab_id, "text") for tab_id in manual_page.result_tabs.tabs()],
+                ["混合特性", "平移搜索"],
+            )
+
+            app._show_page(DISTRIBUTION_PAGE_KEY)
+            app.update_idletasks()
+            self.assertEqual(app.active_page_key, DISTRIBUTION_PAGE_KEY)
+            self.assertIsNotNone(app.pages[DISTRIBUTION_PAGE_KEY].content)
+        finally:
+            app.destroy()
 
     def test_shift_manual_and_distribution(self) -> None:
         folder = self.root / "mixing"

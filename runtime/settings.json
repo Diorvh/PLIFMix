@@ -88,15 +88,7 @@
     "line_width": 2,
     "global_of": 1.0,
     "denoise_ratio": 0.03,
-    "thres_contour": 0.9,
-    "q_center_up": 0,
-    "q_center_down": 0,
-    "max_k": 30,
-    "rotate_angle_f": 0,
-    "rotate_angle_o": 0,
-    "rotate_angle_fo": 0,
-    "output_folder": ".",
-    "hori_fit_width": 200
+    "output_folder": "."
   },
   "distribution": {
     "image_folder": ".",
@@ -122,7 +114,7 @@
   },
   "ui": {
     "app": {
-      "main_tab": 4,
+      "main_tab": 3,
       "active_page": "5 手动调参",
       "last_tool_page": "图片播放器",
       "last_secondary_page": "图像查看器"
@@ -869,15 +861,15 @@
         },
         "!frame.!frame.!entry2": {
           "kind": "text",
-          "value": "95"
+          "value": "16"
         },
         "!frame.!frame.!entry3": {
           "kind": "text",
-          "value": "86"
+          "value": "2"
         },
         "!frame.!frame.!entry4": {
           "kind": "text",
-          "value": "104"
+          "value": "30"
         },
         "!frame.!frame.!entry5": {
           "kind": "text",
@@ -897,35 +889,35 @@
         },
         "!frame.!frame3.!entry": {
           "kind": "text",
-          "value": "0"
+          "value": "646"
         },
         "!frame.!frame3.!entry2": {
           "kind": "text",
-          "value": "0"
+          "value": "444"
         },
         "!frame.!frame3.!entry3": {
           "kind": "text",
-          "value": "0"
+          "value": "646"
         },
         "!frame.!frame3.!entry4": {
           "kind": "text",
-          "value": "0"
+          "value": "444"
         },
         "!frame.!frame3.!entry5": {
           "kind": "text",
-          "value": "0"
+          "value": "646"
         },
         "!frame.!frame3.!entry6": {
           "kind": "text",
-          "value": "0"
+          "value": "444"
         },
         "!frame.!frame3.!entry7": {
           "kind": "text",
-          "value": "1000"
+          "value": "200"
         },
         "!frame.!frame3.!entry8": {
           "kind": "text",
-          "value": "1000"
+          "value": "400"
         },
         "!frame.!frame3.!entry9": {
           "kind": "text",
@@ -941,46 +933,64 @@
         },
         "!frame.!frame4.!entry3": {
           "kind": "text",
-          "value": "0"
+          "value": "0.03"
         },
         "!frame.!frame4.!entry4": {
           "kind": "text",
           "value": ""
         },
-        "!frame.!frame5.!entry": {
-          "kind": "text",
-          "value": "0.9"
+        "!notebook": {
+          "kind": "notebook",
+          "value": 0
         },
-        "!frame.!frame5.!entry2": {
+        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry": {
           "kind": "text",
-          "value": "0"
+          "value": "-20"
         },
-        "!frame.!frame5.!entry3": {
+        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry2": {
           "kind": "text",
-          "value": "0"
+          "value": "20"
         },
-        "!frame.!frame5.!entry4": {
+        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry3": {
           "kind": "text",
-          "value": "30"
+          "value": "-20"
         },
-        "!frame.!frame5.!entry5": {
+        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry4": {
           "kind": "text",
-          "value": "0"
+          "value": "20"
         },
-        "!frame.!frame5.!entry6": {
+        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry5": {
           "kind": "text",
-          "value": "0"
+          "value": "4"
         },
-        "!frame.!frame5.!entry7": {
-          "kind": "text",
-          "value": "0"
+        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame.!frame.!navigationtoolbar2tk.!checkbutton-1": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame.!frame.!navigationtoolbar2tk.!checkbutton-2": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-3": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-4": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-5": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-6": {
+          "kind": "variable",
+          "value": 0
         },
         "__custom__": {
           "is_pseudo": true,
           "show_crosshair": true,
-          "show_ellipse": false,
-          "show_q_center": "nonshow",
-          "show_img": "ori_img"
+          "show_ellipse": true
         }
       },
       "图像查看器": {
