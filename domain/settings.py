@@ -133,15 +133,7 @@ class ManualMixingSettings:
     line_width: int = 2
     global_of: float = 1.0
     denoise_ratio: float = 0.01
-    thres_contour: float = 0.9
-    q_center_up: int = 0
-    q_center_down: int = 0
-    max_k: int = 30
-    rotate_angle_f: float = 0
-    rotate_angle_o: float = 0
-    rotate_angle_fo: float = 0
     output_folder: Path = Path()
-    hori_fit_width: int = 200
 
 
 @dataclass

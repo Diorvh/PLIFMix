@@ -43,8 +43,7 @@
     "corrected_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.3-修正后平均图",
     "davis_input_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\3.1-Davis输入图像",
     "davis_export_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\3.3-Davis导出图像",
-    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\3.4-视场修正后图像",
-    "restore_gain": true
+    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\3.4-视场修正后图像"
   },
   "noise": {
     "source_folder": ".",
@@ -69,26 +68,26 @@
     "process_count": 4
   },
   "manual": {
-    "image_folder": ".",
-    "f_exp_no": "",
-    "o_exp_no": "",
-    "fo_exp_no": "",
+    "image_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\4-最终图像",
+    "f_exp_no": "2",
+    "o_exp_no": "30",
+    "fo_exp_no": "16",
     "save_name": "",
-    "zoom": 3,
+    "zoom": 2,
     "gain": 0,
     "f_shift": 0,
     "o_shift": 0,
-    "center_xf": 0,
-    "center_yf": 0,
-    "center_xo": 0,
-    "center_yo": 0,
-    "center_xfo": 0,
-    "center_yfo": 0,
-    "major_axis": 1000,
-    "minor_axis": 1000,
+    "center_xf": 646,
+    "center_yf": 444,
+    "center_xo": 646,
+    "center_yo": 444,
+    "center_xfo": 646,
+    "center_yfo": 444,
+    "major_axis": 200,
+    "minor_axis": 400,
     "line_width": 2,
     "global_of": 1.0,
-    "denoise_ratio": 0.01,
+    "denoise_ratio": 0.03,
     "thres_contour": 0.9,
     "q_center_up": 0,
     "q_center_down": 0,
@@ -123,8 +122,8 @@
   },
   "ui": {
     "app": {
-      "main_tab": 2,
-      "active_page": "3 Davis 整理",
+      "main_tab": 4,
+      "active_page": "5 手动调参",
       "last_tool_page": "图片播放器",
       "last_secondary_page": "图像查看器"
     },
@@ -394,15 +393,11 @@
         },
         "!labelframe2.!boundform.!entry": {
           "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/3.2-Davis导出图像"
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/3.3-Davis导出图像"
         },
         "!labelframe2.!boundform.!entry2": {
           "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/3.3-视场修正后图像"
-        },
-        "!labelframe2.!boundform.!entry3": {
-          "kind": "text",
-          "value": "True"
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/3.4-视场修正后图像"
         }
       },
       "4 平移搜索": {
@@ -462,27 +457,27 @@
           "kind": "text",
           "value": "4"
         },
-        "!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-3": {
+        "!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-1": {
           "kind": "variable",
           "value": 0
         },
-        "!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-4": {
+        "!frame.!frame.!frame.!navigationtoolbar2tk.!checkbutton-2": {
           "kind": "variable",
           "value": 0
         },
-        "!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-5": {
+        "!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-3": {
           "kind": "variable",
           "value": 0
         },
-        "!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-6": {
+        "!frame.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-4": {
           "kind": "variable",
           "value": 0
         },
-        "!frame.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-7": {
+        "!frame.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-5": {
           "kind": "variable",
           "value": 0
         },
-        "!frame.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-8": {
+        "!frame.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-6": {
           "kind": "variable",
           "value": 0
         }
@@ -870,19 +865,19 @@
       "5 手动调参": {
         "!frame.!frame.!entry": {
           "kind": "text",
-          "value": ""
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/4-最终图像"
         },
         "!frame.!frame.!entry2": {
           "kind": "text",
-          "value": ""
+          "value": "95"
         },
         "!frame.!frame.!entry3": {
           "kind": "text",
-          "value": ""
+          "value": "86"
         },
         "!frame.!frame.!entry4": {
           "kind": "text",
-          "value": ""
+          "value": "104"
         },
         "!frame.!frame.!entry5": {
           "kind": "text",
@@ -894,7 +889,7 @@
         },
         "!frame.!frame2.!entry2": {
           "kind": "text",
-          "value": "3"
+          "value": "2"
         },
         "!frame.!frame2.!entry3": {
           "kind": "text",
@@ -946,7 +941,7 @@
         },
         "!frame.!frame4.!entry3": {
           "kind": "text",
-          "value": "0.01"
+          "value": "0"
         },
         "!frame.!frame4.!entry4": {
           "kind": "text",
@@ -983,7 +978,7 @@
         "__custom__": {
           "is_pseudo": true,
           "show_crosshair": true,
-          "show_ellipse": true,
+          "show_ellipse": false,
           "show_q_center": "nonshow",
           "show_img": "ori_img"
         }

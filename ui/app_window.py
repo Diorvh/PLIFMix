@@ -15,7 +15,6 @@ from PLIFv2.ui.pages.distribution_page import DistributionPage
 from PLIFv2.ui.pages.intensifier_page import IntensifierPage
 from PLIFv2.ui.pages.manual_mixing_page import ManualMixingPage
 from PLIFv2.ui.pages.noise_page import NoisePage
-from PLIFv2.ui.pages.shift_search_page import ShiftSearchPage
 from PLIFv2.ui.pages.colorbar_page import ColorbarPage
 from PLIFv2.ui.pages.distribution_comparison_page import DistributionComparisonPage
 from PLIFv2.ui.pages.gif_export_page import GifExportPage
@@ -100,13 +99,12 @@ class PLIFAppWindow(tk.Tk):
         header = ttk.Frame(self)
         header.pack(fill="x", padx=10, pady=(10, 4))
         ttk.Label(header, text="PLIFv2", font=("Microsoft YaHei UI", 16, "bold")).pack(side="left")
-        ttk.Label(header, text="平均图 -> 像增强器修正 -> Davis -> 平移搜索 -> 手动调参").pack(side="left", padx=16)
+        ttk.Label(header, text="平均图 -> 像增强器修正 -> Davis -> 手动调参 -> 质量分布拟合").pack(side="left", padx=16)
 
         self.workflow_specs = [
             ("1 平均图", lambda master: AveragePage(master, self.actions)),
             ("2 像增强器", lambda master: IntensifierPage(master, self.actions)),
             ("3 Davis 整理", lambda master: DavisPage(master, self.actions)),
-            ("4 平移搜索", lambda master: ShiftSearchPage(master, self.actions)),
             ("5 手动调参", lambda master: ManualMixingPage(master, self.actions)),
             ("6 质量分布拟合", lambda master: DistributionPage(master, self.actions)),
             ("底噪分析", lambda master: NoisePage(master, self.actions)),
@@ -143,6 +141,8 @@ class PLIFAppWindow(tk.Tk):
         saved_key = self.ui_state.get_app_value("active_page", None)
         if saved_key == "2.1 标定诊断":
             saved_key = "2 像增强器"
+        elif saved_key == "4 平移搜索":
+            saved_key = "5 手动调参"
         if saved_key not in self.pages:
             saved_key = self._legacy_saved_page_key()
         self.after_idle(lambda: self._show_page(saved_key))
@@ -156,6 +156,9 @@ class PLIFAppWindow(tk.Tk):
         if saved_tab == 2:
             return "2 像增强器"
         if saved_tab > 2:
+            saved_tab -= 1
+        # The former shift-search page is now a subfunction of manual mixing.
+        if saved_tab >= 3:
             saved_tab -= 1
         if 0 <= saved_tab < len(self.workflow_specs):
             return self.workflow_specs[saved_tab][0]

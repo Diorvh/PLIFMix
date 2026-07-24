@@ -7,6 +7,7 @@ from PLIFv2.services.average_service import AverageImageService, AverageResult
 from PLIFv2.services.calibration_service import CalibrationService
 from PLIFv2.services.davis_service import DavisImportResult, DavisService
 from PLIFv2.services.intensifier_service import CorrectionResult, IntensifierCorrectionService, MatrixFitResult
+from PLIFv2.services.distribution_service import DistributionFitResult, DistributionFitService
 from PLIFv2.services.mixing_service import ManualDisplayResult, ManualMixingResult, MixingService
 from PLIFv2.services.noise_service import NoiseAnalysisService
 from PLIFv2.algorithms.mixing import ShiftSearchResult
@@ -20,6 +21,7 @@ class PLIFActions:
         self.intensifier_service = IntensifierCorrectionService()
         self.davis_service = DavisService()
         self.mixing_service = MixingService()
+        self.distribution_service = DistributionFitService()
         self.noise_service = NoiseAnalysisService()
 
     def run_average(self) -> AverageResult:
@@ -91,6 +93,22 @@ class PLIFActions:
         self.state.save()
         return result
 
+    def run_manual_shift_search(self) -> ShiftSearchResult:
+        manual = deepcopy(self.state.settings.manual)
+        search = deepcopy(self.state.settings.shift)
+        search.image_folder = manual.image_folder
+        search.f_exp_no = manual.f_exp_no
+        search.o_exp_no = manual.o_exp_no
+        search.fo_exp_no = manual.fo_exp_no
+        search.ellipse_x = manual.center_xfo
+        search.ellipse_y = manual.center_yfo
+        search.major_axis = manual.major_axis
+        search.minor_axis = manual.minor_axis
+        search.global_of = manual.global_of
+        result = self.mixing_service.run_shift_search(search)
+        self.state.save()
+        return result
+
     def run_noise_analysis(self):
         result = self.noise_service.run(deepcopy(self.state.settings.noise))
         self.state.save()
@@ -101,8 +119,8 @@ class PLIFActions:
         self.state.save()
         return result
 
-    def run_manual_display(self, show_q_center: str, show_img: str) -> ManualDisplayResult:
-        result = self.mixing_service.run_manual_display(deepcopy(self.state.settings.manual), show_q_center, show_img)
+    def run_manual_display(self) -> ManualDisplayResult:
+        result = self.mixing_service.run_manual_display(deepcopy(self.state.settings.manual))
         self.state.save()
         return result
 
@@ -111,12 +129,12 @@ class PLIFActions:
         self.state.save()
         return output
 
-    def run_distribution_display(self, show_q_center: str, show_img: str):
-        result = self.mixing_service.run_distribution(deepcopy(self.state.settings.distribution), show_q_center, show_img)
+    def run_distribution_display(self, show_q_center: str, show_img: str) -> DistributionFitResult:
+        result = self.distribution_service.run(deepcopy(self.state.settings.distribution), show_q_center, show_img)
         self.state.save()
         return result
 
-    def export_distribution_result(self, result):
-        output = self.mixing_service.export_distribution(self.state.settings.distribution, result)
+    def export_distribution_result(self, result: DistributionFitResult):
+        output = self.distribution_service.export(self.state.settings.distribution, result)
         self.state.save()
         return output

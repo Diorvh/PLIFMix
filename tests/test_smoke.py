@@ -26,6 +26,7 @@ from PLIFv2.domain.settings import (
 from PLIFv2.services.average_service import AverageImageService
 from PLIFv2.services.calibration_service import CalibrationService
 from PLIFv2.services.davis_service import DavisService
+from PLIFv2.services.distribution_service import DistributionFitService
 from PLIFv2.services.intensifier_service import IntensifierCorrectionService
 from PLIFv2.services.mixing_service import MixingService
 from PLIFv2.services.noise_service import NoiseAnalysisService
@@ -344,13 +345,15 @@ class WorkflowSmokeTests(unittest.TestCase):
         service = MixingService()
         shift = service.run_shift_search(ShiftSearchSettings(image_folder=folder, f_exp_no="1", o_exp_no="2", fo_exp_no="3", f_min=-1, f_max=1, o_min=-1, o_max=1, ellipse_x=58, ellipse_y=40, major_axis=50, minor_axis=30, process_count=1))
         self.assertEqual(shift.abs_matrix.shape, (3, 3))
-        manual_settings = ManualMixingSettings(image_folder=folder, f_exp_no="1", o_exp_no="2", fo_exp_no="3", center_xf=45, center_yf=40, center_xo=70, center_yo=40, center_xfo=58, center_yfo=40, major_axis=50, minor_axis=30, q_center_up=10, q_center_down=70, max_k=5, global_of=1, zoom=4, output_folder=self.root / "manual")
+        manual_settings = ManualMixingSettings(image_folder=folder, f_exp_no="1", o_exp_no="2", fo_exp_no="3", center_xf=45, center_yf=40, center_xo=70, center_yo=40, center_xfo=58, center_yfo=40, major_axis=50, minor_axis=30, global_of=1, zoom=4, output_folder=self.root / "manual")
         manual = service.run_manual_display(manual_settings)
         self.assertEqual(len(manual.images), 12)
         self.assertTrue(service.export_manual(manual_settings, manual).exists())
         distribution_settings = DistributionSettings(image_folder=folder, f_exp_no="1", o_exp_no="2", center_xf=45, center_yf=40, center_xo=70, center_yo=40, q_center_up=10, q_center_down=70, max_k=5, output_folder=self.root / "distribution")
-        distribution = service.run_distribution(distribution_settings, "nonshow", "ori_img")
+        distribution_service = DistributionFitService()
+        distribution = distribution_service.run(distribution_settings, "nonshow", "ori_img")
         self.assertGreaterEqual(len(distribution.images), 2)
+        self.assertTrue(distribution_service.export(distribution_settings, distribution).exists())
 
     def test_tool_algorithms(self) -> None:
         array = np.arange(12).reshape(3, 4)
