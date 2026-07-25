@@ -71,7 +71,6 @@ class ManualMixingPage(ttk.Frame):
         controls.pack(side=tk.LEFT, anchor=tk.NW)
         self._row_image_source(controls).pack(anchor=tk.W, pady=1)
         self._row_preset(controls).pack(anchor=tk.W, pady=1)
-        self._row_output(controls).pack(anchor=tk.W, pady=1)
         self._row_display(controls).pack(anchor=tk.W, pady=1)
         self._row_geometry(controls).pack(anchor=tk.W, pady=1)
 
@@ -192,12 +191,9 @@ class ManualMixingPage(ttk.Frame):
         ttk.Button(row, text="下一组", command=lambda: self._move_preset(1)).pack(side=tk.LEFT)
         self.preset_label = ttk.Label(row, text="未加载")
         self.preset_label.pack(side=tk.LEFT, padx=(8, 0))
-        return row
 
-    def _row_output(self, parent) -> ttk.Frame:
-        row = ttk.Frame(parent)
         dr_value, u_value = self._split_save_name(self.settings.save_name)
-        ttk.Label(row, text="图像保存名称").pack(side=tk.LEFT, padx=(4, 2))
+        ttk.Label(row, text="图像保存名称").pack(side=tk.LEFT, padx=(8, 2))
         ttk.Label(row, text="DR:").pack(side=tk.LEFT, padx=(4, 2))
         self._text_entry(row, "save_dr", dr_value, width=8)
         ttk.Label(row, text="U").pack(side=tk.LEFT, padx=(4, 2))
@@ -338,9 +334,7 @@ class ManualMixingPage(ttk.Frame):
         self.vars["save_dr"].set(preset.dr)
         self.vars["save_u"].set(preset.u)
         self.vars["global_of"].set(str(preset.global_of))
-        self.preset_label.config(
-            text=f"{index + 1}/{len(self.preset_groups)}  DR {preset.dr}  U {preset.u}"
-        )
+        self.preset_label.config(text=f"{index + 1}/{len(self.preset_groups)}")
         self.process()
 
     def _save_vars(self) -> None:
