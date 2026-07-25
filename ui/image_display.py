@@ -10,8 +10,8 @@ from PLIFv2.ui.components.viewer_panel import ViewerPanel
 class ImageDisplay(ViewerPanel):
     """Legacy manual-result API backed by the shared image viewport."""
 
-    def __init__(self, master, name: str):
-        super().__init__(master, path=None, show_histogram=False, name=name, show_save_button=True)
+    def __init__(self, master, name: str, show_save_button: bool = False):
+        super().__init__(master, path=None, show_histogram=False, name=name, show_save_button=show_save_button)
 
     def update(
         self,

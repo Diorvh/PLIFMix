@@ -15,7 +15,6 @@ from PLIFv2.algorithms.mixing import (
     shift_image,
 )
 from PLIFv2.core.image_io import read_image
-from PLIFv2.core.paths import path_is_set
 from PLIFv2.domain.settings import ManualMixingSettings, ShiftSearchSettings
 from PLIFv2.services.display_types import DisplayImage
 
@@ -178,7 +177,7 @@ class MixingService:
         return ManualDisplayResult(summary, display_images, (curve_x, curve_y))
 
     def export_mix_curve(self, settings: ManualMixingSettings, result: ManualDisplayResult) -> Path:
-        output = Path(settings.output_folder) if path_is_set(settings.output_folder) else Path(settings.image_folder).parent / "manual_results"
+        output = Path(settings.image_folder).parent / "mix_curve"
         output.mkdir(parents=True, exist_ok=True)
         name = settings.save_name or f"F{settings.f_exp_no}_O{settings.o_exp_no}_FO{settings.fo_exp_no}"
 
@@ -188,9 +187,10 @@ class MixingService:
         curve_sheet.append(["x", "mix_fraction"])
         for x_value, y_value in zip(*result.mix_curve):
             curve_sheet.append([float(x_value), float(y_value)])
-        curve_workbook.save(output / f"{name}-混合分数曲线.xlsx")
+        curve_path = output / f"{name}.xlsx"
+        curve_workbook.save(curve_path)
         curve_workbook.close()
-        return output
+        return curve_path
 
 
 def _exp_path(folder: Path, exp_no: str) -> Path:

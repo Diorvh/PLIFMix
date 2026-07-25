@@ -827,7 +827,7 @@
         },
         "!frame.!frame2.!entry": {
           "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪"
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪 "
         },
         "!frame.!frame2.!entry2": {
           "kind": "text",
@@ -839,6 +839,10 @@
         },
         "!frame.!frame3.!entry": {
           "kind": "text",
+          "value": "1"
+        },
+        "!frame.!frame3.!checkbutton2": {
+          "kind": "variable",
           "value": "1"
         },
         "!frame.!frame3.!entry2": {
@@ -967,6 +971,7 @@
         },
         "__custom__": {
           "is_pseudo": true,
+          "auto_gain": true,
           "show_crosshair": true,
           "show_ellipse": true
         }

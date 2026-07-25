@@ -39,6 +39,7 @@ class ViewerPanel(ttk.Frame):
         self.value_image = np.empty((0, 0), dtype=np.float64)
         self.image: np.ndarray | None = None
         self.display: np.ndarray | None = None
+        self.base_display: np.ndarray | None = None
         self.zoom = 1.0
         self.render_scale = 1.0
         self.image_offset = (0, 0)
@@ -49,6 +50,9 @@ class ViewerPanel(ttk.Frame):
         self.point_selected_callback = point_selected_callback
         self.save_name_suffix = ""
         self.save_folder = Path("manual_outputs")
+        self._last_crosshair: tuple[int, int, int] | None = None
+        self._last_ellipse: tuple[int, int, int, int, int] | None = None
+        self._last_special_points = None
 
         if name is not None:
             header = ttk.Frame(self)
@@ -145,6 +149,7 @@ class ViewerPanel(ttk.Frame):
             gain = computed_gain if computed_gain is not None else 0.0
         scaled = _scale_gray_for_display(image, gain)
         self.display = cv2.applyColorMap(scaled, blacked_jet_colormap()) if pseudo else cv2.cvtColor(scaled, cv2.COLOR_GRAY2BGR)
+        self.base_display = self.display.copy()
         self._draw_overlays(center, ellipse, crosshair, line_width, quad, None)
         self._set_zoom_and_render(zoom)
         if self.show_histogram and self.axis is not None and self.hist_canvas is not None:
@@ -197,6 +202,10 @@ class ViewerPanel(ttk.Frame):
         else:
             self.value_image = image
             self.display = np.clip(image, 0, 255).astype(np.uint8)
+        self.base_display = self.display.copy()
+        self._last_crosshair = crosshair
+        self._last_ellipse = ellipse
+        self._last_special_points = special_points
         center = (crosshair[0], crosshair[1]) if crosshair else (0, 0)
         line_width = crosshair[2] if crosshair else 1
         self._draw_overlays(center, ellipse, crosshair is not None, line_width, None, special_points)
@@ -206,23 +215,56 @@ class ViewerPanel(ttk.Frame):
     def _draw_overlays(self, center, ellipse, crosshair, line_width, quad, special_points) -> None:
         if self.display is None:
             return
+        self._draw_overlays_on(self.display, center, ellipse, crosshair, line_width, quad, special_points)
+
+    @staticmethod
+    def _draw_overlays_on(display, center, ellipse, crosshair, line_width, quad, special_points) -> None:
         if special_points is not None and len(special_points):
             try:
                 y, x = special_points
-                self.display[y, x] = [255, 255, 255]
+                display[y, x] = [255, 255, 255]
             except (IndexError, TypeError, ValueError):
                 pass
         if crosshair:
-            cv2.line(self.display, (center[0], 0), (center[0], self.display.shape[0]), (0, 0, 255), line_width)
-            cv2.line(self.display, (0, center[1]), (self.display.shape[1], center[1]), (0, 0, 255), line_width)
+            cv2.line(display, (center[0], 0), (center[0], display.shape[0]), (0, 0, 255), line_width)
+            cv2.line(display, (0, center[1]), (display.shape[1], center[1]), (0, 0, 255), line_width)
         if ellipse:
             if len(ellipse) == 2:
-                cv2.ellipse(self.display, center, ellipse, 0, 0, 360, (0, 0, 255), line_width)
+                cv2.ellipse(display, center, ellipse, 0, 0, 360, (0, 0, 255), line_width)
             else:
                 x, y, major, minor, ellipse_width = ellipse
-                cv2.ellipse(self.display, (x, y), (major, minor), 0, 0, 360, (0, 0, 255), ellipse_width)
+                cv2.ellipse(display, (x, y), (major, minor), 0, 0, 360, (0, 0, 255), ellipse_width)
         if quad is not None:
-            cv2.polylines(self.display, [quad], True, (0, 0, 255), line_width)
+            cv2.polylines(display, [quad], True, (0, 0, 255), line_width)
+
+    def copy_for_save(
+        self,
+        include_crosshair: bool,
+        include_ellipse: bool,
+        crosshair: tuple[int, int, int] | None = None,
+        ellipse: tuple[int, int, int, int, int] | None = None,
+    ) -> np.ndarray | None:
+        if self.base_display is None:
+            return None
+        image = self.base_display.copy()
+        selected_crosshair = crosshair if include_crosshair else None
+        selected_ellipse = ellipse if include_ellipse else None
+        if selected_crosshair is None and include_crosshair:
+            selected_crosshair = self._last_crosshair
+        if selected_ellipse is None and include_ellipse:
+            selected_ellipse = self._last_ellipse
+        center = (selected_crosshair[0], selected_crosshair[1]) if selected_crosshair else (0, 0)
+        line_width = selected_crosshair[2] if selected_crosshair else 1
+        self._draw_overlays_on(
+            image,
+            center,
+            selected_ellipse,
+            selected_crosshair is not None,
+            line_width,
+            None,
+            self._last_special_points,
+        )
+        return image
 
     def _set_zoom_and_render(self, zoom: float) -> None:
         if zoom <= 0:

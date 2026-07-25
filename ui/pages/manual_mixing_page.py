@@ -8,10 +8,27 @@ from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.figure import Figure
 
 from PLIFv2.application.actions import PLIFActions
+from PLIFv2.core.image_io import write_png
 from PLIFv2.ui.components.shift_search_panel import ShiftSearchPanel
 from PLIFv2.ui.image_display import ImageDisplay
 from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
 from PLIFv2.ui.widgets import LatestTaskRunner
+
+
+RESULT_LAYOUT = (
+    ("f", (0, 0)),
+    ("o", (0, 1)),
+    ("fo", (0, 2)),
+    ("f+o-fo", (0, 3)),
+    ("oDf+o", (1, 0)),
+    ("fDfo", (1, 1)),
+    ("oDfo", (1, 2)),
+    ("fo-f-o", (1, 3)),
+    ("ME_oDf+o", (2, 0)),
+    ("ME_fDfo", (2, 1)),
+    ("ME_oDfo", (2, 2)),
+    ("mix_curve", (2, 3)),
+)
 
 
 class ManualMixingPage(ttk.Frame):
@@ -26,6 +43,9 @@ class ManualMixingPage(ttk.Frame):
         self.show_crosshair = tk.BooleanVar(value=True)
         self.show_ellipse = tk.BooleanVar(value=True)
         self.use_ellipse_region = tk.BooleanVar(value=self.settings.use_ellipse_region)
+        self.save_crosshair = tk.BooleanVar(value=True)
+        self.save_ellipse = tk.BooleanVar(value=True)
+        self.save_targets = {name: tk.BooleanVar(value=True) for name, _position in RESULT_LAYOUT}
         self.vars: dict[str, tk.StringVar] = {}
         self.displays: dict[str, ImageDisplay] = {}
         self.latest_result = None
@@ -34,8 +54,11 @@ class ManualMixingPage(ttk.Frame):
         self.live_task = LatestTaskRunner(self, LabelLog(self.summary_label))
 
     def _setup_ui(self) -> None:
-        controls = ttk.Frame(self)
-        controls.pack(fill=tk.X, padx=8, pady=6)
+        control_area = ttk.Frame(self)
+        control_area.pack(fill=tk.X, padx=8, pady=6)
+        controls = ttk.Frame(control_area)
+        self._quick_save_panel(control_area).pack(side=tk.RIGHT, anchor=tk.NE)
+        controls.pack(side=tk.LEFT, anchor=tk.NW)
         self._row_image_source(controls).pack(anchor=tk.W, pady=1)
         self._row_output(controls).pack(anchor=tk.W, pady=1)
         self._row_display(controls).pack(anchor=tk.W, pady=1)
@@ -66,29 +89,37 @@ class ManualMixingPage(ttk.Frame):
         image_outer.rowconfigure(0, weight=1)
         image_outer.columnconfigure(0, weight=1)
 
-        display_positions = [
-            ("f", (0, 0)),
-            ("o", (0, 1)),
-            ("fo", (0, 2)),
-            ("f+o-fo", (0, 3)),
-            ("oDf+o", (1, 0)),
-            ("fDfo", (1, 1)),
-            ("oDfo", (1, 2)),
-            ("fo-f-o", (1, 3)),
-            ("ME_oDf+o", (2, 0)),
-            ("ME_fDfo", (2, 1)),
-            ("ME_oDfo", (2, 2)),
-        ]
-        for title, position in display_positions:
+        for title, position in RESULT_LAYOUT:
+            if title == "mix_curve":
+                continue
             display = ImageDisplay(self.image_frame, title)
             display.grid(row=position[0], column=position[1], padx=4, pady=4, sticky="nw")
             self.displays[title] = display
 
-        self.curve_panel = MixCurvePanel(self.image_frame, self.export_curve_data)
+        self.curve_panel = MixCurvePanel(self.image_frame)
         self.curve_panel.grid(row=2, column=3, padx=4, pady=4, sticky="nw")
 
         self.shift_search = ShiftSearchPanel(search_tab, self.actions, self._save_vars)
         self.shift_search.pack(fill=tk.BOTH, expand=True)
+
+    def _quick_save_panel(self, parent) -> ttk.LabelFrame:
+        panel = ttk.LabelFrame(parent, text="一键保存")
+        top_row = ttk.Frame(panel)
+        top_row.pack(anchor=tk.W, padx=4, pady=(3, 1))
+        ttk.Button(top_row, text="一键保存", command=self.save_selected_outputs).pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Checkbutton(top_row, text="绘制十字线", variable=self.save_crosshair).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Checkbutton(top_row, text="绘制椭圆", variable=self.save_ellipse).pack(side=tk.LEFT)
+
+        selections = ttk.Frame(panel)
+        selections.pack(anchor=tk.W, padx=4, pady=(1, 3))
+        for name, (row, column) in RESULT_LAYOUT:
+            ttk.Checkbutton(selections, text=name, variable=self.save_targets[name]).grid(
+                row=row,
+                column=column,
+                sticky=tk.W,
+                padx=4,
+            )
+        return panel
 
     def _row_image_source(self, parent) -> ttk.Frame:
         row = ttk.Frame(parent)
@@ -100,8 +131,8 @@ class ManualMixingPage(ttk.Frame):
 
     def _row_output(self, parent) -> ttk.Frame:
         row = ttk.Frame(parent)
-        self._path_entry(row, "output_folder", "输出目录", self._select_output_folder, width=78)
         dr_value, u_value = self._split_save_name(self.settings.save_name)
+        ttk.Label(row, text="图像保存名称").pack(side=tk.LEFT, padx=(4, 2))
         ttk.Label(row, text="DR:").pack(side=tk.LEFT, padx=(4, 2))
         self._text_entry(row, "save_dr", dr_value, width=8)
         ttk.Label(row, text="U").pack(side=tk.LEFT, padx=(4, 2))
@@ -169,11 +200,6 @@ class ManualMixingPage(ttk.Frame):
         path = filedialog.askdirectory()
         if path:
             self.vars["image_folder"].set(path)
-
-    def _select_output_folder(self) -> None:
-        path = filedialog.askdirectory()
-        if path:
-            self.vars["output_folder"].set(path)
 
     def _save_vars(self) -> None:
         for attr, var in self.vars.items():
@@ -257,22 +283,49 @@ class ManualMixingPage(ttk.Frame):
                     ellipse=ellipse,
                     save_name_suffix=self.settings.save_name,
                     special_points=item.special_points,
-                    save_folder=self.settings.output_folder if str(self.settings.output_folder) not in {"", "."} else Path(self.settings.image_folder).parent / "manual_results",
                 )
             self.curve_panel.update(result.mix_curve)
         except Exception as exc:
             self.summary_label.config(text=f"错误: {exc}")
 
-    def export_curve_data(self) -> None:
-        if self.latest_result is None:
-            self.summary_label.config(text="请先完成当前参数计算")
-            return
+    def save_selected_outputs(self) -> None:
         try:
             self._save_vars()
-            output = self.actions.export_mix_curve_data(self.latest_result)
-            self.summary_label.config(text=f"混合曲线数据已导出到: {output}")
+            if self.latest_result is None:
+                raise ValueError("请先完成当前参数计算")
+            if not self.vars["save_dr"].get().strip() or not self.vars["save_u"].get().strip():
+                raise ValueError("请填写 DR 和 U 保存名称")
+
+            output_root = Path(self.settings.image_folder).parent
+            ellipse = (
+                self.settings.center_xfo,
+                self.settings.center_yfo,
+                self.settings.major_axis,
+                self.settings.minor_axis,
+                self.settings.line_width,
+            )
+            image_outputs: list[Path] = []
+            for name, _position in RESULT_LAYOUT:
+                if name == "mix_curve" or not self.save_targets[name].get():
+                    continue
+                image = self.displays[name].copy_for_save(
+                    include_crosshair=self.save_crosshair.get(),
+                    include_ellipse=self.save_ellipse.get(),
+                    crosshair=self._crosshair_for(name),
+                    ellipse=ellipse,
+                )
+                if image is None:
+                    continue
+                image_outputs.append(write_png(output_root / name / f"{self.settings.save_name}.png", image))
+
+            curve_output = None
+            if self.save_targets["mix_curve"].get():
+                curve_output = self.actions.export_mix_curve_data(self.latest_result)
+
+            saved_count = len(image_outputs) + int(curve_output is not None)
+            self.summary_label.config(text=f"已保存 {saved_count} 项结果到: {output_root}")
         except Exception as exc:
-            self.summary_label.config(text=f"导出错误: {exc}")
+            self.summary_label.config(text=f"保存错误: {exc}")
 
     def _crosshair_for(self, name: str) -> tuple[int, int, int]:
         if name == "f":
@@ -287,6 +340,9 @@ class ManualMixingPage(ttk.Frame):
             "auto_gain": self.auto_gain.get(),
             "show_crosshair": self.show_crosshair.get(),
             "show_ellipse": self.show_ellipse.get(),
+            "save_crosshair": self.save_crosshair.get(),
+            "save_ellipse": self.save_ellipse.get(),
+            "save_targets": {name: target.get() for name, target in self.save_targets.items()},
         }
 
     def restore_ui_state(self, state: dict[str, object]) -> None:
@@ -294,6 +350,12 @@ class ManualMixingPage(ttk.Frame):
         self.auto_gain.set(bool(state.get("auto_gain", self.auto_gain.get())))
         self.show_crosshair.set(bool(state.get("show_crosshair", self.show_crosshair.get())))
         self.show_ellipse.set(bool(state.get("show_ellipse", self.show_ellipse.get())))
+        self.save_crosshair.set(bool(state.get("save_crosshair", self.save_crosshair.get())))
+        self.save_ellipse.set(bool(state.get("save_ellipse", self.save_ellipse.get())))
+        targets = state.get("save_targets", {})
+        if isinstance(targets, dict):
+            for name, target in self.save_targets.items():
+                target.set(bool(targets.get(name, target.get())))
 
     @staticmethod
     def _value_to_str(value) -> str:
@@ -311,12 +373,11 @@ class ManualMixingPage(ttk.Frame):
 
 
 class MixCurvePanel(ttk.Frame):
-    def __init__(self, master, export_command):
+    def __init__(self, master):
         super().__init__(master)
         header = ttk.Frame(self)
         header.pack(fill=tk.X)
         ttk.Label(header, text="mix_curve", width=12).pack(side=tk.LEFT)
-        ttk.Button(header, text="导出数据", command=export_command).pack(side=tk.LEFT, padx=(4, 0))
         self.figure = Figure(figsize=(6.4, 4.8), dpi=100)
         self.axis = self.figure.add_subplot(111)
         self.canvas = DebouncedFigureCanvasTkAgg(self.figure, master=self)

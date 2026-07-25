@@ -28,6 +28,16 @@ def write_tif(path: str | Path, image: np.ndarray) -> Path:
     return path
 
 
+def write_png(path: str | Path, image: np.ndarray) -> Path:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    ok, encoded = cv2.imencode(".png", image)
+    if not ok:
+        raise ValueError(f"Failed to encode png: {path}")
+    encoded.tofile(str(path))
+    return path
+
+
 def save_float_image(image: np.ndarray, folder: str | Path, name: str) -> dict[str, Path]:
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
