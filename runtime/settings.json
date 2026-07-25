@@ -89,7 +89,7 @@
     "line_width": 2,
     "global_of": 1.0,
     "denoise_ratio": 0.02,
-    "use_ellipse_region": true,
+    "use_ellipse_region": false,
     "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪 "
   },
   "distribution": {
@@ -915,11 +915,11 @@
         },
         "!frame.!labelframe.!frame.!checkbutton": {
           "kind": "variable",
-          "value": "0"
+          "value": 0
         },
         "!frame.!labelframe.!frame.!checkbutton2": {
           "kind": "variable",
-          "value": "0"
+          "value": 0
         },
         "!frame.!labelframe.!frame2.!checkbutton": {
           "kind": "variable",
@@ -935,7 +935,7 @@
         },
         "!frame.!labelframe.!frame2.!checkbutton4": {
           "kind": "variable",
-          "value": "0"
+          "value": 0
         },
         "!frame.!labelframe.!frame2.!checkbutton5": {
           "kind": "variable",
@@ -943,27 +943,27 @@
         },
         "!frame.!labelframe.!frame2.!checkbutton6": {
           "kind": "variable",
-          "value": "0"
+          "value": 0
         },
         "!frame.!labelframe.!frame2.!checkbutton7": {
           "kind": "variable",
-          "value": "0"
+          "value": 0
         },
         "!frame.!labelframe.!frame2.!checkbutton8": {
           "kind": "variable",
-          "value": "0"
+          "value": 0
         },
         "!frame.!labelframe.!frame2.!checkbutton9": {
           "kind": "variable",
-          "value": "0"
+          "value": 0
         },
         "!frame.!labelframe.!frame2.!checkbutton10": {
           "kind": "variable",
-          "value": "0"
+          "value": 0
         },
         "!frame.!labelframe.!frame2.!checkbutton11": {
           "kind": "variable",
-          "value": "0"
+          "value": 0
         },
         "!frame.!labelframe.!frame2.!checkbutton12": {
           "kind": "variable",
@@ -973,11 +973,11 @@
           "kind": "notebook",
           "value": 0
         },
-        "!notebook.!frame.!frame.!canvas.!frame.!mixcurvepanel.!frame2.!navigationtoolbar2tk.!checkbutton-1": {
+        "!notebook.!frame.!frame2.!canvas.!frame.!mixcurvepanel.!frame2.!navigationtoolbar2tk.!checkbutton-1": {
           "kind": "variable",
           "value": 0
         },
-        "!notebook.!frame.!frame.!canvas.!frame.!mixcurvepanel.!frame2.!navigationtoolbar2tk.!checkbutton-2": {
+        "!notebook.!frame.!frame2.!canvas.!frame.!mixcurvepanel.!frame2.!navigationtoolbar2tk.!checkbutton-2": {
           "kind": "variable",
           "value": 0
         },

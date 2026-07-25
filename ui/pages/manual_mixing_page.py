@@ -43,6 +43,7 @@ class ManualMixingPage(ttk.Frame):
         self.show_crosshair = tk.BooleanVar(value=True)
         self.show_ellipse = tk.BooleanVar(value=True)
         self.use_ellipse_region = tk.BooleanVar(value=self.settings.use_ellipse_region)
+        self.use_calibrated_display = tk.BooleanVar(value=True)
         self.save_crosshair = tk.BooleanVar(value=True)
         self.save_ellipse = tk.BooleanVar(value=True)
         self.save_targets = {name: tk.BooleanVar(value=True) for name, _position in RESULT_LAYOUT}
@@ -77,6 +78,8 @@ class ManualMixingPage(ttk.Frame):
         self.summary_label.pack(anchor=tk.W)
         self.efficiency_label = ttk.Label(summary_area, text="")
         self.efficiency_label.pack(anchor=tk.W)
+        self.raw_efficiency_label = ttk.Label(summary_area, text="")
+        self.raw_efficiency_label.pack(anchor=tk.W)
 
         image_outer = ttk.Frame(mixing_tab)
         image_outer.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
@@ -179,6 +182,12 @@ class ManualMixingPage(ttk.Frame):
         self._entry(row, "f_shift", "F 平移", 6)
         self._entry(row, "o_shift", "O 平移", 6)
         self._entry(row, "global_of", "全局 O/F", 6)
+        ttk.Checkbutton(
+            row,
+            text="绘图使用标定总量",
+            variable=self.use_calibrated_display,
+            command=self._redraw_cached_result,
+        ).pack(side=tk.LEFT, padx=(6, 0))
         return row
 
     def _row_geometry(self, parent) -> ttk.Frame:
@@ -261,6 +270,10 @@ class ManualMixingPage(ttk.Frame):
         self.vars["center_yfo"].set(y_value)
         self.process()
 
+    def _redraw_cached_result(self) -> None:
+        if self.latest_result is not None:
+            self._show_result(self.latest_result)
+
     def process(self, event=None) -> None:
         try:
             self._save_vars()
@@ -287,10 +300,18 @@ class ManualMixingPage(ttk.Frame):
             )
             self.efficiency_label.config(
                 text=(
-                    f"O-F 混合效率: {summary.me_o_f:.4f}; F-FO 混合效率: {summary.me_f_fo:.4f}; "
+                    f"标定总量后：O-F 混合效率: {summary.me_o_f:.4f}; F-FO 混合效率: {summary.me_f_fo:.4f}; "
                     f"O-FO 混合效率: {summary.me_o_fo:.4f}; 平均混合效率: {summary.average_me:.4f}"
                 )
             )
+            self.raw_efficiency_label.config(
+                text=(
+                    f"原始混合效率：O-F 混合效率: {summary.raw_me_o_f:.4f}; F-FO 混合效率: {summary.raw_me_f_fo:.4f}; "
+                    f"O-FO 混合效率: {summary.raw_me_o_fo:.4f}; 平均混合效率: {summary.raw_average_me:.4f}"
+                )
+            )
+            display_images = result.images if self.use_calibrated_display.get() else result.raw_images
+            mix_curve = result.mix_curve if self.use_calibrated_display.get() else result.raw_mix_curve
             gain = float(self.settings.gain)
             zoom = float(self.settings.zoom)
             ellipse = (
@@ -300,7 +321,7 @@ class ManualMixingPage(ttk.Frame):
                 self.settings.minor_axis,
                 self.settings.line_width,
             ) if self.show_ellipse.get() else None
-            for item in result.images:
+            for item in display_images:
                 display = self.displays.get(item.name)
                 if display is None:
                     continue
@@ -316,7 +337,7 @@ class ManualMixingPage(ttk.Frame):
                     save_name_suffix=self.settings.save_name,
                     special_points=item.special_points,
                 )
-            self.curve_panel.update(result.mix_curve)
+            self.curve_panel.update(mix_curve)
         except Exception as exc:
             self.summary_label.config(text=f"错误: {exc}")
 
@@ -352,7 +373,10 @@ class ManualMixingPage(ttk.Frame):
 
             curve_output = None
             if self.save_targets["mix_curve"].get():
-                curve_output = self.actions.export_mix_curve_data(self.latest_result)
+                curve_output = self.actions.export_mix_curve_data(
+                    self.latest_result,
+                    use_calibrated=self.use_calibrated_display.get(),
+                )
 
             saved_count = len(image_outputs) + int(curve_output is not None)
             self.summary_label.config(text=f"已保存 {saved_count} 项结果到: {output_root}")
@@ -372,6 +396,7 @@ class ManualMixingPage(ttk.Frame):
             "auto_gain": self.auto_gain.get(),
             "show_crosshair": self.show_crosshair.get(),
             "show_ellipse": self.show_ellipse.get(),
+            "use_calibrated_display": self.use_calibrated_display.get(),
             "save_crosshair": self.save_crosshair.get(),
             "save_ellipse": self.save_ellipse.get(),
             "save_targets": {name: target.get() for name, target in self.save_targets.items()},
@@ -382,6 +407,7 @@ class ManualMixingPage(ttk.Frame):
         self.auto_gain.set(bool(state.get("auto_gain", self.auto_gain.get())))
         self.show_crosshair.set(bool(state.get("show_crosshair", self.show_crosshair.get())))
         self.show_ellipse.set(bool(state.get("show_ellipse", self.show_ellipse.get())))
+        self.use_calibrated_display.set(bool(state.get("use_calibrated_display", self.use_calibrated_display.get())))
         self.save_crosshair.set(bool(state.get("save_crosshair", self.save_crosshair.get())))
         self.save_ellipse.set(bool(state.get("save_ellipse", self.save_ellipse.get())))
         targets = state.get("save_targets", {})

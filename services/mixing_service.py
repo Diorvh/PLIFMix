@@ -27,6 +27,10 @@ class ManualMixingResult:
     me_o_f: float
     average_me: float
     record_of: float
+    raw_me_o_fo: float
+    raw_me_f_fo: float
+    raw_me_o_f: float
+    raw_average_me: float
 
 
 @dataclass
@@ -34,6 +38,8 @@ class ManualDisplayResult:
     summary: ManualMixingResult
     images: list[DisplayImage]
     mix_curve: tuple[np.ndarray, np.ndarray]
+    raw_images: list[DisplayImage]
+    raw_mix_curve: tuple[np.ndarray, np.ndarray]
 
 
 class MixingService:
@@ -73,13 +79,9 @@ class MixingService:
         o_img[mask] = 0
         fo_img[mask] = 0
 
-        record_of = float(np.sum(o_img) / np.sum(f_img)) if np.sum(f_img) else 0.0
-        if record_of:
-            o_img = o_img * settings.global_of / record_of
-        combined = f_img + o_img
-        fo_sum = np.sum(fo_img)
-        if fo_sum:
-            fo_img = fo_img / fo_sum * np.sum(combined)
+        raw_f_img = f_img.copy()
+        raw_o_img = o_img.copy()
+        raw_fo_img = fo_img.copy()
 
         if settings.use_ellipse_region:
             coords = generate_mask_coords(
@@ -93,6 +95,22 @@ class MixingService:
             ys, xs = np.indices(f_img.shape)
             coords = xs.ravel(), ys.ravel()
         global_mix_ratio = settings.global_of / (1 + settings.global_of)
+        _, raw_me_o_fo, raw_me_f_fo, raw_me_o_f = calc_result(
+            raw_f_img,
+            raw_o_img,
+            raw_fo_img,
+            coords,
+            global_mix_ratio,
+        )
+
+        record_of = float(np.sum(o_img) / np.sum(f_img)) if np.sum(f_img) else 0.0
+        if record_of:
+            o_img = o_img * settings.global_of / record_of
+        combined = f_img + o_img
+        fo_sum = np.sum(fo_img)
+        if fo_sum:
+            fo_img = fo_img / fo_sum * np.sum(combined)
+
         abs_value, me_o_fo, me_f_fo, me_o_f = calc_result(f_img, o_img, fo_img, coords, global_mix_ratio)
         summary = ManualMixingResult(
             abs_value=abs_value,
@@ -101,82 +119,35 @@ class MixingService:
             me_o_f=me_o_f,
             average_me=(me_o_fo + me_f_fo + me_o_f) / 3,
             record_of=record_of,
+            raw_me_o_fo=raw_me_o_fo,
+            raw_me_f_fo=raw_me_f_fo,
+            raw_me_o_f=raw_me_o_f,
+            raw_average_me=(raw_me_o_fo + raw_me_f_fo + raw_me_o_f) / 3,
         )
-
-        display_images = [
-            DisplayImage("f", f_img),
-            DisplayImage("o", o_img),
-            DisplayImage("fo", fo_img),
-        ]
-        diff = combined - fo_img
-        display_images.extend(
-            [
-                DisplayImage("f+o-fo", diff),
-                DisplayImage("fo-f-o", -diff),
-            ]
+        display_images, mix_curve = _build_display_outputs(
+            f_img,
+            o_img,
+            fo_img,
+            settings.global_of,
+            settings.center_yfo,
+            global_mix_ratio,
         )
-
-        with np.errstate(divide="ignore", invalid="ignore"):
-            mix_ratio_o_f = np.where(
-                (f_img > 0) | (o_img > 0),
-                (o_img / (o_img + settings.global_of * f_img) * 254 + 1).astype(np.uint8),
-                0,
-            )
-            mix_ratio_f_fo = np.where(
-                (f_img > 0) | ((fo_img - f_img) > 0),
-                ((fo_img - f_img) / ((fo_img - f_img) + settings.global_of * f_img) * 254 + 1).astype(np.uint8),
-                0,
-            )
-            mix_ratio_o_fo = np.where(
-                ((fo_img - o_img) > 0) | (o_img > 0),
-                (o_img / (o_img + settings.global_of * (fo_img - o_img)) * 254 + 1).astype(np.uint8),
-                0,
-            )
-        mix_ratio_f_fo[fo_img - f_img < 0] = 1
-        mix_ratio_o_fo[fo_img - o_img < 0] = 255
-
-        _, mix_efficiency_o_f = calc_mixing_efficiency(o_img, combined, global_mix_ratio)
-        _, mix_efficiency_f_fo = calc_mixing_efficiency(f_img, fo_img, global_mix_ratio)
-        _, mix_efficiency_o_fo = calc_mixing_efficiency(o_img, fo_img, global_mix_ratio)
-        max_eff = max(
-            float(np.max(mix_efficiency_o_f)),
-            float(np.max(mix_efficiency_f_fo)),
-            float(np.max(mix_efficiency_o_fo)),
+        raw_display_images, raw_mix_curve = _build_display_outputs(
+            raw_f_img,
+            raw_o_img,
+            raw_fo_img,
+            settings.global_of,
+            settings.center_yfo,
+            global_mix_ratio,
         )
-        if max_eff > 0:
-            mix_efficiency_o_f = np.array(mix_efficiency_o_f / max_eff * 255).astype(np.uint8)
-            mix_efficiency_f_fo = np.array(mix_efficiency_f_fo / max_eff * 255).astype(np.uint8)
-            mix_efficiency_o_fo = np.array(mix_efficiency_o_fo / max_eff * 255).astype(np.uint8)
-        else:
-            mix_efficiency_o_f = np.zeros_like(mix_efficiency_o_f, dtype=np.uint8)
-            mix_efficiency_f_fo = np.zeros_like(mix_efficiency_f_fo, dtype=np.uint8)
-            mix_efficiency_o_fo = np.zeros_like(mix_efficiency_o_fo, dtype=np.uint8)
-        display_images.extend(
-            [
-                DisplayImage("oDf+o", mix_ratio_o_f, "bwr"),
-                DisplayImage("fDfo", mix_ratio_f_fo, "bwr"),
-                DisplayImage("oDfo", mix_ratio_o_fo, "bwr"),
-                DisplayImage("ME_oDf+o", mix_efficiency_o_f),
-                DisplayImage("ME_fDfo", mix_efficiency_f_fo),
-                DisplayImage("ME_oDfo", mix_efficiency_o_fo),
-            ]
-        )
+        return ManualDisplayResult(summary, display_images, mix_curve, raw_display_images, raw_mix_curve)
 
-        with np.errstate(divide="ignore", invalid="ignore"):
-            mix_curve_origin = np.where(
-                (f_img > 0) | (o_img > 0),
-                (o_img / (o_img + settings.global_of * f_img)) + 1,
-                0,
-            )
-        row = int(np.clip(settings.center_yfo, 0, f_img.shape[0] - 1))
-        curve_x = np.array(range(f_img.shape[1]))
-        curve_y = mix_curve_origin[row, :]
-        mask_curve = curve_y != 0
-        curve_x = curve_x[mask_curve]
-        curve_y = curve_y[mask_curve] - 1
-        return ManualDisplayResult(summary, display_images, (curve_x, curve_y))
-
-    def export_mix_curve(self, settings: ManualMixingSettings, result: ManualDisplayResult) -> Path:
+    def export_mix_curve(
+        self,
+        settings: ManualMixingSettings,
+        result: ManualDisplayResult,
+        use_calibrated: bool = True,
+    ) -> Path:
         output = Path(settings.image_folder).parent / "mix_curve"
         output.mkdir(parents=True, exist_ok=True)
         name = settings.save_name or f"F{settings.f_exp_no}_O{settings.o_exp_no}_FO{settings.fo_exp_no}"
@@ -185,12 +156,89 @@ class MixingService:
         curve_sheet = curve_workbook.active
         curve_sheet.title = "mix_fraction"
         curve_sheet.append(["x", "mix_fraction"])
-        for x_value, y_value in zip(*result.mix_curve):
+        mix_curve = result.mix_curve if use_calibrated else result.raw_mix_curve
+        for x_value, y_value in zip(*mix_curve):
             curve_sheet.append([float(x_value), float(y_value)])
         curve_path = output / f"{name}.xlsx"
         curve_workbook.save(curve_path)
         curve_workbook.close()
         return curve_path
+
+
+def _build_display_outputs(
+    f_img: np.ndarray,
+    o_img: np.ndarray,
+    fo_img: np.ndarray,
+    global_of: float,
+    center_y: int,
+    global_mix_ratio: float,
+) -> tuple[list[DisplayImage], tuple[np.ndarray, np.ndarray]]:
+    combined = f_img + o_img
+    display_images = [
+        DisplayImage("f", f_img),
+        DisplayImage("o", o_img),
+        DisplayImage("fo", fo_img),
+        DisplayImage("f+o-fo", combined - fo_img),
+        DisplayImage("fo-f-o", fo_img - combined),
+    ]
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        mix_ratio_o_f = np.where(
+            (f_img > 0) | (o_img > 0),
+            (o_img / (o_img + global_of * f_img) * 254 + 1).astype(np.uint8),
+            0,
+        )
+        mix_ratio_f_fo = np.where(
+            (f_img > 0) | ((fo_img - f_img) > 0),
+            ((fo_img - f_img) / ((fo_img - f_img) + global_of * f_img) * 254 + 1).astype(np.uint8),
+            0,
+        )
+        mix_ratio_o_fo = np.where(
+            ((fo_img - o_img) > 0) | (o_img > 0),
+            (o_img / (o_img + global_of * (fo_img - o_img)) * 254 + 1).astype(np.uint8),
+            0,
+        )
+    mix_ratio_f_fo[fo_img - f_img < 0] = 1
+    mix_ratio_o_fo[fo_img - o_img < 0] = 255
+
+    _, mix_efficiency_o_f = calc_mixing_efficiency(o_img, combined, global_mix_ratio)
+    _, mix_efficiency_f_fo = calc_mixing_efficiency(f_img, fo_img, global_mix_ratio)
+    _, mix_efficiency_o_fo = calc_mixing_efficiency(o_img, fo_img, global_mix_ratio)
+    max_eff = max(
+        float(np.max(mix_efficiency_o_f)),
+        float(np.max(mix_efficiency_f_fo)),
+        float(np.max(mix_efficiency_o_fo)),
+    )
+    if max_eff > 0:
+        mix_efficiency_o_f = np.array(mix_efficiency_o_f / max_eff * 255).astype(np.uint8)
+        mix_efficiency_f_fo = np.array(mix_efficiency_f_fo / max_eff * 255).astype(np.uint8)
+        mix_efficiency_o_fo = np.array(mix_efficiency_o_fo / max_eff * 255).astype(np.uint8)
+    else:
+        mix_efficiency_o_f = np.zeros_like(mix_efficiency_o_f, dtype=np.uint8)
+        mix_efficiency_f_fo = np.zeros_like(mix_efficiency_f_fo, dtype=np.uint8)
+        mix_efficiency_o_fo = np.zeros_like(mix_efficiency_o_fo, dtype=np.uint8)
+    display_images.extend(
+        [
+            DisplayImage("oDf+o", mix_ratio_o_f, "bwr"),
+            DisplayImage("fDfo", mix_ratio_f_fo, "bwr"),
+            DisplayImage("oDfo", mix_ratio_o_fo, "bwr"),
+            DisplayImage("ME_oDf+o", mix_efficiency_o_f),
+            DisplayImage("ME_fDfo", mix_efficiency_f_fo),
+            DisplayImage("ME_oDfo", mix_efficiency_o_fo),
+        ]
+    )
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        mix_curve_origin = np.where(
+            (f_img > 0) | (o_img > 0),
+            (o_img / (o_img + global_of * f_img)) + 1,
+            0,
+        )
+    row = int(np.clip(center_y, 0, f_img.shape[0] - 1))
+    curve_x = np.arange(f_img.shape[1])
+    curve_y = mix_curve_origin[row, :]
+    mask_curve = curve_y != 0
+    return display_images, (curve_x[mask_curve], curve_y[mask_curve] - 1)
 
 
 def _exp_path(folder: Path, exp_no: str) -> Path:
