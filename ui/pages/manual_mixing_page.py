@@ -9,6 +9,13 @@ from matplotlib.figure import Figure
 
 from PLIFv2.application.actions import PLIFActions
 from PLIFv2.core.image_io import write_png
+from PLIFv2.core.mixing_presets import (
+    MixingPreset,
+    create_mixing_presets_from_excel,
+    default_mixing_preset_path,
+    load_mixing_presets,
+    save_mixing_presets,
+)
 from PLIFv2.ui.components.shift_search_panel import ShiftSearchPanel
 from PLIFv2.ui.image_display import ImageDisplay
 from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
@@ -49,6 +56,8 @@ class ManualMixingPage(ttk.Frame):
         self.save_targets = {name: tk.BooleanVar(value=True) for name, _position in RESULT_LAYOUT}
         self.vars: dict[str, tk.StringVar] = {}
         self.displays: dict[str, ImageDisplay] = {}
+        self.preset_groups: tuple[MixingPreset, ...] = ()
+        self.preset_index: int | None = None
         self.latest_result = None
         self.request_id = 0
         self._setup_ui()
@@ -61,6 +70,7 @@ class ManualMixingPage(ttk.Frame):
         self._quick_save_panel(control_area).pack(side=tk.RIGHT, anchor=tk.NE)
         controls.pack(side=tk.LEFT, anchor=tk.NW)
         self._row_image_source(controls).pack(anchor=tk.W, pady=1)
+        self._row_preset(controls).pack(anchor=tk.W, pady=1)
         self._row_output(controls).pack(anchor=tk.W, pady=1)
         self._row_display(controls).pack(anchor=tk.W, pady=1)
         self._row_geometry(controls).pack(anchor=tk.W, pady=1)
@@ -164,6 +174,26 @@ class ManualMixingPage(ttk.Frame):
         self._entry(row, "o_exp_no", "O 编号", 5)
         return row
 
+    def _row_preset(self, parent) -> ttk.Frame:
+        row = ttk.Frame(parent)
+        ttk.Label(row, text="预设数据组").pack(side=tk.LEFT, padx=(4, 2))
+        configured_path = self._value_to_str(self.settings.preset_path)
+        default_path = default_mixing_preset_path()
+        initial_path = configured_path or (str(default_path) if default_path.exists() else "")
+        var = tk.StringVar(value=initial_path)
+        self.vars["preset_path"] = var
+        entry = ttk.Entry(row, textvariable=var, width=58)
+        entry.pack(side=tk.LEFT)
+        entry.bind("<Return>", self._load_preset_file)
+        ttk.Button(row, text="...", width=3, command=self._select_preset_path).pack(side=tk.LEFT, padx=(3, 2))
+        ttk.Button(row, text="Excel 转预设", command=self._create_preset_from_excel).pack(side=tk.LEFT, padx=(0, 3))
+        ttk.Button(row, text="加载", command=self._load_preset_file).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(row, text="上一组", command=lambda: self._move_preset(-1)).pack(side=tk.LEFT, padx=(0, 2))
+        ttk.Button(row, text="下一组", command=lambda: self._move_preset(1)).pack(side=tk.LEFT)
+        self.preset_label = ttk.Label(row, text="未加载")
+        self.preset_label.pack(side=tk.LEFT, padx=(8, 0))
+        return row
+
     def _row_output(self, parent) -> ttk.Frame:
         row = ttk.Frame(parent)
         dr_value, u_value = self._split_save_name(self.settings.save_name)
@@ -241,6 +271,77 @@ class ManualMixingPage(ttk.Frame):
         path = filedialog.askdirectory()
         if path:
             self.vars["image_folder"].set(path)
+
+    def _select_preset_path(self) -> None:
+        path = filedialog.askopenfilename(
+            filetypes=[("混合预设", "*.json"), ("所有文件", "*.*")],
+        )
+        if path:
+            self.vars["preset_path"].set(path)
+            self._load_preset_file()
+
+    def _create_preset_from_excel(self) -> None:
+        path = filedialog.askopenfilename(
+            filetypes=[("Excel 文件", "*.xlsx"), ("所有文件", "*.*")],
+        )
+        if not path:
+            return
+        try:
+            excel_path = Path(path)
+            output_path = excel_path.with_suffix(".mixing-presets.json")
+            catalog = create_mixing_presets_from_excel(excel_path)
+            save_mixing_presets(catalog, output_path)
+            self.vars["preset_path"].set(str(output_path))
+            self._load_preset_file()
+        except Exception as exc:
+            self.status_label.config(text=f"创建预设错误: {exc}")
+
+    def _load_preset_file(self, event=None) -> None:
+        try:
+            path = Path(self.vars["preset_path"].get().strip())
+            catalog = load_mixing_presets(path)
+            self.preset_groups = catalog.groups
+            self.preset_index = self._matching_preset_index()
+            if self.preset_index is None:
+                self.preset_index = 0
+            self._apply_preset(self.preset_index)
+        except Exception as exc:
+            self.preset_groups = ()
+            self.preset_index = None
+            self.preset_label.config(text="未加载")
+            self.status_label.config(text=f"加载预设错误: {exc}")
+
+    def _move_preset(self, offset: int) -> None:
+        if not self.preset_groups:
+            self._load_preset_file()
+            return
+        current = self.preset_index if self.preset_index is not None else 0
+        self._apply_preset(min(max(current + offset, 0), len(self.preset_groups) - 1))
+
+    def _matching_preset_index(self) -> int | None:
+        current = (
+            self.vars["f_exp_no"].get().strip(),
+            self.vars["fo_exp_no"].get().strip(),
+            self.vars["o_exp_no"].get().strip(),
+        )
+        for index, preset in enumerate(self.preset_groups):
+            if current == (preset.f_exp_no, preset.fo_exp_no, preset.o_exp_no):
+                return index
+        return None
+
+    def _apply_preset(self, index: int) -> None:
+        preset = self.preset_groups[index]
+        self.preset_index = index
+        self.vars["f_exp_no"].set(preset.f_exp_no)
+        self.vars["fo_exp_no"].set(preset.fo_exp_no)
+        self.vars["o_exp_no"].set(preset.o_exp_no)
+        self.vars["save_dr"].set(preset.dr)
+        self.vars["save_u"].set(preset.u)
+        self.vars["global_of"].set(str(preset.global_of))
+        self.preset_label.config(
+            text=f"{index + 1}/{len(self.preset_groups)}  DR {preset.dr}  U {preset.u}"
+        )
+        self.process()
 
     def _save_vars(self) -> None:
         for attr, var in self.vars.items():

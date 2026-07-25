@@ -65,14 +65,14 @@
     "major_axis": 1000,
     "minor_axis": 1000,
     "global_of": 1.0,
-    "process_count": 4
+    "process_count": 24
   },
   "manual": {
     "image_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\4-最终图像",
-    "f_exp_no": "4",
-    "o_exp_no": "31",
-    "fo_exp_no": "17",
-    "save_name": "DR1.0_U12",
+    "f_exp_no": "77",
+    "o_exp_no": "98",
+    "fo_exp_no": "88",
+    "save_name": "DR1.6_U40",
     "zoom": 2,
     "gain": 1,
     "auto_gain": true,
@@ -87,8 +87,8 @@
     "major_axis": 200,
     "minor_axis": 400,
     "line_width": 2,
-    "global_of": 1.0,
-    "denoise_ratio": 0.02,
+    "global_of": 1.577,
+    "denoise_ratio": 0.01,
     "use_ellipse_region": false,
     "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪 "
   },
@@ -823,15 +823,15 @@
         },
         "!frame.!frame.!frame.!entry2": {
           "kind": "text",
-          "value": "2"
+          "value": "4"
         },
         "!frame.!frame.!frame.!entry3": {
           "kind": "text",
-          "value": "30"
+          "value": "31"
         },
         "!frame.!frame.!frame.!entry4": {
           "kind": "text",
-          "value": "16"
+          "value": "17"
         },
         "!frame.!frame.!frame2.!entry": {
           "kind": "text",
@@ -839,7 +839,7 @@
         },
         "!frame.!frame.!frame2.!entry2": {
           "kind": "text",
-          "value": "40"
+          "value": "12"
         },
         "!frame.!frame.!frame3.!checkbutton": {
           "kind": "variable",
@@ -883,7 +883,7 @@
         },
         "!frame.!frame.!frame4.!checkbutton": {
           "kind": "variable",
-          "value": 1
+          "value": "1"
         },
         "!frame.!frame.!frame4.!entry2": {
           "kind": "text",
@@ -911,7 +911,7 @@
         },
         "!frame.!frame.!frame4.!checkbutton2": {
           "kind": "variable",
-          "value": "1"
+          "value": 1
         },
         "!frame.!frame.!frame4.!entry8": {
           "kind": "text",

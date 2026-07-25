@@ -117,6 +117,7 @@ class ManualMixingSettings:
     f_exp_no: str = ""
     o_exp_no: str = ""
     fo_exp_no: str = ""
+    preset_path: Path = Path()
     save_name: str = ""
     zoom: float = 3
     gain: float = 0

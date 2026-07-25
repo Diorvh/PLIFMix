@@ -1,0 +1,16 @@
+{
+  "format": "plifv2.manual-mixing-presets",
+  "version": 1,
+  "name": "PLIFMix example: F67 / FO57 / O45",
+  "source_excel": "",
+  "groups": [
+    {
+      "dr": "1.3",
+      "u": "25",
+      "f_exp_no": "67",
+      "fo_exp_no": "57",
+      "o_exp_no": "45",
+      "global_of": 1.2786069651741294
+    }
+  ]
+}
