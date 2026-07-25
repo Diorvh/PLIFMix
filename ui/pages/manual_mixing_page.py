@@ -58,6 +58,7 @@ class ManualMixingPage(ttk.Frame):
         self.displays: dict[str, ImageDisplay] = {}
         self.preset_groups: tuple[MixingPreset, ...] = ()
         self.preset_index: int | None = None
+        self.preset_group_var = tk.StringVar()
         self.latest_result = None
         self.request_id = 0
         self._setup_ui()
@@ -181,7 +182,7 @@ class ManualMixingPage(ttk.Frame):
         initial_path = configured_path or (str(default_path) if default_path.exists() else "")
         var = tk.StringVar(value=initial_path)
         self.vars["preset_path"] = var
-        entry = ttk.Entry(row, textvariable=var, width=58)
+        entry = ttk.Entry(row, textvariable=var, width=68)
         entry.pack(side=tk.LEFT)
         entry.bind("<Return>", self._load_preset_file)
         ttk.Button(row, text="...", width=3, command=self._select_preset_path).pack(side=tk.LEFT, padx=(3, 2))
@@ -189,8 +190,13 @@ class ManualMixingPage(ttk.Frame):
         ttk.Button(row, text="加载", command=self._load_preset_file).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(row, text="上一组", command=lambda: self._move_preset(-1)).pack(side=tk.LEFT, padx=(0, 2))
         ttk.Button(row, text="下一组", command=lambda: self._move_preset(1)).pack(side=tk.LEFT)
-        self.preset_label = ttk.Label(row, text="未加载")
-        self.preset_label.pack(side=tk.LEFT, padx=(8, 0))
+        group_selector = ttk.Frame(row)
+        group_selector.pack(side=tk.LEFT, padx=(8, 0))
+        self.preset_group_entry = ttk.Entry(group_selector, textvariable=self.preset_group_var, width=4, justify=tk.RIGHT)
+        self.preset_group_entry.pack(side=tk.LEFT)
+        self.preset_group_entry.bind("<Return>", self._go_to_preset)
+        self.preset_total_label = ttk.Label(group_selector, text="/-")
+        self.preset_total_label.pack(side=tk.LEFT)
 
         dr_value, u_value = self._split_save_name(self.settings.save_name)
         ttk.Label(row, text="图像保存名称").pack(side=tk.LEFT, padx=(8, 2))
@@ -304,7 +310,8 @@ class ManualMixingPage(ttk.Frame):
         except Exception as exc:
             self.preset_groups = ()
             self.preset_index = None
-            self.preset_label.config(text="未加载")
+            self.preset_group_var.set("")
+            self.preset_total_label.config(text="/-")
             self.status_label.config(text=f"加载预设错误: {exc}")
 
     def _move_preset(self, offset: int) -> None:
@@ -313,6 +320,29 @@ class ManualMixingPage(ttk.Frame):
             return
         current = self.preset_index if self.preset_index is not None else 0
         self._apply_preset(min(max(current + offset, 0), len(self.preset_groups) - 1))
+
+    def _go_to_preset(self, event=None) -> str:
+        if not self.preset_groups:
+            self._load_preset_file()
+            if not self.preset_groups:
+                return "break"
+
+        try:
+            group_number = int(self.preset_group_var.get().strip())
+        except ValueError:
+            self.status_label.config(text=f"组号必须是 1 到 {len(self.preset_groups)} 的整数")
+            if self.preset_index is not None:
+                self.preset_group_var.set(str(self.preset_index + 1))
+            return "break"
+
+        if not 1 <= group_number <= len(self.preset_groups):
+            self.status_label.config(text=f"组号必须在 1 到 {len(self.preset_groups)} 之间")
+            if self.preset_index is not None:
+                self.preset_group_var.set(str(self.preset_index + 1))
+            return "break"
+
+        self._apply_preset(group_number - 1)
+        return "break"
 
     def _matching_preset_index(self) -> int | None:
         current = (
@@ -334,7 +364,8 @@ class ManualMixingPage(ttk.Frame):
         self.vars["save_dr"].set(preset.dr)
         self.vars["save_u"].set(preset.u)
         self.vars["global_of"].set(str(preset.global_of))
-        self.preset_label.config(text=f"{index + 1}/{len(self.preset_groups)}")
+        self.preset_group_var.set(str(index + 1))
+        self.preset_total_label.config(text=f"/{len(self.preset_groups)}")
         self.process()
 
     def _save_vars(self) -> None:
@@ -488,7 +519,20 @@ class ManualMixingPage(ttk.Frame):
             return self.settings.center_xo, self.settings.center_yo, self.settings.line_width
         return self.settings.center_xfo, self.settings.center_yfo, self.settings.line_width
 
+    def _sync_input_vars_from_settings(self) -> None:
+        """Use structured settings as the stable source after UI layout changes."""
+        for attr, var in self.vars.items():
+            if attr not in {"save_dr", "save_u"}:
+                var.set(self._value_to_str(getattr(self.settings, attr)))
+        dr_value, u_value = self._split_save_name(self.settings.save_name)
+        self.vars["save_dr"].set(dr_value)
+        self.vars["save_u"].set(u_value)
+
     def export_ui_state(self) -> dict[str, object]:
+        try:
+            self._save_vars()
+        except (TypeError, ValueError):
+            pass
         return {
             "is_pseudo": self.is_pseudo.get(),
             "auto_gain": self.auto_gain.get(),
@@ -501,6 +545,7 @@ class ManualMixingPage(ttk.Frame):
         }
 
     def restore_ui_state(self, state: dict[str, object]) -> None:
+        self._sync_input_vars_from_settings()
         self.is_pseudo.set(bool(state.get("is_pseudo", self.is_pseudo.get())))
         self.auto_gain.set(bool(state.get("auto_gain", self.auto_gain.get())))
         self.show_crosshair.set(bool(state.get("show_crosshair", self.show_crosshair.get())))

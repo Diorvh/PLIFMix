@@ -69,16 +69,16 @@
   },
   "manual": {
     "image_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\4-最终图像",
-    "f_exp_no": "4",
-    "o_exp_no": "31",
-    "fo_exp_no": "17",
+    "f_exp_no": "134",
+    "o_exp_no": "116",
+    "fo_exp_no": "124",
     "preset_path": "E:\\Sci\\Codes\\ImpingingJet\\PLIF程序\\PLIFv2\\runtime\\presets\\20250820孔径比影响-正式-混合数据.json",
     "save_name": "DR1.0_U30",
-    "zoom": 642,
-    "gain": 2,
+    "zoom": 2,
+    "gain": 1,
     "auto_gain": true,
-    "f_shift": 642,
-    "o_shift": 442,
+    "f_shift": 0,
+    "o_shift": 0,
     "center_xf": 642,
     "center_yf": 442,
     "center_xo": 642,
@@ -88,8 +88,8 @@
     "major_axis": 200,
     "minor_axis": 400,
     "line_width": 2,
-    "global_of": 1.0,
-    "denoise_ratio": 442.0,
+    "global_of": 1.3781094527363185,
+    "denoise_ratio": 0.01,
     "use_ellipse_region": false,
     "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪 "
   },
@@ -824,23 +824,27 @@
         },
         "!frame.!frame.!frame.!entry2": {
           "kind": "text",
-          "value": "4"
+          "value": "134"
         },
         "!frame.!frame.!frame.!entry3": {
           "kind": "text",
-          "value": "31"
+          "value": "124"
         },
         "!frame.!frame.!frame.!entry4": {
           "kind": "text",
-          "value": "17"
+          "value": "116"
         },
         "!frame.!frame.!frame2.!entry": {
           "kind": "text",
-          "value": "1.0"
+          "value": "E:/Sci/Codes/ImpingingJet/PLIF程序/PLIFv2/runtime/presets/20250820孔径比影响-正式-混合数据.json"
         },
         "!frame.!frame.!frame2.!entry2": {
           "kind": "text",
-          "value": "12"
+          "value": "1.4"
+        },
+        "!frame.!frame.!frame2.!entry3": {
+          "kind": "text",
+          "value": "6"
         },
         "!frame.!frame.!frame3.!checkbutton": {
           "kind": "variable",
@@ -852,7 +856,7 @@
         },
         "!frame.!frame.!frame3.!checkbutton2": {
           "kind": "variable",
-          "value": 1
+          "value": "1"
         },
         "!frame.!frame.!frame3.!entry2": {
           "kind": "text",
@@ -860,7 +864,7 @@
         },
         "!frame.!frame.!frame3.!entry3": {
           "kind": "text",
-          "value": "0.02"
+          "value": "0.01"
         },
         "!frame.!frame.!frame3.!entry4": {
           "kind": "text",
@@ -872,11 +876,11 @@
         },
         "!frame.!frame.!frame3.!entry6": {
           "kind": "text",
-          "value": "1.0"
+          "value": "1.3781094527363185"
         },
         "!frame.!frame.!frame3.!checkbutton3": {
           "kind": "variable",
-          "value": "1"
+          "value": 1
         },
         "!frame.!frame.!frame4.!entry": {
           "kind": "text",
@@ -904,7 +908,7 @@
         },
         "!frame.!frame.!frame4.!entry6": {
           "kind": "text",
-          "value": "642"
+          "value": "1.0"
         },
         "!frame.!frame.!frame4.!entry7": {
           "kind": "text",
@@ -912,7 +916,7 @@
         },
         "!frame.!frame.!frame4.!checkbutton2": {
           "kind": "variable",
-          "value": 1
+          "value": "1"
         },
         "!frame.!frame.!frame4.!entry8": {
           "kind": "text",
