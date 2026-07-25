@@ -69,10 +69,10 @@
   },
   "manual": {
     "image_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\4-最终图像",
-    "f_exp_no": "2",
-    "o_exp_no": "30",
-    "fo_exp_no": "16",
-    "save_name": "DR1.0_U40",
+    "f_exp_no": "4",
+    "o_exp_no": "31",
+    "fo_exp_no": "17",
+    "save_name": "DR1.0_U12",
     "zoom": 2,
     "gain": 1,
     "auto_gain": true,
@@ -643,19 +643,19 @@
         },
         "!frame3.!entry": {
           "kind": "text",
-          "value": "2"
+          "value": "1"
         },
         "!frame3.!checkbutton": {
           "kind": "variable",
-          "value": 0
+          "value": "1"
         },
         "!frame3.!entry2": {
           "kind": "text",
-          "value": "0"
+          "value": "642"
         },
         "!frame3.!entry3": {
           "kind": "text",
-          "value": "0"
+          "value": "442"
         },
         "!frame3.!checkbutton2": {
           "kind": "variable",
@@ -707,15 +707,15 @@
         },
         "!frame6.!radiobutton": {
           "kind": "variable",
-          "value": "folder"
+          "value": "image"
         },
         "!frame6.!entry": {
           "kind": "text",
-          "value": ""
+          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/标定板-视场修正.tif"
         },
         "!frame6.!radiobutton2": {
           "kind": "variable",
-          "value": "folder"
+          "value": "image"
         },
         "!frame6.!entry2": {
           "kind": "text",
@@ -724,6 +724,14 @@
         "!frame6.!entry3": {
           "kind": "text",
           "value": "228"
+        },
+        "!frame7.!viewerpanel.!frame.!horizontaldisplaypane.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-9": {
+          "kind": "variable",
+          "value": 0
+        },
+        "!frame7.!viewerpanel.!frame.!horizontaldisplaypane.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-10": {
+          "kind": "variable",
+          "value": 0
         }
       },
       "图片播放器": {
@@ -865,6 +873,10 @@
           "kind": "text",
           "value": "1.0"
         },
+        "!frame.!frame.!frame3.!checkbutton3": {
+          "kind": "variable",
+          "value": "1"
+        },
         "!frame.!frame.!frame4.!entry": {
           "kind": "text",
           "value": "2"
@@ -875,31 +887,31 @@
         },
         "!frame.!frame.!frame4.!entry2": {
           "kind": "text",
-          "value": "646"
+          "value": "642"
         },
         "!frame.!frame.!frame4.!entry3": {
           "kind": "text",
-          "value": "400"
+          "value": "442"
         },
         "!frame.!frame.!frame4.!entry4": {
           "kind": "text",
-          "value": "646"
+          "value": "642"
         },
         "!frame.!frame.!frame4.!entry5": {
           "kind": "text",
-          "value": "400"
+          "value": "442"
         },
         "!frame.!frame.!frame4.!entry6": {
           "kind": "text",
-          "value": "646"
+          "value": "642"
         },
         "!frame.!frame.!frame4.!entry7": {
           "kind": "text",
-          "value": "400"
+          "value": "442"
         },
         "!frame.!frame.!frame4.!checkbutton2": {
           "kind": "variable",
-          "value": 1
+          "value": "1"
         },
         "!frame.!frame.!frame4.!entry8": {
           "kind": "text",
@@ -1030,6 +1042,7 @@
           "auto_gain": true,
           "show_crosshair": true,
           "show_ellipse": true,
+          "use_calibrated_display": true,
           "save_crosshair": false,
           "save_ellipse": false,
           "save_targets": {

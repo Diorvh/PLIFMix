@@ -160,8 +160,8 @@ class ManualMixingPage(ttk.Frame):
         row = ttk.Frame(parent)
         self._path_entry(row, "image_folder", "图像文件夹", self._select_image_folder, width=68)
         self._entry(row, "f_exp_no", "F 编号", 5)
-        self._entry(row, "o_exp_no", "O 编号", 5)
         self._entry(row, "fo_exp_no", "FO 编号", 5)
+        self._entry(row, "o_exp_no", "O 编号", 5)
         return row
 
     def _row_output(self, parent) -> ttk.Frame:
