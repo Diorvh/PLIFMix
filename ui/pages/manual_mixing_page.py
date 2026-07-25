@@ -479,6 +479,7 @@ class ManualMixingPage(ttk.Frame):
                 raise ValueError("请填写 DR 和 U 保存名称")
 
             output_root = Path(self.settings.image_folder).parent
+            output_name = f"{self.settings.save_name}-降噪{self.settings.denoise_ratio:g}"
             ellipse = (
                 self.settings.center_xfo,
                 self.settings.center_yfo,
@@ -498,13 +499,14 @@ class ManualMixingPage(ttk.Frame):
                 )
                 if image is None:
                     continue
-                image_outputs.append(write_png(output_root / name / f"{self.settings.save_name}.png", image))
+                image_outputs.append(write_png(output_root / name / f"{output_name}.png", image))
 
             curve_output = None
             if self.save_targets["mix_curve"].get():
                 curve_output = self.actions.export_mix_curve_data(
                     self.latest_result,
                     use_calibrated=self.use_calibrated_display.get(),
+                    output_name=output_name,
                 )
 
             saved_count = len(image_outputs) + int(curve_output is not None)

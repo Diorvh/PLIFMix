@@ -147,10 +147,11 @@ class MixingService:
         settings: ManualMixingSettings,
         result: ManualDisplayResult,
         use_calibrated: bool = True,
+        output_name: str | None = None,
     ) -> Path:
         output = Path(settings.image_folder).parent / "mix_curve"
         output.mkdir(parents=True, exist_ok=True)
-        name = settings.save_name or f"F{settings.f_exp_no}_O{settings.o_exp_no}_FO{settings.fo_exp_no}"
+        name = output_name or settings.save_name or f"F{settings.f_exp_no}_O{settings.o_exp_no}_FO{settings.fo_exp_no}"
 
         curve_workbook = openpyxl.Workbook()
         curve_sheet = curve_workbook.active
