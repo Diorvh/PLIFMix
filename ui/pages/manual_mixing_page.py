@@ -102,9 +102,35 @@ class ManualMixingPage(ttk.Frame):
 
         self.curve_panel = MixCurvePanel(self.image_frame)
         self.curve_panel.grid(row=2, column=3, padx=4, pady=4, sticky="nw")
+        self._bind_result_wheel(image_outer, canvas)
 
         self.shift_search = ShiftSearchPanel(search_tab, self.actions, self._save_vars)
         self.shift_search.pack(fill=tk.BOTH, expand=True)
+
+    @staticmethod
+    def _bind_result_wheel(container: tk.Misc, scroll_canvas: tk.Canvas) -> None:
+        def scroll(event, direction: int | None = None):
+            if direction is None:
+                if not event.delta:
+                    return None
+                direction = -1 if event.delta > 0 else 1
+                steps = max(1, abs(event.delta) // 120)
+            else:
+                steps = 1
+            if event.state & 0x0001:
+                scroll_canvas.xview_scroll(direction * steps, "units")
+            else:
+                scroll_canvas.yview_scroll(direction * steps, "units")
+            return "break"
+
+        def bind_descendants(widget: tk.Misc) -> None:
+            widget.bind("<MouseWheel>", scroll, add="+")
+            widget.bind("<Button-4>", lambda event: scroll(event, -1), add="+")
+            widget.bind("<Button-5>", lambda event: scroll(event, 1), add="+")
+            for child in widget.winfo_children():
+                bind_descendants(child)
+
+        bind_descendants(container)
 
     def _quick_save_panel(self, parent) -> ttk.LabelFrame:
         panel = ttk.LabelFrame(parent, text="一键保存")
