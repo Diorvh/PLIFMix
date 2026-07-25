@@ -78,12 +78,12 @@
     "auto_gain": true,
     "f_shift": 0,
     "o_shift": 0,
-    "center_xf": 646,
-    "center_yf": 400,
-    "center_xo": 646,
-    "center_yo": 400,
-    "center_xfo": 646,
-    "center_yfo": 400,
+    "center_xf": 642,
+    "center_yf": 442,
+    "center_xo": 642,
+    "center_yo": 442,
+    "center_xfo": 642,
+    "center_yfo": 442,
     "major_axis": 200,
     "minor_axis": 400,
     "line_width": 2,
@@ -911,7 +911,7 @@
         },
         "!frame.!frame.!frame4.!checkbutton3": {
           "kind": "variable",
-          "value": 1
+          "value": "0"
         },
         "!frame.!labelframe.!frame.!checkbutton": {
           "kind": "variable",

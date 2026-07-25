@@ -52,7 +52,7 @@ class ManualMixingPage(ttk.Frame):
         self.latest_result = None
         self.request_id = 0
         self._setup_ui()
-        self.live_task = LatestTaskRunner(self, LabelLog(self.summary_label))
+        self.live_task = LatestTaskRunner(self, LabelLog(self.status_label))
 
     def _setup_ui(self) -> None:
         control_area = ttk.Frame(self)
@@ -80,6 +80,8 @@ class ManualMixingPage(ttk.Frame):
         self.efficiency_label.pack(anchor=tk.W)
         self.raw_efficiency_label = ttk.Label(summary_area, text="")
         self.raw_efficiency_label.pack(anchor=tk.W)
+        self.status_label = ttk.Label(summary_area, text="")
+        self.status_label.pack(anchor=tk.W)
 
         image_outer = ttk.Frame(mixing_tab)
         image_outer.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
@@ -280,7 +282,7 @@ class ManualMixingPage(ttk.Frame):
             if not self.settings.auto_gain and self.settings.gain <= 0:
                 raise ValueError("关闭自动增益后，手动增益必须大于 0")
         except Exception as exc:
-            self.summary_label.config(text=f"错误: {exc}")
+            self.status_label.config(text=f"错误: {exc}")
             return
         self.request_id += 1
         request_id = self.request_id
@@ -295,6 +297,7 @@ class ManualMixingPage(ttk.Frame):
         try:
             self.latest_result = result
             summary = result.summary
+            self.status_label.config(text="")
             self.summary_label.config(
                 text=f"实拍 O/F: {summary.record_of:.4f}; 差绝对值和: {summary.abs_value:.2f}"
             )
@@ -339,7 +342,7 @@ class ManualMixingPage(ttk.Frame):
                 )
             self.curve_panel.update(mix_curve)
         except Exception as exc:
-            self.summary_label.config(text=f"错误: {exc}")
+            self.status_label.config(text=f"错误: {exc}")
 
     def save_selected_outputs(self) -> None:
         try:
@@ -379,9 +382,9 @@ class ManualMixingPage(ttk.Frame):
                 )
 
             saved_count = len(image_outputs) + int(curve_output is not None)
-            self.summary_label.config(text=f"已保存 {saved_count} 项结果到: {output_root}")
+            self.status_label.config(text=f"已保存 {saved_count} 项结果到: {output_root}")
         except Exception as exc:
-            self.summary_label.config(text=f"保存错误: {exc}")
+            self.status_label.config(text=f"保存错误: {exc}")
 
     def _crosshair_for(self, name: str) -> tuple[int, int, int]:
         if name == "f":
