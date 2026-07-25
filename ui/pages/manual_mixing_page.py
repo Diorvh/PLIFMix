@@ -71,8 +71,12 @@ class ManualMixingPage(ttk.Frame):
         self.result_tabs.add(mixing_tab, text="混合特性")
         self.result_tabs.add(search_tab, text="平移搜索")
 
-        self.summary_label = ttk.Label(mixing_tab, text="计算结果")
+        summary_area = ttk.Frame(mixing_tab)
+        summary_area.pack(fill=tk.X)
+        self.summary_label = ttk.Label(summary_area, text="计算结果")
         self.summary_label.pack(anchor=tk.W)
+        self.efficiency_label = ttk.Label(summary_area, text="")
+        self.efficiency_label.pack(anchor=tk.W)
 
         image_outer = ttk.Frame(mixing_tab)
         image_outer.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
@@ -253,10 +257,12 @@ class ManualMixingPage(ttk.Frame):
             self.latest_result = result
             summary = result.summary
             self.summary_label.config(
+                text=f"实拍 O/F: {summary.record_of:.4f}; 差绝对值和: {summary.abs_value:.2f}"
+            )
+            self.efficiency_label.config(
                 text=(
-                    f"差绝对值和: {summary.abs_value:.2f}; O-F 混合效率: {summary.me_o_f:.4f}; "
-                    f"F-FO 混合效率: {summary.me_f_fo:.4f}; O-FO 混合效率: {summary.me_o_fo:.4f}; "
-                    f"平均混合效率: {summary.average_me:.4f}; 实拍 O/F: {summary.record_of:.4f}"
+                    f"O-F 混合效率: {summary.me_o_f:.4f}; F-FO 混合效率: {summary.me_f_fo:.4f}; "
+                    f"O-FO 混合效率: {summary.me_o_fo:.4f}; 平均混合效率: {summary.average_me:.4f}"
                 )
             )
             gain = float(self.settings.gain)

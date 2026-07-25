@@ -831,7 +831,11 @@
         },
         "!frame.!frame2.!entry2": {
           "kind": "text",
-          "value": "DR1.0_U40"
+          "value": "1.0"
+        },
+        "!frame.!frame2.!entry3": {
+          "kind": "text",
+          "value": "40"
         },
         "!frame.!frame3.!checkbutton": {
           "kind": "variable",
@@ -843,7 +847,7 @@
         },
         "!frame.!frame3.!checkbutton2": {
           "kind": "variable",
-          "value": "1"
+          "value": 1
         },
         "!frame.!frame3.!entry2": {
           "kind": "text",
