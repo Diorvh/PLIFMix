@@ -101,7 +101,11 @@ class ManualMixingPage(ttk.Frame):
     def _row_output(self, parent) -> ttk.Frame:
         row = ttk.Frame(parent)
         self._path_entry(row, "output_folder", "输出目录", self._select_output_folder, width=78)
-        self._entry(row, "save_name", "图像保存名称", 18)
+        dr_value, u_value = self._split_save_name(self.settings.save_name)
+        ttk.Label(row, text="DR:").pack(side=tk.LEFT, padx=(4, 2))
+        self._text_entry(row, "save_dr", dr_value, width=8)
+        ttk.Label(row, text="U").pack(side=tk.LEFT, padx=(4, 2))
+        self._text_entry(row, "save_u", u_value, width=8)
         return row
 
     def _row_display(self, parent) -> ttk.Frame:
@@ -152,7 +156,10 @@ class ManualMixingPage(ttk.Frame):
 
     def _entry(self, row: ttk.Frame, attr: str, label: str, width: int) -> None:
         ttk.Label(row, text=label).pack(side=tk.LEFT, padx=(4, 2))
-        var = tk.StringVar(value=self._value_to_str(getattr(self.settings, attr)))
+        self._text_entry(row, attr, self._value_to_str(getattr(self.settings, attr)), width)
+
+    def _text_entry(self, row: ttk.Frame, attr: str, value: str, width: int) -> None:
+        var = tk.StringVar(value=value)
         self.vars[attr] = var
         entry = ttk.Entry(row, textvariable=var, width=width)
         entry.pack(side=tk.LEFT)
@@ -170,6 +177,8 @@ class ManualMixingPage(ttk.Frame):
 
     def _save_vars(self) -> None:
         for attr, var in self.vars.items():
+            if attr in {"save_dr", "save_u"}:
+                continue
             current = getattr(self.settings, attr)
             raw = var.get()
             if isinstance(current, Path):
@@ -181,6 +190,9 @@ class ManualMixingPage(ttk.Frame):
             else:
                 value = raw
             setattr(self.settings, attr, value)
+        dr_value = self.vars["save_dr"].get().strip()
+        u_value = self.vars["save_u"].get().strip()
+        self.settings.save_name = f"DR{dr_value}_U{u_value}" if dr_value or u_value else ""
         self.settings.use_ellipse_region = self.use_ellipse_region.get()
         self.settings.auto_gain = self.auto_gain.get()
 
@@ -288,6 +300,14 @@ class ManualMixingPage(ttk.Frame):
         if isinstance(value, Path):
             return "" if str(value) == "." else str(value)
         return str(value)
+
+    @staticmethod
+    def _split_save_name(save_name: str) -> tuple[str, str]:
+        name = save_name.strip()
+        if name.startswith("DR") and "_U" in name:
+            dr_value, u_value = name[2:].split("_U", maxsplit=1)
+            return dr_value, u_value
+        return name, ""
 
 
 class MixCurvePanel(ttk.Frame):

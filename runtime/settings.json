@@ -75,6 +75,7 @@
     "save_name": "DR1.0_U40",
     "zoom": 2,
     "gain": 1,
+    "auto_gain": true,
     "f_shift": 0,
     "o_shift": 0,
     "center_xf": 646,
@@ -89,7 +90,7 @@
     "global_of": 1.0,
     "denoise_ratio": 0.02,
     "use_ellipse_region": true,
-    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪"
+    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪 "
   },
   "distribution": {
     "image_folder": ".",
