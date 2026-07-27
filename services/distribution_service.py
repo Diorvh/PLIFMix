@@ -14,6 +14,7 @@ from PLIFv2.algorithms.mixing import (
     func_fit_3,
     rotate_points_clockwise,
     shift_image,
+    straighten_center_line_image,
 )
 from PLIFv2.core.image_io import read_image
 from PLIFv2.core.paths import path_is_set
@@ -78,6 +79,10 @@ class DistributionFitService:
         image_names = ["f_img", "o_img", "fo_img"]
         display_names = ["f", "o", "fo"]
         height, width = f_img.shape
+        need_surface_fit = image_mode in {"fit_img", "delta_img"}
+        grid_x = grid_y = None
+        if need_surface_fit:
+            grid_x, grid_y = np.meshgrid(np.arange(width), np.arange(height), indexing="xy")
 
         for index, (image, raw_image) in enumerate(zip([f_img, o_img, fo_img], raw_source_images)):
             cx, cy = centers[index]
@@ -113,22 +118,20 @@ class DistributionFitService:
             def fit_func(x: np.ndarray, aa: float, bb: float, cc: float) -> np.ndarray:
                 return aa / (x**2 * bb**2 + 1) ** cc
 
-            hori_dimensionless = hori_px * PIXEL_SIZE / DIAMETER_FUEL
-            ah, bh, ch, r_squared_h, hori_predicted = func_fit_3(hori_dimensionless, hori_intensity, fit_func)
-            curve_data[f"横向分布_{image_names[index]}"] = (hori_dimensionless, hori_intensity, hori_predicted)
+            ah, bh, ch, r_squared_h, hori_predicted = func_fit_3(hori_px, hori_intensity, fit_func)
+            curve_data[f"横向分布_{image_names[index]}"] = (hori_px, hori_intensity, hori_predicted)
             fit_text += f"{image_names[index]}横向强度分布拟合：y={ah * 1e4:.4f}E-4/(x^2*{bh:.4f}^2+1)^{ch:.4f}; R2={r_squared_h:.4f}     "
 
             verti_py, verti_px = origin_point
             if len(verti_py):
                 verti_intensity = norm_img[verti_py, verti_px]
-                vertical_dimensionless = verti_px_rotated * PIXEL_SIZE / DIAMETER_FUEL
                 av, bv, cv, r_squared_v, vertical_predicted = func_fit_3(
-                    vertical_dimensionless,
+                    verti_px_rotated,
                     verti_intensity,
                     fit_func,
                 )
                 curve_data[f"纵向分布_{image_names[index]}"] = (
-                    vertical_dimensionless,
+                    verti_px_rotated,
                     verti_intensity,
                     vertical_predicted,
                 )
@@ -136,37 +139,41 @@ class DistributionFitService:
                 av, bv, cv, r_squared_v = 0.0, 0.0, 0.0, 0.0
             fit_text += f"{image_names[index]}纵向强度分布拟合：y={av * 1e4:.4f}E-4/(x^2*{bv:.4f}^2+1)^{cv:.4f}; R2={r_squared_v:.4f}\n"
 
-            bent_img = np.zeros_like(image)
-            b_cy, b_cx = origin_point
-            x_coords = np.arange(width)
-            for row_index, y in enumerate(b_cy):
-                src_x = x_coords - (cx - b_cx[row_index])
-                src_mask = (0 <= src_x) & (src_x < width)
-                bent_img[y, x_coords[src_mask]] = norm_img[y, src_x[src_mask]]
-
             best_rho = 0.0
             r_squared_p = 0.0
+            bent_img: np.ndarray | None = None
+            surface_prediction: np.ndarray | None = None
+            if image_mode != "ori_img":
+                bent_img = straighten_center_line_image(norm_img, fitted_point, cx)
 
-            def predict_img_func(rho: float) -> np.ndarray:
-                grid_x, grid_y = np.meshgrid(np.arange(width), np.arange(height), indexing="xy")
+            if need_surface_fit:
+                assert grid_x is not None and grid_y is not None and bent_img is not None
                 trans_x = (grid_x - cx) * PIXEL_SIZE / DIAMETER_FUEL
                 trans_y = (grid_y - cy) * PIXEL_SIZE / DIAMETER_FUEL
                 aa = (ah + av) / 2
-                pred = aa / (
-                    ((trans_x * trans_x * bh * bh + 1) ** ch - 1)
-                    + ((trans_y * trans_y * bv * bv + 1) ** cv - 1)
-                    + (np.abs(trans_x * bh) ** rho * np.abs(trans_y * bv) ** rho)
-                    + 1
-                )
-                pred_sum = np.sum(pred)
-                return pred / pred_sum if pred_sum else pred
+                static_surface = ((trans_x * trans_x * bh * bh + 1) ** ch - 1) + ((trans_y * trans_y * bv * bv + 1) ** cv - 1)
+                coupling_base = np.abs(trans_x * bh) * np.abs(trans_y * bv)
+                objective_buffer = np.empty_like(static_surface)
 
-            if image_mode in {"fit_img", "delta_img"}:
+                def predict_img_func(rho: float) -> np.ndarray:
+                    denominator = static_surface + np.power(coupling_base, rho)
+                    denominator += 1
+                    pred = aa / denominator
+                    pred_sum = np.sum(pred)
+                    return pred / pred_sum if pred_sum else pred
+
                 try:
                     from scipy import optimize
 
                     def object_loss(rho: float) -> float:
-                        return float(np.sum((bent_img - predict_img_func(rho)) ** 2))
+                        np.power(coupling_base, rho, out=objective_buffer)
+                        np.add(static_surface, objective_buffer, out=objective_buffer)
+                        np.add(objective_buffer, 1, out=objective_buffer)
+                        np.divide(aa, objective_buffer, out=objective_buffer)
+                        np.divide(objective_buffer, np.sum(objective_buffer), out=objective_buffer)
+                        np.subtract(bent_img, objective_buffer, out=objective_buffer)
+                        np.square(objective_buffer, out=objective_buffer)
+                        return float(np.sum(objective_buffer))
 
                     res = optimize.minimize_scalar(object_loss, bounds=(0.01, 100), method="bounded")
                     ss_tot = np.sum((bent_img - np.mean(bent_img)) ** 2)
@@ -175,6 +182,7 @@ class DistributionFitService:
                 except Exception:
                     best_rho = 0.0
                     r_squared_p = 0.0
+                surface_prediction = predict_img_func(best_rho)
             surface_text += f"{image_names[index]}横纵向联合分布拟合：rho={best_rho:.4f}; R2={r_squared_p:.4f}\n"
             fit_rows.append(
                 [
@@ -207,11 +215,14 @@ class DistributionFitService:
             special_points = _merge_special_points(point_sets)
 
             if image_mode == "bent_img":
+                assert bent_img is not None
                 shown_normalized = bent_img
             elif image_mode == "fit_img":
-                shown_normalized = predict_img_func(best_rho)
+                assert surface_prediction is not None
+                shown_normalized = surface_prediction
             elif image_mode == "delta_img":
-                shown_normalized = np.abs(predict_img_func(best_rho) - bent_img)
+                assert surface_prediction is not None and bent_img is not None
+                shown_normalized = np.abs(surface_prediction - bent_img)
             else:
                 shown_normalized = norm_img
             display_images.append(DisplayImage(display_names[index], shown_normalized * norm_coeff, "jet", special_points))

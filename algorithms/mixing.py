@@ -86,18 +86,19 @@ def fit_center_line(
     cy: int,
     rotate_angle: float,
 ) -> tuple[float, float, float, tuple[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray], np.ndarray]:
-    py_origin: list[int] = []
-    px_origin: list[float] = []
     up_limit = max(0, up_limit)
     down_limit = min(image.shape[0] - 1, down_limit)
     max_k = max(1, max_k)
-    for y in range(up_limit, down_limit + 1):
-        top_k_indices = np.argsort(image[y])[-max_k:]
-        if 0 not in image[y][top_k_indices]:
-            py_origin.append(y)
-            px_origin.append(float(np.mean(top_k_indices)))
-    py_arr = np.array(py_origin)
-    px_arr = np.array(px_origin)
+    if up_limit > down_limit:
+        empty = (np.array([], dtype=np.int32), np.array([], dtype=np.int32))
+        return 0.0, 0.0, 0.0, empty, empty, np.array([])
+
+    source_rows = image[up_limit : down_limit + 1]
+    top_k_indices = np.argsort(source_rows, axis=1)[:, -max_k:]
+    top_k_values = np.take_along_axis(source_rows, top_k_indices, axis=1)
+    valid_rows = np.all(top_k_values != 0, axis=1)
+    py_arr = np.arange(up_limit, down_limit + 1, dtype=np.int32)[valid_rows]
+    px_arr = np.mean(top_k_indices[valid_rows], axis=1)
     if py_arr.size == 0:
         empty = (np.array([], dtype=np.int32), np.array([], dtype=np.int32))
         return 0.0, 0.0, 0.0, empty, empty, np.array([])
@@ -110,10 +111,64 @@ def fit_center_line(
         return a * np.sqrt(x**2 + b**2) - a * b
 
     a, b, r_squared, y_pred = func_fit_2(point_x, point_y, fit_function)
-    _, y_pred_rotated = rotate_points_clockwise(point_x, y_pred, -rotate_angle)
     origin = (py_arr.astype(np.int32), np.round(px_arr).astype(np.int32))
-    fitted = (py_arr.astype(np.int32), np.round(-y_pred_rotated + cx).astype(np.int32))
+    fitted = extrapolate_fitted_center_line(image.shape, a, b, cx, cy, rotate_angle)
     return a, b, r_squared, origin, fitted, point_x
+
+
+def extrapolate_fitted_center_line(
+    shape: tuple[int, int],
+    a: float,
+    b: float,
+    cx: int,
+    cy: int,
+    rotate_angle: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Evaluate the fitted centre line over the full image rather than only its source rows."""
+    height, width = shape
+    extent = int(np.ceil(np.hypot(height, width)))
+    sample_count = max(height, width) * 4 + 1
+    fit_axis = np.linspace(-extent, extent, sample_count)
+    fit_offset = a * np.sqrt(fit_axis**2 + b**2) - a * b
+    vertical_offset, horizontal_offset = rotate_points_clockwise(fit_axis, fit_offset, -rotate_angle)
+    rows = np.rint(cy - vertical_offset).astype(np.int32)
+    columns = np.rint(cx - horizontal_offset).astype(np.int32)
+    valid = (0 <= rows) & (rows < height) & (0 <= columns) & (columns < width)
+    if not np.any(valid):
+        return np.array([], dtype=np.int32), np.array([], dtype=np.int32)
+    rows = rows[valid]
+    columns = columns[valid]
+    encoded = rows.astype(np.int64) * width + columns
+    _, unique_indices = np.unique(encoded, return_index=True)
+    return rows[unique_indices], columns[unique_indices]
+
+
+def straighten_center_line_image(
+    image: np.ndarray,
+    fitted_point: tuple[np.ndarray, np.ndarray],
+    center_x: int,
+) -> np.ndarray:
+    """Shift every image row to the fitted centre line using the full extrapolated curve."""
+    rows, columns = fitted_point
+    height, width = image.shape
+    if len(rows) == 0:
+        return np.zeros_like(image)
+
+    row_sums = np.bincount(rows, weights=columns, minlength=height)
+    row_counts = np.bincount(rows, minlength=height)
+    known_rows = np.flatnonzero(row_counts)
+    centre_columns = np.full(height, center_x, dtype=np.float64)
+    centre_columns[known_rows] = row_sums[known_rows] / row_counts[known_rows]
+    if len(known_rows) > 1:
+        centre_columns = np.interp(np.arange(height), known_rows, centre_columns[known_rows])
+
+    destination_x = np.broadcast_to(np.arange(width), (height, width))
+    source_x = np.rint(destination_x - (center_x - centre_columns[:, None])).astype(np.int32)
+    valid = (0 <= source_x) & (source_x < width)
+    row_indices = np.broadcast_to(np.arange(height)[:, None], source_x.shape)
+    straightened = np.zeros_like(image)
+    straightened[valid] = image[row_indices[valid], source_x[valid]]
+    return straightened
 
 
 def func_fit_2(x: np.ndarray, y: np.ndarray, fit_function):
