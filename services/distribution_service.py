@@ -21,11 +21,6 @@ from PLIFv2.core.paths import path_is_set
 from PLIFv2.domain.settings import DistributionSettings
 from PLIFv2.services.display_types import DisplayImage
 
-
-PIXEL_SIZE = 0.14
-DIAMETER_FUEL = 0.5025
-
-
 @dataclass
 class DistributionFitResult:
     fit_text: str
@@ -148,11 +143,11 @@ class DistributionFitService:
 
             if need_surface_fit:
                 assert grid_x is not None and grid_y is not None and bent_img is not None
-                trans_x = (grid_x - cx) * PIXEL_SIZE / DIAMETER_FUEL
-                trans_y = (grid_y - cy) * PIXEL_SIZE / DIAMETER_FUEL
+                pixel_x = grid_x - cx
+                pixel_y = grid_y - cy
                 aa = (ah + av) / 2
-                static_surface = ((trans_x * trans_x * bh * bh + 1) ** ch - 1) + ((trans_y * trans_y * bv * bv + 1) ** cv - 1)
-                coupling_base = np.abs(trans_x * bh) * np.abs(trans_y * bv)
+                static_surface = ((pixel_x * pixel_x * bh * bh + 1) ** ch - 1) + ((pixel_y * pixel_y * bv * bv + 1) ** cv - 1)
+                coupling_base = np.abs(pixel_x * bh) * np.abs(pixel_y * bv)
                 objective_buffer = np.empty_like(static_surface)
 
                 def predict_img_func(rho: float) -> np.ndarray:
