@@ -171,11 +171,19 @@ class ViewerPanel(ttk.Frame):
         crosshair: tuple[int, int, int] | None = None,
         ellipse: tuple[int, int, int, int, int] | None = None,
         denoise: float = 0,
+        rotate: float = 0,
+        rotation_center: tuple[int, int] | None = None,
         save_name_suffix: str = "",
         special_points=None,
         save_folder: str | Path | None = None,
     ) -> None:
         """Render a computed scalar or BGR image with all legacy ImageDisplay features."""
+        if rotate:
+            height, width = image.shape[:2]
+            center = rotation_center or (width / 2, height / 2)
+            matrix = cv2.getRotationMatrix2D(center, -rotate, 1)
+            image = cv2.warpAffine(image, matrix, (width, height))
+            special_points = _rotate_special_points(special_points, matrix, image.shape[:2])
         self.image = image
         self.original = image
         self.save_name_suffix = save_name_suffix
@@ -332,6 +340,25 @@ class ViewerPanel(ttk.Frame):
 
 def _to_16bit_single_channel(image: np.ndarray) -> np.ndarray:
     return to_16bit_plif_signal(image)
+
+
+def _rotate_special_points(special_points, matrix: np.ndarray, shape: tuple[int, int]):
+    if special_points is None or len(special_points) != 2:
+        return special_points
+    try:
+        y_points = np.asarray(special_points[0])
+        x_points = np.asarray(special_points[1])
+        if y_points.size != x_points.size:
+            return special_points
+        coordinates = np.column_stack((x_points, y_points, np.ones(x_points.size)))
+        rotated = coordinates @ matrix.T
+        x_rotated = np.rint(rotated[:, 0]).astype(np.int32)
+        y_rotated = np.rint(rotated[:, 1]).astype(np.int32)
+        height, width = shape
+        valid = (0 <= x_rotated) & (x_rotated < width) & (0 <= y_rotated) & (y_rotated < height)
+        return y_rotated[valid], x_rotated[valid]
+    except (TypeError, ValueError):
+        return special_points
 
 
 def _scale_gray_for_display(image: np.ndarray, gain: float) -> np.ndarray:
