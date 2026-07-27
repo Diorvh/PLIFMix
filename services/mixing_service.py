@@ -9,6 +9,7 @@ import openpyxl
 from PLIFv2.algorithms.mixing import (
     ShiftSearchResult,
     calc_mixing_efficiency,
+    calc_result,
     calculate_shift_search,
     generate_mask_coords,
     shift_image,
@@ -39,30 +40,6 @@ class ManualDisplayResult:
     mix_curve: tuple[np.ndarray, np.ndarray]
     raw_images: list[DisplayImage]
     raw_mix_curve: tuple[np.ndarray, np.ndarray]
-
-
-@dataclass(frozen=True)
-class _ImagePair:
-    source: np.ndarray
-    total: np.ndarray
-
-
-@dataclass(frozen=True)
-class _MixingImages:
-    f: np.ndarray
-    o: np.ndarray
-    fo: np.ndarray
-    o_f: _ImagePair
-    f_fo: _ImagePair
-    o_fo: _ImagePair
-
-
-@dataclass(frozen=True)
-class _MixingMetrics:
-    abs_value: float
-    me_o_fo: float
-    me_f_fo: float
-    me_o_f: float
 
 
 class MixingService:
@@ -102,7 +79,9 @@ class MixingService:
         o_img[mask] = 0
         fo_img[mask] = 0
 
-        raw_images = _create_raw_mixing_images(f_img, o_img, fo_img)
+        raw_f_img = f_img.copy()
+        raw_o_img = o_img.copy()
+        raw_fo_img = fo_img.copy()
 
         if settings.use_ellipse_region:
             coords = generate_mask_coords(
@@ -116,30 +95,47 @@ class MixingService:
             ys, xs = np.indices(f_img.shape)
             coords = xs.ravel(), ys.ravel()
         global_mix_ratio = settings.global_of / (1 + settings.global_of)
-        raw_metrics = _calculate_mixing_metrics(raw_images, coords, global_mix_ratio)
+        _, raw_me_o_fo, raw_me_f_fo, raw_me_o_f = calc_result(
+            raw_f_img,
+            raw_o_img,
+            raw_fo_img,
+            coords,
+            global_mix_ratio,
+        )
+
         record_of = float(np.sum(o_img) / np.sum(f_img)) if np.sum(f_img) else 0.0
-        calibrated_images = _create_calibrated_mixing_images(f_img, o_img, fo_img, settings.global_of)
-        calibrated_metrics = _calculate_mixing_metrics(calibrated_images, coords, global_mix_ratio)
+        if record_of:
+            o_img = o_img * settings.global_of / record_of
+        combined = f_img + o_img
+        fo_sum = np.sum(fo_img)
+        if fo_sum:
+            fo_img = fo_img / fo_sum * np.sum(combined)
+
+        abs_value, me_o_fo, me_f_fo, me_o_f = calc_result(f_img, o_img, fo_img, coords, global_mix_ratio)
         summary = ManualMixingResult(
-            abs_value=calibrated_metrics.abs_value,
-            me_o_fo=calibrated_metrics.me_o_fo,
-            me_f_fo=calibrated_metrics.me_f_fo,
-            me_o_f=calibrated_metrics.me_o_f,
-            average_me=(calibrated_metrics.me_o_fo + calibrated_metrics.me_f_fo + calibrated_metrics.me_o_f) / 3,
+            abs_value=abs_value,
+            me_o_fo=me_o_fo,
+            me_f_fo=me_f_fo,
+            me_o_f=me_o_f,
+            average_me=(me_o_fo + me_f_fo + me_o_f) / 3,
             record_of=record_of,
-            raw_me_o_fo=raw_metrics.me_o_fo,
-            raw_me_f_fo=raw_metrics.me_f_fo,
-            raw_me_o_f=raw_metrics.me_o_f,
-            raw_average_me=(raw_metrics.me_o_fo + raw_metrics.me_f_fo + raw_metrics.me_o_f) / 3,
+            raw_me_o_fo=raw_me_o_fo,
+            raw_me_f_fo=raw_me_f_fo,
+            raw_me_o_f=raw_me_o_f,
+            raw_average_me=(raw_me_o_fo + raw_me_f_fo + raw_me_o_f) / 3,
         )
         display_images, mix_curve = _build_display_outputs(
-            calibrated_images,
+            f_img,
+            o_img,
+            fo_img,
             settings.global_of,
             settings.center_yfo,
             global_mix_ratio,
         )
         raw_display_images, raw_mix_curve = _build_display_outputs(
-            raw_images,
+            raw_f_img,
+            raw_o_img,
+            raw_fo_img,
             settings.global_of,
             settings.center_yfo,
             global_mix_ratio,
@@ -171,14 +167,13 @@ class MixingService:
 
 
 def _build_display_outputs(
-    images: _MixingImages,
+    f_img: np.ndarray,
+    o_img: np.ndarray,
+    fo_img: np.ndarray,
     global_of: float,
     center_y: int,
     global_mix_ratio: float,
 ) -> tuple[list[DisplayImage], tuple[np.ndarray, np.ndarray]]:
-    f_img = images.f
-    o_img = images.o
-    fo_img = images.fo
     combined = f_img + o_img
     display_images = [
         DisplayImage("f", f_img),
@@ -195,31 +190,21 @@ def _build_display_outputs(
             0,
         )
         mix_ratio_f_fo = np.where(
-            (images.f_fo.source > 0) | ((images.f_fo.total - images.f_fo.source) > 0),
-            (
-                (images.f_fo.total - images.f_fo.source)
-                / ((images.f_fo.total - images.f_fo.source) + global_of * images.f_fo.source)
-                * 254
-                + 1
-            ).astype(np.uint8),
+            (f_img > 0) | ((fo_img - f_img) > 0),
+            ((fo_img - f_img) / ((fo_img - f_img) + global_of * f_img) * 254 + 1).astype(np.uint8),
             0,
         )
         mix_ratio_o_fo = np.where(
-            ((images.o_fo.total - images.o_fo.source) > 0) | (images.o_fo.source > 0),
-            (
-                images.o_fo.source
-                / (images.o_fo.source + global_of * (images.o_fo.total - images.o_fo.source))
-                * 254
-                + 1
-            ).astype(np.uint8),
+            ((fo_img - o_img) > 0) | (o_img > 0),
+            (o_img / (o_img + global_of * (fo_img - o_img)) * 254 + 1).astype(np.uint8),
             0,
         )
-    mix_ratio_f_fo[images.f_fo.total - images.f_fo.source < 0] = 1
-    mix_ratio_o_fo[images.o_fo.total - images.o_fo.source < 0] = 255
+    mix_ratio_f_fo[fo_img - f_img < 0] = 1
+    mix_ratio_o_fo[fo_img - o_img < 0] = 255
 
-    _, mix_efficiency_o_f = calc_mixing_efficiency(images.o_f.source, images.o_f.total, global_mix_ratio)
-    _, mix_efficiency_f_fo = calc_mixing_efficiency(images.f_fo.source, images.f_fo.total, 1 - global_mix_ratio)
-    _, mix_efficiency_o_fo = calc_mixing_efficiency(images.o_fo.source, images.o_fo.total, global_mix_ratio)
+    _, mix_efficiency_o_f = calc_mixing_efficiency(o_img, combined, global_mix_ratio)
+    _, mix_efficiency_f_fo = calc_mixing_efficiency(f_img, fo_img, global_mix_ratio)
+    _, mix_efficiency_o_fo = calc_mixing_efficiency(o_img, fo_img, global_mix_ratio)
     max_eff = max(
         float(np.max(mix_efficiency_o_f)),
         float(np.max(mix_efficiency_f_fo)),
@@ -255,66 +240,6 @@ def _build_display_outputs(
     curve_y = mix_curve_origin[row, :]
     mask_curve = curve_y != 0
     return display_images, (curve_x[mask_curve], curve_y[mask_curve] - 1)
-
-
-def _create_raw_mixing_images(f_img: np.ndarray, o_img: np.ndarray, fo_img: np.ndarray) -> _MixingImages:
-    return _MixingImages(
-        f=f_img,
-        o=o_img,
-        fo=fo_img,
-        o_f=_ImagePair(o_img, f_img + o_img),
-        f_fo=_ImagePair(f_img, fo_img),
-        o_fo=_ImagePair(o_img, fo_img),
-    )
-
-
-def _create_calibrated_mixing_images(
-    f_img: np.ndarray,
-    o_img: np.ndarray,
-    fo_img: np.ndarray,
-    global_of: float,
-) -> _MixingImages:
-    calibrated_o = _scale_to_total(o_img, np.sum(f_img) * global_of)
-    # This target matches the existing F/O-calibrated FO total.
-    calibrated_fo = _scale_to_total(fo_img, np.sum(f_img) * (1 + global_of))
-    # Keep O unchanged for this pair and set O:FO = O/F:(1 + O/F).
-    o_fo_target_sum = np.sum(o_img) * (1 + global_of) / global_of if global_of else 0.0
-    o_fo_calibrated = _scale_to_total(fo_img, o_fo_target_sum)
-    return _MixingImages(
-        f=f_img,
-        o=calibrated_o,
-        fo=calibrated_fo,
-        o_f=_ImagePair(calibrated_o, f_img + calibrated_o),
-        f_fo=_ImagePair(f_img, calibrated_fo),
-        o_fo=_ImagePair(o_img, o_fo_calibrated),
-    )
-
-
-def _scale_to_total(image: np.ndarray, target_sum: float) -> np.ndarray:
-    image_sum = float(np.sum(image))
-    if image_sum <= 0:
-        return image.copy()
-    return image * (target_sum / image_sum)
-
-
-def _calculate_mixing_metrics(
-    images: _MixingImages,
-    coords: tuple[np.ndarray, np.ndarray],
-    global_mix_ratio: float,
-) -> _MixingMetrics:
-    xs, ys = coords
-    f_values = images.f[ys, xs].astype(np.float64)
-    o_values = images.o[ys, xs].astype(np.float64)
-    fo_values = images.fo[ys, xs].astype(np.float64)
-    o_fo_source = images.o_fo.source[ys, xs].astype(np.float64)
-    o_fo_total = images.o_fo.total[ys, xs].astype(np.float64)
-    f_fo_source = images.f_fo.source[ys, xs].astype(np.float64)
-    f_fo_total = images.f_fo.total[ys, xs].astype(np.float64)
-    me_o_fo, _ = calc_mixing_efficiency(o_fo_source, o_fo_total, global_mix_ratio)
-    me_f_fo, _ = calc_mixing_efficiency(f_fo_source, f_fo_total, 1 - global_mix_ratio)
-    me_o_f, _ = calc_mixing_efficiency(o_values, f_values + o_values, global_mix_ratio)
-    abs_value = float(np.sum(np.abs(f_values + o_values - fo_values)))
-    return _MixingMetrics(abs_value, me_o_fo, me_f_fo, me_o_f)
 
 
 def _exp_path(folder: Path, exp_no: str) -> Path:
