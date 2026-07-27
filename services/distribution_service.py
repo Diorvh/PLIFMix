@@ -41,8 +41,8 @@ class DistributionFitService:
     def run(
         self,
         settings: DistributionSettings,
-        show_q_center: str = "nonshow",
-        show_img: str = "ori_img",
+        annotations: frozenset[str] = frozenset(),
+        image_mode: str = "ori_img",
     ) -> DistributionFitResult:
         image_folder = Path(settings.image_folder)
         f_img = read_image(_exp_path(image_folder, settings.f_exp_no)).astype(np.float64)
@@ -70,21 +70,27 @@ class DistributionFitService:
             (settings.center_xfo, settings.center_yfo),
         ]
         rotate_angles = [settings.rotate_angle_f, settings.rotate_angle_o, settings.rotate_angle_fo]
+        center_line_bounds = [
+            (settings.q_center_up_f, settings.q_center_down_f),
+            (settings.q_center_up_o, settings.q_center_down_o),
+            (settings.q_center_up_fo, settings.q_center_down_fo),
+        ]
         image_names = ["f_img", "o_img", "fo_img"]
         display_names = ["f", "o", "fo"]
         height, width = f_img.shape
 
         for index, (image, raw_image) in enumerate(zip([f_img, o_img, fo_img], raw_source_images)):
             cx, cy = centers[index]
+            q_center_up, q_center_down = center_line_bounds[index]
             contour_value = 0.0
             boundary_points: set[tuple[int, int]] = set()
-            if show_q_center == "contour":
+            if "contour" in annotations:
                 contour_value, boundary_points = calc_flowrate_contour(image, settings.thres_contour)
 
             a, b, r_squared, origin_point, fitted_point, verti_px_rotated = fit_center_line(
                 image,
-                settings.q_center_up,
-                settings.q_center_down,
+                q_center_up,
+                q_center_down,
                 settings.max_k,
                 cx,
                 cy,
@@ -155,7 +161,7 @@ class DistributionFitService:
                 pred_sum = np.sum(pred)
                 return pred / pred_sum if pred_sum else pred
 
-            if show_img in {"fit_img", "delta_img"}:
+            if image_mode in {"fit_img", "delta_img"}:
                 try:
                     from scipy import optimize
 
@@ -191,20 +197,20 @@ class DistributionFitService:
                 ]
             )
 
-            if show_q_center == "contour":
-                special_points = tuple(np.array(points) for points in zip(*boundary_points)) if boundary_points else []
-            elif show_q_center == "Q_center":
-                special_points = origin_point
-            elif show_q_center == "Q_center_fitted":
-                special_points = fitted_point
-            else:
-                special_points = []
+            point_sets: list[tuple[np.ndarray, np.ndarray]] = []
+            if "contour" in annotations and boundary_points:
+                point_sets.append(tuple(np.array(points) for points in zip(*boundary_points)))
+            if "center_line" in annotations:
+                point_sets.append(origin_point)
+            if "fitted_center_line" in annotations:
+                point_sets.append(fitted_point)
+            special_points = _merge_special_points(point_sets)
 
-            if show_img == "bent_img":
+            if image_mode == "bent_img":
                 shown_normalized = bent_img
-            elif show_img == "fit_img":
+            elif image_mode == "fit_img":
                 shown_normalized = predict_img_func(best_rho)
-            elif show_img == "delta_img":
+            elif image_mode == "delta_img":
                 shown_normalized = np.abs(predict_img_func(best_rho) - bent_img)
             else:
                 shown_normalized = norm_img
@@ -273,6 +279,13 @@ def _calibrate_total_images(
     fo_sum = float(np.sum(fo_img))
     calibrated_fo = fo_img / fo_sum * np.sum(combined) if fo_sum else fo_img
     return f_img, calibrated_o, calibrated_fo
+
+
+def _merge_special_points(point_sets: list[tuple[np.ndarray, np.ndarray]]) -> tuple[np.ndarray, np.ndarray] | list:
+    valid_sets = [points for points in point_sets if len(points) == 2 and len(points[0])]
+    if not valid_sets:
+        return []
+    return np.concatenate([points[0] for points in valid_sets]), np.concatenate([points[1] for points in valid_sets])
 
 
 def _exp_path(folder: Path, exp_no: str) -> Path:

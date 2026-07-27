@@ -34,11 +34,15 @@ class DistributionPage(ttk.Frame):
         self.is_pseudo = tk.BooleanVar(value=True)
         self.auto_gain = tk.BooleanVar(value=self.settings.gain <= 0)
         self.show_crosshair = tk.BooleanVar(value=True)
+        self.show_contour = tk.BooleanVar(value=False)
+        self.show_center_line = tk.BooleanVar(value=False)
+        self.show_fitted_center_line = tk.BooleanVar(value=False)
+        self.show_bent_image = tk.BooleanVar(value=False)
+        self.show_fit_image = tk.BooleanVar(value=False)
+        self.show_delta_image = tk.BooleanVar(value=False)
         self.use_calibrated_display = tk.BooleanVar(value=True)
         self.save_crosshair = tk.BooleanVar(value=True)
         self.save_targets = {name: tk.BooleanVar(value=True) for name, _position in DISTRIBUTION_SAVE_LAYOUT}
-        self.show_q_center = "nonshow"
-        self.show_img = "ori_img"
         self.preset_groups: tuple[MixingPreset, ...] = ()
         self.preset_index: int | None = None
         self.preset_group_var = tk.StringVar()
@@ -57,8 +61,8 @@ class DistributionPage(ttk.Frame):
         self._row_image_source(controls).pack(anchor=tk.W, pady=1)
         self._row_preset(controls).pack(anchor=tk.W, pady=1)
         self._row_display(controls).pack(anchor=tk.W, pady=1)
-        self._row_geometry(controls).pack(anchor=tk.W, pady=1)
-        self._row_fit_options(controls).pack(anchor=tk.W, pady=1)
+        self._row_display_options(controls).pack(anchor=tk.W, pady=1)
+        self._row_fit_parameters(controls).pack(anchor=tk.W, pady=1)
 
         self.summary = ttk.Label(self, text="质量分布拟合结果", wraplength=1500, justify=tk.LEFT)
         self.summary.pack(anchor=tk.W, padx=8)
@@ -67,10 +71,8 @@ class DistributionPage(ttk.Frame):
 
         displays = ttk.Frame(self)
         displays.pack(fill=tk.BOTH, expand=True, padx=8, pady=6)
-        for column, name in enumerate(("f", "o", "fo")):
-            display = ImageDisplay(displays, name)
-            display.grid(row=0, column=column, sticky="nw", padx=4)
-            self.displays[name] = display
+        for column, (name, label) in enumerate((("f", "F"), ("o", "O"), ("fo", "FO"))):
+            self._image_parameter_panel(displays, name, label).grid(row=0, column=column, sticky="nw", padx=4)
 
     def _quick_save_panel(self, parent) -> ttk.LabelFrame:
         panel = ttk.LabelFrame(parent, text="一键保存")
@@ -149,37 +151,64 @@ class DistributionPage(ttk.Frame):
         ).pack(side=tk.LEFT, padx=(6, 0))
         return row
 
-    def _row_geometry(self, parent) -> ttk.Frame:
+    def _row_display_options(self, parent) -> ttk.Frame:
         row = ttk.Frame(parent)
-        self._entry(row, "line_width", "线宽", 6)
-        ttk.Checkbutton(row, text="十字线", variable=self.show_crosshair, command=self._redraw_cached_result).pack(side=tk.LEFT, padx=(5, 2))
-        ttk.Label(row, text="F").pack(side=tk.LEFT, padx=(5, 0))
-        self._entry(row, "center_xf", "X", 6)
-        self._entry(row, "center_yf", "Y", 6)
-        ttk.Button(row, text="一键填充", command=self._fill_centers_from_f).pack(side=tk.LEFT, padx=(4, 2))
-        ttk.Label(row, text="O").pack(side=tk.LEFT, padx=(5, 0))
-        self._entry(row, "center_xo", "X", 6)
-        self._entry(row, "center_yo", "Y", 6)
-        ttk.Label(row, text="FO").pack(side=tk.LEFT, padx=(5, 0))
-        self._entry(row, "center_xfo", "X", 6)
-        self._entry(row, "center_yfo", "Y", 6)
+        ttk.Checkbutton(row, text="十字线", variable=self.show_crosshair, command=self._redraw_cached_result).pack(side=tk.LEFT, padx=(3, 5))
+        ttk.Checkbutton(row, text="轮廓", variable=self.show_contour, command=self.process).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Checkbutton(row, text="中心线", variable=self.show_center_line, command=self.process).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Checkbutton(
+            row,
+            text="拟合中心线",
+            variable=self.show_fitted_center_line,
+            command=self.process,
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Checkbutton(
+            row,
+            text="掰直",
+            variable=self.show_bent_image,
+            command=lambda: self._on_image_mode_changed("bent"),
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Checkbutton(
+            row,
+            text="拟合",
+            variable=self.show_fit_image,
+            command=lambda: self._on_image_mode_changed("fit"),
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Checkbutton(
+            row,
+            text="拟合-掰直绝对值",
+            variable=self.show_delta_image,
+            command=lambda: self._on_image_mode_changed("delta"),
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(row, text="还原", command=self._reset_display_options).pack(side=tk.LEFT, padx=(4, 0))
         return row
 
-    def _row_fit_options(self, parent) -> ttk.Frame:
+    def _row_fit_parameters(self, parent) -> ttk.Frame:
         row = ttk.Frame(parent)
+        self._entry(row, "line_width", "线宽", 6)
         self._entry(row, "thres_contour", "轮廓比例", 6)
-        self._entry(row, "q_center_up", "中心线上", 5)
-        self._entry(row, "q_center_down", "中心线下", 5)
         self._entry(row, "max_k", "最大值个数", 5)
         self._entry(row, "hori_fit_width", "横向拟合半宽", 7)
-        self._entry(row, "rotate_angle_f", "旋转 F", 5)
-        self._entry(row, "rotate_angle_o", "O", 5)
-        self._entry(row, "rotate_angle_fo", "FO", 5)
-        for label, mode in [("轮廓", "contour"), ("中心线", "Q_center"), ("拟合中心线", "Q_center_fitted"), ("不显示", "nonshow")]:
-            ttk.Button(row, text=label, command=lambda value=mode: self._set_q(value)).pack(side=tk.LEFT, padx=2)
-        for label, mode in [("掰直", "bent_img"), ("拟合", "fit_img"), ("拟合-掰直", "delta_img"), ("原图", "ori_img")]:
-            ttk.Button(row, text=label, command=lambda value=mode: self._set_img(value)).pack(side=tk.LEFT, padx=2)
         return row
+
+    def _image_parameter_panel(self, parent, name: str, label: str) -> ttk.Frame:
+        panel = ttk.Frame(parent)
+        title_row = ttk.Frame(panel)
+        title_row.pack(anchor=tk.W)
+        ttk.Label(title_row, text=label, font=("Microsoft YaHei UI", 10, "bold")).pack(side=tk.LEFT, padx=(4, 8))
+        self._entry(title_row, f"center_x{name}", "十字线 X", 5)
+        self._entry(title_row, f"center_y{name}", "Y", 5)
+
+        fit_row = ttk.Frame(panel)
+        fit_row.pack(anchor=tk.W)
+        self._entry(fit_row, f"q_center_up_{name}", "中心线上界", 5)
+        self._entry(fit_row, f"q_center_down_{name}", "下界", 5)
+        self._entry(fit_row, f"rotate_angle_{name}", "旋转角度", 5)
+
+        display = ImageDisplay(panel, name)
+        display.pack(anchor=tk.W)
+        self.displays[name] = display
+        return panel
 
     def _path_entry(self, row, name: str, label: str, command, width: int) -> None:
         ttk.Label(row, text=label).pack(side=tk.LEFT, padx=(4, 2))
@@ -305,18 +334,53 @@ class DistributionPage(ttk.Frame):
         self.preset_total_label.config(text=f"/{len(self.preset_groups)}")
         self.process()
 
-    def _fill_centers_from_f(self) -> None:
-        x_value = self.vars["center_xf"].get()
-        y_value = self.vars["center_yf"].get()
-        self.vars["center_xo"].set(x_value)
-        self.vars["center_yo"].set(y_value)
-        self.vars["center_xfo"].set(x_value)
-        self.vars["center_yfo"].set(y_value)
-        self.process()
-
     def _redraw_cached_result(self) -> None:
         if self.latest_result is not None:
             self._show(self.latest_result)
+
+    def _on_image_mode_changed(self, selected_mode: str) -> None:
+        modes = {
+            "bent": self.show_bent_image,
+            "fit": self.show_fit_image,
+            "delta": self.show_delta_image,
+        }
+        if modes[selected_mode].get():
+            for name, variable in modes.items():
+                if name != selected_mode:
+                    variable.set(False)
+        self.process()
+
+    def _reset_display_options(self) -> None:
+        for variable in (
+            self.show_crosshair,
+            self.show_contour,
+            self.show_center_line,
+            self.show_fitted_center_line,
+            self.show_bent_image,
+            self.show_fit_image,
+            self.show_delta_image,
+        ):
+            variable.set(False)
+        self.process()
+
+    def _annotations(self) -> frozenset[str]:
+        annotations = set()
+        if self.show_contour.get():
+            annotations.add("contour")
+        if self.show_center_line.get():
+            annotations.add("center_line")
+        if self.show_fitted_center_line.get():
+            annotations.add("fitted_center_line")
+        return frozenset(annotations)
+
+    def _image_mode(self) -> str:
+        if self.show_delta_image.get():
+            return "delta_img"
+        if self.show_fit_image.get():
+            return "fit_img"
+        if self.show_bent_image.get():
+            return "bent_img"
+        return "ori_img"
 
     def process(self, event=None) -> None:
         try:
@@ -326,13 +390,17 @@ class DistributionPage(ttk.Frame):
             return
         self.request_id += 1
         request_id = self.request_id
-        q_mode, image_mode = self.show_q_center, self.show_img
+        annotations, image_mode = self._annotations(), self._image_mode()
 
         def done(result) -> None:
             if request_id == self.request_id:
                 self._show(result)
 
-        self.live_task.submit(lambda: self.actions.run_distribution_display(q_mode, image_mode), done, "计算质量分布...")
+        self.live_task.submit(
+            lambda: self.actions.run_distribution_display(annotations, image_mode),
+            done,
+            "计算质量分布...",
+        )
 
     def _show(self, result) -> None:
         self.latest_result = result
@@ -392,14 +460,6 @@ class DistributionPage(ttk.Frame):
             return Path(self.settings.output_folder)
         return Path(self.settings.image_folder).parent / "distribution_results"
 
-    def _set_q(self, mode: str) -> None:
-        self.show_q_center = mode
-        self.process()
-
-    def _set_img(self, mode: str) -> None:
-        self.show_img = mode
-        self.process()
-
     def export_ui_state(self) -> dict[str, object]:
         try:
             self._save_vars()
@@ -409,9 +469,13 @@ class DistributionPage(ttk.Frame):
             "is_pseudo": self.is_pseudo.get(),
             "auto_gain": self.auto_gain.get(),
             "show_crosshair": self.show_crosshair.get(),
+            "show_contour": self.show_contour.get(),
+            "show_center_line": self.show_center_line.get(),
+            "show_fitted_center_line": self.show_fitted_center_line.get(),
+            "show_bent_image": self.show_bent_image.get(),
+            "show_fit_image": self.show_fit_image.get(),
+            "show_delta_image": self.show_delta_image.get(),
             "use_calibrated_display": self.use_calibrated_display.get(),
-            "show_q_center": self.show_q_center,
-            "show_img": self.show_img,
             "save_crosshair": self.save_crosshair.get(),
             "save_targets": {name: target.get() for name, target in self.save_targets.items()},
         }
@@ -421,9 +485,13 @@ class DistributionPage(ttk.Frame):
         self.is_pseudo.set(bool(state.get("is_pseudo", self.is_pseudo.get())))
         self.auto_gain.set(bool(state.get("auto_gain", self.auto_gain.get())))
         self.show_crosshair.set(bool(state.get("show_crosshair", self.show_crosshair.get())))
+        self.show_contour.set(bool(state.get("show_contour", False)))
+        self.show_center_line.set(bool(state.get("show_center_line", False)))
+        self.show_fitted_center_line.set(bool(state.get("show_fitted_center_line", False)))
+        self.show_bent_image.set(bool(state.get("show_bent_image", False)))
+        self.show_fit_image.set(bool(state.get("show_fit_image", False)))
+        self.show_delta_image.set(bool(state.get("show_delta_image", False)))
         self.use_calibrated_display.set(bool(state.get("use_calibrated_display", self.use_calibrated_display.get())))
-        self.show_q_center = str(state.get("show_q_center", self.show_q_center))
-        self.show_img = str(state.get("show_img", self.show_img))
         self.save_crosshair.set(bool(state.get("save_crosshair", self.save_crosshair.get())))
         targets = state.get("save_targets", {})
         if isinstance(targets, dict):

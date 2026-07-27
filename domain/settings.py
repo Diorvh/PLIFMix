@@ -93,6 +93,12 @@ class DistributionSettings:
     thres_contour: float = 0.9
     q_center_up: int = 0
     q_center_down: int = 0
+    q_center_up_f: int = 0
+    q_center_down_f: int = 0
+    q_center_up_o: int = 0
+    q_center_down_o: int = 0
+    q_center_up_fo: int = 0
+    q_center_down_fo: int = 0
     max_k: int = 30
     rotate_angle_f: float = 0
     rotate_angle_o: float = 0
