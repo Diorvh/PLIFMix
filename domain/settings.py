@@ -74,13 +74,20 @@ class DistributionSettings:
     image_folder: Path = Path()
     f_exp_no: str = ""
     o_exp_no: str = ""
+    fo_exp_no: str = ""
+    preset_path: Path = Path()
     save_name: str = ""
     zoom: float = 3
     gain: float = 0
+    global_of: float = 1.0
+    f_shift: int = 0
+    o_shift: int = 0
     center_xf: int = 0
     center_yf: int = 0
     center_xo: int = 0
     center_yo: int = 0
+    center_xfo: int = 0
+    center_yfo: int = 0
     line_width: int = 2
     denoise_ratio: float = 0.01
     thres_contour: float = 0.9
@@ -89,6 +96,7 @@ class DistributionSettings:
     max_k: int = 30
     rotate_angle_f: float = 0
     rotate_angle_o: float = 0
+    rotate_angle_fo: float = 0
     hori_fit_width: int = 200
     output_folder: Path = Path()
 

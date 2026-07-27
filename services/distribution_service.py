@@ -13,6 +13,7 @@ from PLIFv2.algorithms.mixing import (
     fit_center_line,
     func_fit_3,
     rotate_points_clockwise,
+    shift_image,
 )
 from PLIFv2.core.image_io import read_image
 from PLIFv2.core.paths import path_is_set
@@ -29,12 +30,13 @@ class DistributionFitResult:
     fit_text: str
     surface_text: str
     images: list[DisplayImage]
+    raw_images: list[DisplayImage]
     fit_rows: list[list[float]]
     curve_data: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]]
 
 
 class DistributionFitService:
-    """Fit the individual F and O mass distributions without mixing metrics."""
+    """Fit calibrated individual F, O, and FO mass distributions without mixing metrics."""
 
     def run(
         self,
@@ -45,22 +47,34 @@ class DistributionFitService:
         image_folder = Path(settings.image_folder)
         f_img = read_image(_exp_path(image_folder, settings.f_exp_no)).astype(np.float64)
         o_img = read_image(_exp_path(image_folder, settings.o_exp_no)).astype(np.float64)
+        fo_img = read_image(_exp_path(image_folder, settings.fo_exp_no)).astype(np.float64)
+        f_img = shift_image(f_img, settings.f_shift)
+        o_img = shift_image(o_img, settings.o_shift)
 
         mask = (f_img < (np.max(f_img) * settings.denoise_ratio)) & (o_img < (np.max(o_img) * settings.denoise_ratio))
         f_img[mask] = 0
         o_img[mask] = 0
+        fo_img[mask] = 0
+        raw_source_images = (f_img, o_img, fo_img)
+        f_img, o_img, fo_img = _calibrate_total_images(f_img, o_img, fo_img, settings.global_of)
 
         fit_text = ""
         surface_text = ""
         display_images: list[DisplayImage] = []
+        raw_display_images: list[DisplayImage] = []
         fit_rows: list[list[float]] = []
         curve_data: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
-        centers = [(settings.center_xf, settings.center_yf), (settings.center_xo, settings.center_yo)]
-        rotate_angles = [settings.rotate_angle_f, settings.rotate_angle_o]
-        image_names = ["f_img", "o_img"]
+        centers = [
+            (settings.center_xf, settings.center_yf),
+            (settings.center_xo, settings.center_yo),
+            (settings.center_xfo, settings.center_yfo),
+        ]
+        rotate_angles = [settings.rotate_angle_f, settings.rotate_angle_o, settings.rotate_angle_fo]
+        image_names = ["f_img", "o_img", "fo_img"]
+        display_names = ["f", "o", "fo"]
         height, width = f_img.shape
 
-        for index, image in enumerate([f_img, o_img]):
+        for index, (image, raw_image) in enumerate(zip([f_img, o_img, fo_img], raw_source_images)):
             cx, cy = centers[index]
             contour_value = 0.0
             boundary_points: set[tuple[int, int]] = set()
@@ -187,21 +201,24 @@ class DistributionFitService:
                 special_points = []
 
             if show_img == "bent_img":
-                shown = bent_img * norm_coeff
+                shown_normalized = bent_img
             elif show_img == "fit_img":
-                shown = predict_img_func(best_rho) * norm_coeff
+                shown_normalized = predict_img_func(best_rho)
             elif show_img == "delta_img":
-                shown = np.abs(predict_img_func(best_rho) - bent_img) * norm_coeff
+                shown_normalized = np.abs(predict_img_func(best_rho) - bent_img)
             else:
-                shown = norm_img * norm_coeff
-            display_images.append(DisplayImage(["f", "o"][index], shown, "jet", special_points))
+                shown_normalized = norm_img
+            display_images.append(DisplayImage(display_names[index], shown_normalized * norm_coeff, "jet", special_points))
+            raw_display_images.append(
+                DisplayImage(display_names[index], shown_normalized * np.sum(raw_image), "jet", special_points)
+            )
 
-        return DistributionFitResult(fit_text, surface_text, display_images, fit_rows, curve_data)
+        return DistributionFitResult(fit_text, surface_text, display_images, raw_display_images, fit_rows, curve_data)
 
     def export(self, settings: DistributionSettings, result: DistributionFitResult) -> Path:
         output = Path(settings.output_folder) if path_is_set(settings.output_folder) else Path(settings.image_folder).parent / "distribution_results"
         output.mkdir(parents=True, exist_ok=True)
-        name = settings.save_name or f"F{settings.f_exp_no}_O{settings.o_exp_no}"
+        name = settings.save_name or f"F{settings.f_exp_no}_FO{settings.fo_exp_no}_O{settings.o_exp_no}"
 
         workbook = openpyxl.Workbook()
         sheet = workbook.active
@@ -225,7 +242,7 @@ class DistributionFitService:
             "surface_r2",
         ]
         sheet.append(["image", *headers])
-        for image_name, row in zip(["f_img", "o_img"], result.fit_rows):
+        for image_name, row in zip(["f_img", "o_img", "fo_img"], result.fit_rows):
             sheet.append([image_name, *row])
         workbook.save(output / f"{name}-fit-results.xlsx")
         workbook.close()
@@ -244,8 +261,22 @@ class DistributionFitService:
         return output
 
 
+def _calibrate_total_images(
+    f_img: np.ndarray,
+    o_img: np.ndarray,
+    fo_img: np.ndarray,
+    global_of: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    record_of = float(np.sum(o_img) / np.sum(f_img)) if np.sum(f_img) else 0.0
+    calibrated_o = o_img * global_of / record_of if record_of else o_img
+    combined = f_img + calibrated_o
+    fo_sum = float(np.sum(fo_img))
+    calibrated_fo = fo_img / fo_sum * np.sum(combined) if fo_sum else fo_img
+    return f_img, calibrated_o, calibrated_fo
+
+
 def _exp_path(folder: Path, exp_no: str) -> Path:
     if not str(exp_no).strip():
-        raise ValueError("质量分布拟合需要输入 F 和 O 图像编号。")
+        raise ValueError("质量分布拟合需要输入 F、O 和 FO 图像编号。")
     stem = str(exp_no) if str(exp_no).startswith("实验编号") else f"实验编号{exp_no}"
     return folder / f"{stem}.npy"
