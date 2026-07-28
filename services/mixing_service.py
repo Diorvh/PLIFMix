@@ -14,7 +14,7 @@ from PLIFv2.algorithms.mixing import (
     generate_mask_coords,
     shift_image,
 )
-from PLIFv2.core.image_io import read_image
+from PLIFv2.core.experiment_images import load_experiment_triplet
 from PLIFv2.domain.settings import ManualMixingSettings, ShiftSearchSettings
 from PLIFv2.services.display_types import DisplayImage
 
@@ -44,12 +44,12 @@ class ManualDisplayResult:
 
 class MixingService:
     def run_shift_search(self, settings: ShiftSearchSettings) -> ShiftSearchResult:
-        image_folder = Path(settings.image_folder)
-        images = (
-            read_image(_exp_path(image_folder, settings.f_exp_no)).astype(np.float64),
-            read_image(_exp_path(image_folder, settings.o_exp_no)).astype(np.float64),
-            read_image(_exp_path(image_folder, settings.fo_exp_no)).astype(np.float64),
-        )
+        images = load_experiment_triplet(
+            settings.image_folder,
+            settings.f_exp_no,
+            settings.o_exp_no,
+            settings.fo_exp_no,
+        ).as_tuple()
         global_mix_ratio = settings.global_of / (1 + settings.global_of)
         return calculate_shift_search(
             images=images,
@@ -64,13 +64,13 @@ class MixingService:
         return self.run_manual_display(settings).summary
 
     def run_manual_display(self, settings: ManualMixingSettings) -> ManualDisplayResult:
-        image_folder = Path(settings.image_folder)
-        if not str(settings.fo_exp_no).strip():
-            raise ValueError("手动调参计算混合特性需要输入 F、O 和 FO 图像编号。")
-
-        f_img = read_image(_exp_path(image_folder, settings.f_exp_no)).astype(np.float64)
-        o_img = read_image(_exp_path(image_folder, settings.o_exp_no)).astype(np.float64)
-        fo_img = read_image(_exp_path(image_folder, settings.fo_exp_no)).astype(np.float64)
+        triplet = load_experiment_triplet(
+            settings.image_folder,
+            settings.f_exp_no,
+            settings.o_exp_no,
+            settings.fo_exp_no,
+        )
+        f_img, o_img, fo_img = triplet.as_tuple()
         f_img = shift_image(f_img, settings.f_shift)
         o_img = shift_image(o_img, settings.o_shift)
 
@@ -203,7 +203,7 @@ def _build_display_outputs(
     mix_ratio_o_fo[fo_img - o_img < 0] = 255
 
     _, mix_efficiency_o_f = calc_mixing_efficiency(o_img, combined, global_mix_ratio)
-    _, mix_efficiency_f_fo = calc_mixing_efficiency(f_img, fo_img, global_mix_ratio)
+    _, mix_efficiency_f_fo = calc_mixing_efficiency(f_img, fo_img, 1 - global_mix_ratio)
     _, mix_efficiency_o_fo = calc_mixing_efficiency(o_img, fo_img, global_mix_ratio)
     max_eff = max(
         float(np.max(mix_efficiency_o_f)),
@@ -240,10 +240,3 @@ def _build_display_outputs(
     curve_y = mix_curve_origin[row, :]
     mask_curve = curve_y != 0
     return display_images, (curve_x[mask_curve], curve_y[mask_curve] - 1)
-
-
-def _exp_path(folder: Path, exp_no: str) -> Path:
-    if not str(exp_no).strip():
-        raise ValueError("需要输入图像编号。")
-    stem = str(exp_no) if str(exp_no).startswith("实验编号") else f"实验编号{exp_no}"
-    return folder / f"{stem}.npy"

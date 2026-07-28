@@ -13,6 +13,7 @@ from PLIFv2.algorithms.distribution import (
     estimate_distribution_registration,
 )
 from PLIFv2.algorithms.mixing import (
+    FitConvergenceError,
     calc_flowrate_contour,
     fit_center_line,
     func_fit_3,
@@ -20,7 +21,7 @@ from PLIFv2.algorithms.mixing import (
     shift_image,
     straighten_center_line_image,
 )
-from PLIFv2.core.image_io import read_image
+from PLIFv2.core.experiment_images import load_experiment_triplet
 from PLIFv2.core.paths import path_is_set
 from PLIFv2.domain.settings import DistributionSettings
 from PLIFv2.services.display_types import DisplayImage
@@ -30,8 +31,9 @@ class DistributionFitResult:
     fit_text: str
     surface_text: str
     images: list[DisplayImage]
-    fit_rows: list[list[float]]
+    fit_rows: list[list[float | None]]
     curve_data: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]]
+    warnings: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -62,8 +64,9 @@ class DistributionFitService:
         fit_text = ""
         surface_text = ""
         display_images: list[DisplayImage] = []
-        fit_rows: list[list[float]] = []
+        fit_rows: list[list[float | None]] = []
         curve_data: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
+        warnings: list[str] = []
         centers = [
             (settings.center_xf, settings.center_yf),
             (settings.center_xo, settings.center_yo),
@@ -93,19 +96,28 @@ class DistributionFitService:
             if "contour" in annotations:
                 contour_value, boundary_points = calc_flowrate_contour(image, settings.thres_contour)
 
-            a, b, r_squared, origin_point, fitted_point, verti_px_rotated = fit_center_line(
-                image,
-                q_center_up,
-                q_center_down,
-                settings.max_k,
-                cx,
-                cy,
-                rotate_angles[index],
-            )
-            fit_text += (
-                f"{image_names[index]}流量轮廓值:{contour_value};"
-                f"流量中心线方程：y={a:.4f}*sqrt(x^2+{b * b:.4f})-{a:.4f}*{b:.4f}; R2={r_squared:.4f}     "
-            )
+            empty_points = (np.array([], dtype=np.int32), np.array([], dtype=np.int32))
+            try:
+                a, b, r_squared, origin_point, fitted_point, verti_px_rotated = fit_center_line(
+                    image,
+                    q_center_up,
+                    q_center_down,
+                    settings.max_k,
+                    cx,
+                    cy,
+                    rotate_angles[index],
+                )
+                center_text = (
+                    f"流量中心线方程：y={a:.4f}*sqrt(x^2+{b * b:.4f})-"
+                    f"{a:.4f}*{b:.4f}; R2={r_squared:.4f}"
+                )
+            except FitConvergenceError as exc:
+                a = b = r_squared = np.nan
+                origin_point = fitted_point = empty_points
+                verti_px_rotated = np.array([], dtype=np.float64)
+                center_text = f"流量中心线拟合失败：{exc}"
+                warnings.append(f"{image_names[index]} {center_text}")
+            fit_text += f"{image_names[index]}流量轮廓值:{contour_value};{center_text}     "
 
             hori_px = np.array(range(-settings.hori_fit_width, settings.hori_fit_width))
             hori_py = np.zeros_like(hori_px)
@@ -117,36 +129,59 @@ class DistributionFitService:
             def fit_func(x: np.ndarray, aa: float, bb: float, cc: float) -> np.ndarray:
                 return aa / (x**2 * bb**2 + 1) ** cc
 
-            ah, bh, ch, r_squared_h, hori_predicted = func_fit_3(hori_px, hori_intensity, fit_func)
-            curve_data[f"横向分布_{image_names[index]}"] = (hori_px, hori_intensity, hori_predicted)
-            fit_text += f"{image_names[index]}横向强度分布拟合：y={ah * 1e4:.4f}E-4/(x^2*{bh:.4f}^2+1)^{ch:.4f}; R2={r_squared_h:.4f}     "
+            try:
+                ah, bh, ch, r_squared_h, hori_predicted = func_fit_3(hori_px, hori_intensity, fit_func)
+                curve_data[f"横向分布_{image_names[index]}"] = (hori_px, hori_intensity, hori_predicted)
+                horizontal_text = (
+                    f"横向强度分布拟合：y={ah * 1e4:.4f}E-4/"
+                    f"(x^2*{bh:.4f}^2+1)^{ch:.4f}; R2={r_squared_h:.4f}"
+                )
+            except FitConvergenceError as exc:
+                ah = bh = ch = r_squared_h = np.nan
+                horizontal_text = f"横向强度分布拟合失败：{exc}"
+                warnings.append(f"{image_names[index]} {horizontal_text}")
+            fit_text += f"{image_names[index]}{horizontal_text}     "
 
             verti_py, verti_px = origin_point
             if len(verti_py):
                 verti_intensity = norm_img[verti_py, verti_px]
-                av, bv, cv, r_squared_v, vertical_predicted = func_fit_3(
-                    verti_px_rotated,
-                    verti_intensity,
-                    fit_func,
-                )
-                curve_data[f"纵向分布_{image_names[index]}"] = (
-                    verti_px_rotated,
-                    verti_intensity,
-                    vertical_predicted,
-                )
+                try:
+                    av, bv, cv, r_squared_v, vertical_predicted = func_fit_3(
+                        verti_px_rotated,
+                        verti_intensity,
+                        fit_func,
+                    )
+                    curve_data[f"纵向分布_{image_names[index]}"] = (
+                        verti_px_rotated,
+                        verti_intensity,
+                        vertical_predicted,
+                    )
+                    vertical_text = (
+                        f"纵向强度分布拟合：y={av * 1e4:.4f}E-4/"
+                        f"(x^2*{bv:.4f}^2+1)^{cv:.4f}; R2={r_squared_v:.4f}"
+                    )
+                except FitConvergenceError as exc:
+                    av = bv = cv = r_squared_v = np.nan
+                    vertical_text = f"纵向强度分布拟合失败：{exc}"
+                    warnings.append(f"{image_names[index]} {vertical_text}")
             else:
-                av, bv, cv, r_squared_v = 0.0, 0.0, 0.0, 0.0
-            fit_text += f"{image_names[index]}纵向强度分布拟合：y={av * 1e4:.4f}E-4/(x^2*{bv:.4f}^2+1)^{cv:.4f}; R2={r_squared_v:.4f}\n"
+                av = bv = cv = r_squared_v = np.nan
+                vertical_text = "纵向强度分布拟合未执行：中心线拟合没有有效数据。"
+            fit_text += f"{image_names[index]}{vertical_text}\n"
 
             best_rho = 0.0
             r_squared_p = 0.0
             bent_img: np.ndarray | None = None
             surface_prediction: np.ndarray | None = None
             if image_mode != "ori_img":
+                if not len(fitted_point):
+                    raise FitConvergenceError(f"{image_names[index]} 无有效拟合中心线，不能生成掰直图像。")
                 bent_img = straighten_center_line_image(norm_img, fitted_point, cx)
 
             if need_surface_fit:
                 assert grid_x is not None and grid_y is not None and bent_img is not None
+                if not np.all(np.isfinite([ah, bh, ch, av, bv, cv])):
+                    raise FitConvergenceError(f"{image_names[index]} 横向或纵向拟合失败，不能执行二维联合拟合。")
                 pixel_x = grid_x - cx
                 pixel_y = grid_y - cy
                 aa = (ah + av) / 2
@@ -161,30 +196,33 @@ class DistributionFitService:
                     pred_sum = np.sum(pred)
                     return pred / pred_sum if pred_sum else pred
 
-                try:
-                    from scipy import optimize
+                from scipy import optimize
 
-                    def object_loss(rho: float) -> float:
-                        np.power(coupling_base, rho, out=objective_buffer)
-                        np.add(static_surface, objective_buffer, out=objective_buffer)
-                        np.add(objective_buffer, 1, out=objective_buffer)
-                        np.divide(aa, objective_buffer, out=objective_buffer)
-                        np.divide(objective_buffer, np.sum(objective_buffer), out=objective_buffer)
-                        np.subtract(bent_img, objective_buffer, out=objective_buffer)
-                        np.square(objective_buffer, out=objective_buffer)
-                        return float(np.sum(objective_buffer))
+                def object_loss(rho: float) -> float:
+                    np.power(coupling_base, rho, out=objective_buffer)
+                    np.add(static_surface, objective_buffer, out=objective_buffer)
+                    np.add(objective_buffer, 1, out=objective_buffer)
+                    np.divide(aa, objective_buffer, out=objective_buffer)
+                    total = float(np.sum(objective_buffer))
+                    if not np.isfinite(total) or total <= 0:
+                        return np.inf
+                    np.divide(objective_buffer, total, out=objective_buffer)
+                    np.subtract(bent_img, objective_buffer, out=objective_buffer)
+                    np.square(objective_buffer, out=objective_buffer)
+                    return float(np.sum(objective_buffer))
 
-                    res = optimize.minimize_scalar(object_loss, bounds=(0.01, 100), method="bounded")
-                    ss_tot = np.sum((bent_img - np.mean(bent_img)) ** 2)
-                    best_rho = float(res.x)
-                    r_squared_p = float(1 - (res.fun / ss_tot)) if ss_tot != 0 else 0.0
-                except Exception:
-                    best_rho = 0.0
-                    r_squared_p = 0.0
+                res = optimize.minimize_scalar(object_loss, bounds=(0.01, 100), method="bounded")
+                if not res.success or not np.isfinite(res.fun):
+                    raise FitConvergenceError(f"{image_names[index]} 二维联合拟合未收敛: {res.message}")
+                ss_tot = np.sum((bent_img - np.mean(bent_img)) ** 2)
+                best_rho = float(res.x)
+                r_squared_p = float(1 - (res.fun / ss_tot)) if ss_tot != 0 else 0.0
                 surface_prediction = predict_img_func(best_rho)
-            surface_text += f"{image_names[index]}横纵向联合分布拟合：rho={best_rho:.4f}; R2={r_squared_p:.4f}\n"
+                surface_text += f"{image_names[index]}横纵向联合分布拟合：rho={best_rho:.4f}; R2={r_squared_p:.4f}\n"
+            else:
+                surface_text += f"{image_names[index]}横纵向联合分布拟合：未执行\n"
             fit_rows.append(
-                [
+                _finite_values_or_none([
                     cx,
                     cy,
                     rotate_angles[index],
@@ -201,7 +239,7 @@ class DistributionFitService:
                     r_squared_v,
                     best_rho,
                     r_squared_p,
-                ]
+                ])
             )
 
             point_sets: list[tuple[np.ndarray, np.ndarray]] = []
@@ -233,7 +271,7 @@ class DistributionFitService:
                 )
             )
 
-        return DistributionFitResult(fit_text, surface_text, display_images, fit_rows, curve_data)
+        return DistributionFitResult(fit_text, surface_text, display_images, fit_rows, curve_data, tuple(warnings))
 
     def estimate_registration(self, settings: DistributionSettings) -> DistributionRegistrationResult:
         source_images = _load_distribution_images(settings)
@@ -300,14 +338,16 @@ class DistributionFitService:
 
 
 def _load_distribution_images(settings: DistributionSettings) -> tuple[DistributionImageData, ...]:
-    image_folder = Path(settings.image_folder)
-    f_image = read_image(_exp_path(image_folder, settings.f_exp_no)).astype(np.float64)
-    o_image = read_image(_exp_path(image_folder, settings.o_exp_no)).astype(np.float64)
-    fo_image = read_image(_exp_path(image_folder, settings.fo_exp_no)).astype(np.float64)
+    triplet = load_experiment_triplet(
+        settings.image_folder,
+        settings.f_exp_no,
+        settings.o_exp_no,
+        settings.fo_exp_no,
+    )
     shifted_images = (
-        shift_image(f_image, settings.f_shift),
-        shift_image(o_image, settings.o_shift),
-        fo_image,
+        shift_image(triplet.f, settings.f_shift),
+        shift_image(triplet.o, settings.o_shift),
+        triplet.fo,
     )
     return tuple(
         _denoise_and_normalize_distribution(image, settings.denoise_ratio, label)
@@ -344,8 +384,5 @@ def _merge_special_points(point_sets: list[tuple[np.ndarray, np.ndarray]]) -> tu
     return np.concatenate([points[0] for points in valid_sets]), np.concatenate([points[1] for points in valid_sets])
 
 
-def _exp_path(folder: Path, exp_no: str) -> Path:
-    if not str(exp_no).strip():
-        raise ValueError("质量分布拟合需要输入 F、O 和 FO 图像编号。")
-    stem = str(exp_no) if str(exp_no).startswith("实验编号") else f"实验编号{exp_no}"
-    return folder / f"{stem}.npy"
+def _finite_values_or_none(values: list[float]) -> list[float | None]:
+    return [float(value) if np.isfinite(value) else None for value in values]

@@ -424,6 +424,8 @@ class DistributionPage(ttk.Frame):
                 save_folder=output,
             )
         status = "计算完成"
+        if result.warnings:
+            status += f"；{len(result.warnings)} 项拟合警告，详细原因见上方结果"
         if self.pending_status_notice:
             status += f"；{self.pending_status_notice}"
             self.pending_status_notice = ""

@@ -8,6 +8,10 @@ import cv2
 import numpy as np
 
 
+class FitConvergenceError(RuntimeError):
+    pass
+
+
 @dataclass
 class ShiftSearchResult:
     f_shifts: list[int]
@@ -90,8 +94,7 @@ def fit_center_line(
     down_limit = min(image.shape[0] - 1, down_limit)
     max_k = max(1, max_k)
     if up_limit > down_limit:
-        empty = (np.array([], dtype=np.int32), np.array([], dtype=np.int32))
-        return 0.0, 0.0, 0.0, empty, empty, np.array([])
+        raise FitConvergenceError("中心线上界必须小于或等于下界。")
 
     source_rows = image[up_limit : down_limit + 1]
     top_k_indices = np.argsort(source_rows, axis=1)[:, -max_k:]
@@ -99,9 +102,8 @@ def fit_center_line(
     valid_rows = np.all(top_k_values != 0, axis=1)
     py_arr = np.arange(up_limit, down_limit + 1, dtype=np.int32)[valid_rows]
     px_arr = np.mean(top_k_indices[valid_rows], axis=1)
-    if py_arr.size == 0:
-        empty = (np.array([], dtype=np.int32), np.array([], dtype=np.int32))
-        return 0.0, 0.0, 0.0, empty, empty, np.array([])
+    if py_arr.size < 3:
+        raise FitConvergenceError(f"中心线有效数据行不足，至少需要 3 行，当前为 {py_arr.size} 行。")
 
     point_x = -(py_arr - cy)
     point_y = -(px_arr - cx)
@@ -172,30 +174,62 @@ def straighten_center_line_image(
 
 
 def func_fit_2(x: np.ndarray, y: np.ndarray, fit_function):
+    valid = np.isfinite(x) & np.isfinite(y)
+    fit_x = np.asarray(x, dtype=np.float64)[valid]
+    fit_y = np.asarray(y, dtype=np.float64)[valid]
+    if fit_x.size < 3:
+        raise FitConvergenceError("二参数拟合至少需要 3 个有效数据点。")
     try:
         from scipy.optimize import curve_fit
 
-        popt, _ = curve_fit(fit_function, x, y, p0=[1, 1])
+        initial_b = max(float(np.std(fit_x)), 1.0)
+        popt, _ = curve_fit(
+            fit_function,
+            fit_x,
+            fit_y,
+            p0=[0.1, initial_b],
+            bounds=([-np.inf, 1e-9], [np.inf, np.inf]),
+            maxfev=20000,
+        )
         a_fit, b_fit = popt
-    except Exception:
-        a_fit, b_fit = 0.0, 0.0
+    except Exception as exc:
+        raise FitConvergenceError(f"二参数曲线拟合未收敛: {exc}") from exc
     y_fit = fit_function(x, a_fit, b_fit)
-    ss_res = np.sum((y - y_fit) ** 2)
-    ss_tot = np.sum((y - np.mean(y)) ** 2)
+    if not np.all(np.isfinite(y_fit)):
+        raise FitConvergenceError("二参数拟合产生了非有限预测值。")
+    valid_prediction = np.asarray(y_fit)[valid]
+    ss_res = np.sum((fit_y - valid_prediction) ** 2)
+    ss_tot = np.sum((fit_y - np.mean(fit_y)) ** 2)
     r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
     return float(a_fit), float(b_fit), float(r_squared), y_fit
 
 
 def func_fit_3(x: np.ndarray, y: np.ndarray, fit_function):
-    mask = y > 0
+    x_values = np.asarray(x, dtype=np.float64)
+    y_values = np.asarray(y, dtype=np.float64)
+    mask = np.isfinite(x_values) & np.isfinite(y_values) & (y_values > 0)
+    if np.count_nonzero(mask) < 4:
+        raise FitConvergenceError("三参数拟合至少需要 4 个正的有效数据点。")
     try:
         from scipy.optimize import curve_fit
 
-        popt, _ = curve_fit(fit_function, x[mask], y[mask], p0=[1, 1, 1])
+        fit_x = x_values[mask]
+        fit_y = y_values[mask]
+        initial_b = 1.0 / max(float(np.std(fit_x)), 1.0)
+        popt, _ = curve_fit(
+            fit_function,
+            fit_x,
+            fit_y,
+            p0=[float(np.max(fit_y)), initial_b, 1.0],
+            bounds=([0.0, 1e-12, 1e-9], [np.inf, np.inf, np.inf]),
+            maxfev=30000,
+        )
         a_fit, b_fit, c_fit = popt
-    except Exception:
-        a_fit, b_fit, c_fit = 0.0, 0.0, 0.0
+    except Exception as exc:
+        raise FitConvergenceError(f"三参数曲线拟合未收敛: {exc}") from exc
     y_fit = fit_function(x, a_fit, b_fit, c_fit)
+    if not np.all(np.isfinite(y_fit)):
+        raise FitConvergenceError("三参数拟合产生了非有限预测值。")
     ss_res = np.sum((y - y_fit) ** 2)
     ss_tot = np.sum((y - np.mean(y)) ** 2)
     r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
