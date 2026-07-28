@@ -178,26 +178,29 @@ def straighten_center_line_image(
 
 
 def func_fit_2(x: np.ndarray, y: np.ndarray, fit_function):
+    """Fit two parameters with a 2-pixel Huber transition for ridge outliers."""
     valid = np.isfinite(x) & np.isfinite(y)
     fit_x = np.asarray(x, dtype=np.float64)[valid]
     fit_y = np.asarray(y, dtype=np.float64)[valid]
     if fit_x.size < 3:
         raise FitConvergenceError("二参数拟合至少需要 3 个有效数据点。")
     try:
-        from scipy.optimize import curve_fit
+        from scipy.optimize import least_squares
 
         initial_b = max(float(np.std(fit_x)), 1.0)
-        popt, _ = curve_fit(
-            fit_function,
-            fit_x,
-            fit_y,
-            p0=[0.1, initial_b],
+        fit_result = least_squares(
+            lambda parameters: fit_function(fit_x, *parameters) - fit_y,
+            x0=[0.1, initial_b],
             bounds=([-np.inf, 1e-9], [np.inf, np.inf]),
-            maxfev=20000,
+            loss="huber",
+            f_scale=2.0,
+            max_nfev=20000,
         )
-        a_fit, b_fit = popt
+        if not fit_result.success or not np.all(np.isfinite(fit_result.x)):
+            raise RuntimeError(fit_result.message)
+        a_fit, b_fit = fit_result.x
     except Exception as exc:
-        raise FitConvergenceError(f"二参数曲线拟合未收敛: {exc}") from exc
+        raise FitConvergenceError(f"二参数 Huber 曲线拟合未收敛: {exc}") from exc
     y_fit = fit_function(x, a_fit, b_fit)
     if not np.all(np.isfinite(y_fit)):
         raise FitConvergenceError("二参数拟合产生了非有限预测值。")
