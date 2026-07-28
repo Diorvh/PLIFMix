@@ -38,7 +38,6 @@ class DistributionPage(ttk.Frame):
         self.show_center_line = tk.BooleanVar(value=False)
         self.show_fitted_center_line = tk.BooleanVar(value=False)
         self.image_mode = tk.StringVar(value="ori_img")
-        self.use_calibrated_display = tk.BooleanVar(value=True)
         self.save_crosshair = tk.BooleanVar(value=True)
         self.save_targets = {name: tk.BooleanVar(value=True) for name, _position in DISTRIBUTION_SAVE_LAYOUT}
         self.preset_groups: tuple[MixingPreset, ...] = ()
@@ -140,13 +139,6 @@ class DistributionPage(ttk.Frame):
         self._entry(row, "denoise_ratio", "相对去噪阈值", 7)
         self._entry(row, "f_shift", "F 平移", 6)
         self._entry(row, "o_shift", "O 平移", 6)
-        self._entry(row, "global_of", "全局 O/F", 6)
-        ttk.Checkbutton(
-            row,
-            text="绘图使用标定总量",
-            variable=self.use_calibrated_display,
-            command=self._redraw_cached_result,
-        ).pack(side=tk.LEFT, padx=(6, 0))
         return row
 
     def _row_display_options(self, parent) -> ttk.Frame:
@@ -319,7 +311,6 @@ class DistributionPage(ttk.Frame):
         self.vars["o_exp_no"].set(preset.o_exp_no)
         self.vars["save_dr"].set(preset.dr)
         self.vars["save_u"].set(preset.u)
-        self.vars["global_of"].set(str(preset.global_of))
         self.preset_group_var.set(str(index + 1))
         self.preset_total_label.config(text=f"/{len(self.preset_groups)}")
         self.process()
@@ -382,9 +373,8 @@ class DistributionPage(ttk.Frame):
     def _show(self, result) -> None:
         self.latest_result = result
         self.summary.config(text=result.fit_text + "\n" + result.surface_text)
-        images = result.images if self.use_calibrated_display.get() else result.raw_images
         output = self._output_folder()
-        for item in images:
+        for item in result.images:
             display = self.displays.get(item.name)
             if display is None:
                 continue
@@ -463,7 +453,6 @@ class DistributionPage(ttk.Frame):
             "show_center_line": self.show_center_line.get(),
             "show_fitted_center_line": self.show_fitted_center_line.get(),
             "image_mode": self.image_mode.get(),
-            "use_calibrated_display": self.use_calibrated_display.get(),
             "save_crosshair": self.save_crosshair.get(),
             "save_targets": {name: target.get() for name, target in self.save_targets.items()},
         }
@@ -481,7 +470,6 @@ class DistributionPage(ttk.Frame):
         legacy_image_mode = "delta_img" if state.get("show_delta_image") else "fit_img" if state.get("show_fit_image") else "bent_img" if state.get("show_bent_image") else "ori_img"
         image_mode = str(state.get("image_mode", legacy_image_mode))
         self.image_mode.set(image_mode if image_mode in {"ori_img", "bent_img", "fit_img", "delta_img"} else "ori_img")
-        self.use_calibrated_display.set(bool(state.get("use_calibrated_display", self.use_calibrated_display.get())))
         self.save_crosshair.set(bool(state.get("save_crosshair", self.save_crosshair.get())))
         targets = state.get("save_targets", {})
         if isinstance(targets, dict):

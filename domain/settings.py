@@ -79,7 +79,6 @@ class DistributionSettings:
     save_name: str = ""
     zoom: float = 3
     gain: float = 0
-    global_of: float = 1.0
     f_shift: int = 0
     o_shift: int = 0
     center_xf: int = 0

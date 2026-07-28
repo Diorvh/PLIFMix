@@ -26,13 +26,19 @@ class DistributionFitResult:
     fit_text: str
     surface_text: str
     images: list[DisplayImage]
-    raw_images: list[DisplayImage]
     fit_rows: list[list[float]]
     curve_data: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]]
 
 
+@dataclass(frozen=True)
+class DistributionImageData:
+    denoised: np.ndarray
+    normalized: np.ndarray
+    total: float
+
+
 class DistributionFitService:
-    """Fit calibrated individual F, O, and FO mass distributions without mixing metrics."""
+    """Fit independently normalized F, O, and FO mass distributions."""
 
     def run(
         self,
@@ -40,24 +46,11 @@ class DistributionFitService:
         annotations: frozenset[str] = frozenset(),
         image_mode: str = "ori_img",
     ) -> DistributionFitResult:
-        image_folder = Path(settings.image_folder)
-        f_img = read_image(_exp_path(image_folder, settings.f_exp_no)).astype(np.float64)
-        o_img = read_image(_exp_path(image_folder, settings.o_exp_no)).astype(np.float64)
-        fo_img = read_image(_exp_path(image_folder, settings.fo_exp_no)).astype(np.float64)
-        f_img = shift_image(f_img, settings.f_shift)
-        o_img = shift_image(o_img, settings.o_shift)
-
-        mask = (f_img < (np.max(f_img) * settings.denoise_ratio)) & (o_img < (np.max(o_img) * settings.denoise_ratio))
-        f_img[mask] = 0
-        o_img[mask] = 0
-        fo_img[mask] = 0
-        raw_source_images = (f_img, o_img, fo_img)
-        f_img, o_img, fo_img = _calibrate_total_images(f_img, o_img, fo_img, settings.global_of)
+        source_images = _load_distribution_images(settings)
 
         fit_text = ""
         surface_text = ""
         display_images: list[DisplayImage] = []
-        raw_display_images: list[DisplayImage] = []
         fit_rows: list[list[float]] = []
         curve_data: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
         centers = [
@@ -73,13 +66,15 @@ class DistributionFitService:
         ]
         image_names = ["f_img", "o_img", "fo_img"]
         display_names = ["f", "o", "fo"]
-        height, width = f_img.shape
+        height, width = source_images[0].denoised.shape
         need_surface_fit = image_mode in {"fit_img", "delta_img"}
         grid_x = grid_y = None
         if need_surface_fit:
             grid_x, grid_y = np.meshgrid(np.arange(width), np.arange(height), indexing="xy")
 
-        for index, (image, raw_image) in enumerate(zip([f_img, o_img, fo_img], raw_source_images)):
+        for index, source in enumerate(source_images):
+            image = source.denoised
+            norm_img = source.normalized
             cx, cy = centers[index]
             q_center_up, q_center_down = center_line_bounds[index]
             contour_value = 0.0
@@ -101,8 +96,6 @@ class DistributionFitService:
                 f"流量中心线方程：y={a:.4f}*sqrt(x^2+{b * b:.4f})-{a:.4f}*{b:.4f}; R2={r_squared:.4f}     "
             )
 
-            norm_coeff = np.sum(image)
-            norm_img = image / norm_coeff if norm_coeff else image
             hori_px = np.array(range(-settings.hori_fit_width, settings.hori_fit_width))
             hori_py = np.zeros_like(hori_px)
             hori_px_rotated, hori_py_rotated = rotate_points_clockwise(hori_px, hori_py, -rotate_angles[index])
@@ -220,12 +213,16 @@ class DistributionFitService:
                 shown_normalized = np.abs(surface_prediction - bent_img)
             else:
                 shown_normalized = norm_img
-            display_images.append(DisplayImage(display_names[index], shown_normalized * norm_coeff, "jet", special_points))
-            raw_display_images.append(
-                DisplayImage(display_names[index], shown_normalized * np.sum(raw_image), "jet", special_points)
+            display_images.append(
+                DisplayImage(
+                    display_names[index],
+                    shown_normalized * source.total,
+                    "jet",
+                    special_points,
+                )
             )
 
-        return DistributionFitResult(fit_text, surface_text, display_images, raw_display_images, fit_rows, curve_data)
+        return DistributionFitResult(fit_text, surface_text, display_images, fit_rows, curve_data)
 
     def export(self, settings: DistributionSettings, result: DistributionFitResult) -> Path:
         output = Path(settings.output_folder) if path_is_set(settings.output_folder) else Path(settings.image_folder).parent / "distribution_results"
@@ -273,18 +270,42 @@ class DistributionFitService:
         return output
 
 
-def _calibrate_total_images(
-    f_img: np.ndarray,
-    o_img: np.ndarray,
-    fo_img: np.ndarray,
-    global_of: float,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    record_of = float(np.sum(o_img) / np.sum(f_img)) if np.sum(f_img) else 0.0
-    calibrated_o = o_img * global_of / record_of if record_of else o_img
-    combined = f_img + calibrated_o
-    fo_sum = float(np.sum(fo_img))
-    calibrated_fo = fo_img / fo_sum * np.sum(combined) if fo_sum else fo_img
-    return f_img, calibrated_o, calibrated_fo
+def _load_distribution_images(settings: DistributionSettings) -> tuple[DistributionImageData, ...]:
+    image_folder = Path(settings.image_folder)
+    f_image = read_image(_exp_path(image_folder, settings.f_exp_no)).astype(np.float64)
+    o_image = read_image(_exp_path(image_folder, settings.o_exp_no)).astype(np.float64)
+    fo_image = read_image(_exp_path(image_folder, settings.fo_exp_no)).astype(np.float64)
+    shifted_images = (
+        shift_image(f_image, settings.f_shift),
+        shift_image(o_image, settings.o_shift),
+        fo_image,
+    )
+    return tuple(
+        _denoise_and_normalize_distribution(image, settings.denoise_ratio, label)
+        for image, label in zip(shifted_images, ("F", "O", "FO"))
+    )
+
+
+def _denoise_and_normalize_distribution(
+    image: np.ndarray,
+    denoise_ratio: float,
+    label: str,
+) -> DistributionImageData:
+    if not np.isfinite(denoise_ratio) or not 0 <= denoise_ratio <= 1:
+        raise ValueError("相对去噪阈值必须位于 0 到 1 之间。")
+    maximum = float(np.max(image))
+    if maximum <= 0:
+        raise ValueError(f"{label} 图像没有可用于拟合的正值。")
+    denoised = image.copy()
+    denoised[denoised < maximum * denoise_ratio] = 0
+    total = float(np.sum(denoised))
+    if total <= 0:
+        raise ValueError(f"{label} 图像去噪后总量为 0，请降低相对去噪阈值。")
+    return DistributionImageData(
+        denoised=denoised,
+        normalized=denoised / total,
+        total=total,
+    )
 
 
 def _merge_special_points(point_sets: list[tuple[np.ndarray, np.ndarray]]) -> tuple[np.ndarray, np.ndarray] | list:
