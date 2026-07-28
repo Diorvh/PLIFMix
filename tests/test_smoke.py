@@ -12,6 +12,7 @@ import openpyxl
 
 from PLIFv2.algorithms.average import average_image_sets, average_images, split_average_tasks
 from PLIFv2.core.config_io import load_settings, save_settings
+from PLIFv2.core.experiment_images import load_experiment_triplet
 from PLIFv2.core.image_io import write_tif
 from PLIFv2.domain.settings import (
     AverageSettings,
@@ -279,6 +280,20 @@ class WorkflowSmokeTests(unittest.TestCase):
         with self.assertRaisesRegex(FileExistsError, "Duplicate Davis output"):
             DavisService().import_export_folder(DavisSettings(davis_export_folder=export))
 
+    def test_davis_restores_decimal_gain(self) -> None:
+        export = self.root / "davis-decimal-gain"
+        export.mkdir()
+        write_tif(
+            export / "实验编号7-GAIN2.5_Image.tif",
+            np.ones((2, 2), dtype=np.uint16) * 25,
+        )
+        output = self.root / "davis-decimal-output"
+        result = DavisService().import_export_folder(
+            DavisSettings(davis_export_folder=export, output_folder=output)
+        )
+        self.assertEqual(result.npy_count, 1)
+        self.assertAlmostEqual(float(np.load(output / "实验编号7.npy")[0, 0]), 10)
+
     def test_calibration_noise_and_matrix_tools(self) -> None:
         folder = self.root / "calibration"
         folder.mkdir()
@@ -373,11 +388,41 @@ class WorkflowSmokeTests(unittest.TestCase):
         manual = service.run_manual_display(manual_settings)
         self.assertEqual(len(manual.images), 11)
         self.assertTrue(service.export_mix_curve(manual_settings, manual).exists())
-        distribution_settings = DistributionSettings(image_folder=folder, f_exp_no="1", o_exp_no="2", center_xf=45, center_yf=40, center_xo=70, center_yo=40, q_center_up=10, q_center_down=70, max_k=5, output_folder=self.root / "distribution")
+        distribution_settings = DistributionSettings(
+            image_folder=folder,
+            f_exp_no="1",
+            o_exp_no="2",
+            fo_exp_no="3",
+            center_xf=45,
+            center_yf=40,
+            center_xo=70,
+            center_yo=40,
+            center_xfo=58,
+            center_yfo=40,
+            q_center_up_f=10,
+            q_center_down_f=70,
+            q_center_up_o=10,
+            q_center_down_o=70,
+            q_center_up_fo=10,
+            q_center_down_fo=70,
+            max_k=5,
+            hori_fit_width=40,
+            output_folder=self.root / "distribution",
+        )
         distribution_service = DistributionFitService()
-        distribution = distribution_service.run(distribution_settings, "nonshow", "ori_img")
-        self.assertGreaterEqual(len(distribution.images), 2)
+        distribution = distribution_service.run(distribution_settings, frozenset(), "ori_img")
+        self.assertEqual(len(distribution.images), 3)
         self.assertTrue(distribution_service.export(distribution_settings, distribution).exists())
+
+    def test_experiment_triplet_rejects_shape_mismatch(self) -> None:
+        folder = self.root / "shape-mismatch"
+        folder.mkdir()
+        np.save(folder / "实验编号1.npy", np.ones((3, 4)))
+        np.save(folder / "实验编号2.npy", np.ones((3, 4)))
+        np.save(folder / "实验编号3.npy", np.ones((4, 4)))
+
+        with self.assertRaisesRegex(ValueError, "尺寸不一致"):
+            load_experiment_triplet(folder, "1", "2", "3")
 
     def test_tool_algorithms(self) -> None:
         array = np.arange(12).reshape(3, 4)

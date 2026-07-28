@@ -12,8 +12,8 @@ import numpy as np
 from PIL import Image, ImageTk
 
 from PLIFv2.algorithms.visualization import blacked_jet_colormap
-from PLIFv2.core.image_io import read_image
-from PLIFv2.ui.components.viewer_panel import _scale_gray_for_display, _to_16bit_single_channel
+from PLIFv2.core.image_io import extract_plif_signal, read_image
+from PLIFv2.ui.components.viewer_panel import _scale_gray_for_display
 
 
 class PlayerPerformanceTests(unittest.TestCase):
@@ -46,17 +46,26 @@ class PlayerPerformanceTests(unittest.TestCase):
         def render_frame(path: Path, frame_index: int) -> None:
             frame_started = time.perf_counter_ns()
             original = measure("read and decode", lambda: read_image(path))
-            raw_single = measure("green channel and 16-bit conversion", lambda: _to_16bit_single_channel(original))
+            raw_single = measure(
+                "compact 8-bit green channel",
+                lambda: np.ascontiguousarray(extract_plif_signal(original)),
+            )
             image = raw_single
 
             def apply_threshold() -> None:
                 nonlocal image
                 image = image.copy()
-                image[image <= 5 * 256] = 0
+                image[image <= 5] = 0
 
             measure("8-bit denoise threshold", apply_threshold)
-            minimum, maximum = measure("minimum and maximum scan", lambda: (np.min(image), np.max(image)))
-            scaled = measure("gain scaling and uint8 conversion", lambda: _scale_gray_for_display(image, 10.0))
+            minimum, maximum = measure(
+                "minimum and maximum scan",
+                lambda: (np.min(image) * 256, np.max(image) * 256),
+            )
+            scaled = measure(
+                "gain scaling and uint8 conversion",
+                lambda: _scale_gray_for_display(image, 10.0, value_scale=256.0),
+            )
             display = measure("colormap", lambda: cv2.applyColorMap(scaled, blacked_jet_colormap()))
             shown = measure("zoom resize", lambda: cv2.resize(display, (display.shape[1], display.shape[0]), interpolation=cv2.INTER_NEAREST))
             frame_image = measure("BGR to RGB and PIL image", lambda: Image.fromarray(cv2.cvtColor(shown, cv2.COLOR_BGR2RGB)))
