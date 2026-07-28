@@ -542,11 +542,42 @@ class DistributionSummaryPanel(ttk.Frame):
                 ("center_r_squared", "R²"),
             ),
         ).pack(fill=tk.X, pady=(0, 3))
-        self._build_group(
-            "distribution",
-            "强度分布拟合",
-            (("horizontal", "横向拟合"), ("vertical", "纵向拟合"), ("joint", "联合分布")),
-        ).pack(fill=tk.X)
+        distribution_group = ttk.LabelFrame(self, text="强度分布拟合")
+        distribution_group.pack(fill=tk.X)
+        self._build_fit_section(
+            distribution_group,
+            "horizontal",
+            "横向拟合",
+            (
+                ("horizontal_equation", "方程"),
+                ("horizontal_a", "a"),
+                ("horizontal_b", "b"),
+                ("horizontal_c", "c"),
+                ("horizontal_r_squared", "R²"),
+            ),
+        ).pack(anchor=tk.W)
+        self._build_fit_section(
+            distribution_group,
+            "vertical",
+            "纵向拟合",
+            (
+                ("vertical_equation", "方程"),
+                ("vertical_a", "a"),
+                ("vertical_b", "b"),
+                ("vertical_c", "c"),
+                ("vertical_r_squared", "R²"),
+            ),
+        ).pack(anchor=tk.W, pady=(3, 0))
+        self._build_fit_section(
+            distribution_group,
+            "joint",
+            "联合分布",
+            (
+                ("joint_equation", "方程"),
+                ("joint_rho", "ρ"),
+                ("joint_r_squared", "R²"),
+            ),
+        ).pack(anchor=tk.W, pady=(3, 0))
 
     def _build_group(self, group_name: str, title: str, columns: tuple[tuple[str, str], ...]) -> ttk.LabelFrame:
         group = ttk.LabelFrame(self, text=title)
@@ -580,11 +611,76 @@ class DistributionSummaryPanel(ttk.Frame):
                 self.cells[(group_name, image_name, field)] = cell
         return group
 
+    def _build_fit_section(
+        self,
+        parent,
+        group_name: str,
+        title: str,
+        columns: tuple[tuple[str, str], ...],
+    ) -> ttk.Frame:
+        section = ttk.Frame(parent)
+        ttk.Label(section, text=title, width=9, anchor=tk.W).grid(
+            row=0,
+            column=0,
+            rowspan=4,
+            padx=(4, 8),
+            sticky="nw",
+        )
+        ttk.Label(section, text="图像", width=5, anchor=tk.W).grid(row=0, column=1, padx=4, sticky="w")
+        for column_index, (_field, heading) in enumerate(columns, start=2):
+            ttk.Label(section, text=heading, anchor=tk.W).grid(
+                row=0,
+                column=column_index,
+                padx=4,
+                sticky="w",
+            )
+
+        for row_index, image_name in enumerate(("F", "O", "FO"), start=1):
+            ttk.Label(section, text=image_name, width=5, anchor=tk.W).grid(
+                row=row_index,
+                column=1,
+                padx=4,
+                pady=1,
+                sticky="w",
+            )
+            for column_index, (field, _heading) in enumerate(columns, start=2):
+                numeric = not field.endswith("_equation")
+                cell = ttk.Label(section, text="-", anchor=tk.E if numeric else tk.W)
+                cell.grid(
+                    row=row_index,
+                    column=column_index,
+                    padx=4,
+                    pady=1,
+                    sticky="e" if numeric else "w",
+                )
+                self.cells[(group_name, image_name, field)] = cell
+        return section
+
     def set_rows(self, rows) -> None:
         for row in rows:
             for group_name, fields in (
                 ("geometry", ("contour", "center_line", "center_a", "center_b", "center_r_squared")),
-                ("distribution", ("horizontal", "vertical", "joint")),
+                (
+                    "horizontal",
+                    (
+                        "horizontal_equation",
+                        "horizontal_a",
+                        "horizontal_b",
+                        "horizontal_c",
+                        "horizontal_r_squared",
+                    ),
+                ),
+                (
+                    "vertical",
+                    (
+                        "vertical_equation",
+                        "vertical_a",
+                        "vertical_b",
+                        "vertical_c",
+                        "vertical_r_squared",
+                    ),
+                ),
+                ("joint", ("joint_equation", "joint_rho", "joint_r_squared")),
             ):
                 for field in fields:
                     cell = self.cells.get((group_name, row.image_name, field))

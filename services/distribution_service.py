@@ -46,9 +46,19 @@ class DistributionSummaryRow:
     center_a: str
     center_b: str
     center_r_squared: str
-    horizontal: str
-    vertical: str
-    joint: str
+    horizontal_equation: str
+    horizontal_a: str
+    horizontal_b: str
+    horizontal_c: str
+    horizontal_r_squared: str
+    vertical_equation: str
+    vertical_a: str
+    vertical_b: str
+    vertical_c: str
+    vertical_r_squared: str
+    joint_equation: str
+    joint_rho: str
+    joint_r_squared: str
 
 
 @dataclass(frozen=True)
@@ -159,12 +169,19 @@ class DistributionFitService:
             try:
                 ah, bh, ch, r_squared_h, hori_predicted = func_fit_3(hori_px, hori_intensity, fit_func)
                 curve_data[f"横向分布_{image_names[index]}"] = (hori_px, hori_intensity, hori_predicted)
+                horizontal_equation = "p=a/(x²b²+1)^c"
+                horizontal_a = f"{ah:.4e}"
+                horizontal_b = f"{bh:.4f}"
+                horizontal_c = f"{ch:.4f}"
+                horizontal_r_squared = f"{r_squared_h:.4f}"
                 horizontal_text = (
                     f"y={ah * 1e4:.4f}E-4/"
                     f"(x^2*{bh:.4f}^2+1)^{ch:.4f}; R²={r_squared_h:.4f}"
                 )
             except FitConvergenceError as exc:
                 ah = bh = ch = r_squared_h = np.nan
+                horizontal_equation = f"拟合失败：{exc}"
+                horizontal_a = horizontal_b = horizontal_c = horizontal_r_squared = "-"
                 horizontal_text = f"拟合失败：{exc}"
                 warnings.append(f"{image_names[index]} {horizontal_text}")
             fit_text += f"{image_names[index]}{horizontal_text}     "
@@ -183,16 +200,25 @@ class DistributionFitService:
                         verti_intensity,
                         vertical_predicted,
                     )
+                    vertical_equation = "p=a/(y²b²+1)^c"
+                    vertical_a = f"{av:.4e}"
+                    vertical_b = f"{bv:.4f}"
+                    vertical_c = f"{cv:.4f}"
+                    vertical_r_squared = f"{r_squared_v:.4f}"
                     vertical_text = (
                         f"y={av * 1e4:.4f}E-4/"
                         f"(x^2*{bv:.4f}^2+1)^{cv:.4f}; R²={r_squared_v:.4f}"
                     )
                 except FitConvergenceError as exc:
                     av = bv = cv = r_squared_v = np.nan
+                    vertical_equation = f"拟合失败：{exc}"
+                    vertical_a = vertical_b = vertical_c = vertical_r_squared = "-"
                     vertical_text = f"拟合失败：{exc}"
                     warnings.append(f"{image_names[index]} {vertical_text}")
             else:
                 av = bv = cv = r_squared_v = np.nan
+                vertical_equation = "未执行：中心线拟合没有有效数据"
+                vertical_a = vertical_b = vertical_c = vertical_r_squared = "-"
                 vertical_text = "未执行：中心线拟合没有有效数据"
             fit_text += f"{image_names[index]}{vertical_text}\n"
 
@@ -245,9 +271,14 @@ class DistributionFitService:
                 best_rho = float(res.x)
                 r_squared_p = float(1 - (res.fun / ss_tot)) if ss_tot != 0 else 0.0
                 surface_prediction = predict_img_func(best_rho)
+                joint_equation = "p∝[(x²bₕ²+1)^cₕ+(y²bᵥ²+1)^cᵥ+(|bₕx||bᵥy|)^ρ-1]⁻¹"
+                joint_rho = f"{best_rho:.4f}"
+                joint_r_squared = f"{r_squared_p:.4f}"
                 joint_text = f"rho={best_rho:.4f}; R²={r_squared_p:.4f}"
                 surface_text += f"{image_names[index]}横纵向联合分布拟合：{joint_text}\n"
             else:
+                joint_equation = "未执行"
+                joint_rho = joint_r_squared = "-"
                 joint_text = "未执行"
                 surface_text += f"{image_names[index]}横纵向联合分布拟合：未执行\n"
             fit_rows.append(
@@ -307,9 +338,19 @@ class DistributionFitService:
                     center_a=center_a,
                     center_b=center_b,
                     center_r_squared=center_r_squared,
-                    horizontal=horizontal_text,
-                    vertical=vertical_text,
-                    joint=joint_text,
+                    horizontal_equation=horizontal_equation,
+                    horizontal_a=horizontal_a,
+                    horizontal_b=horizontal_b,
+                    horizontal_c=horizontal_c,
+                    horizontal_r_squared=horizontal_r_squared,
+                    vertical_equation=vertical_equation,
+                    vertical_a=vertical_a,
+                    vertical_b=vertical_b,
+                    vertical_c=vertical_c,
+                    vertical_r_squared=vertical_r_squared,
+                    joint_equation=joint_equation,
+                    joint_rho=joint_rho,
+                    joint_r_squared=joint_r_squared,
                 )
             )
 
