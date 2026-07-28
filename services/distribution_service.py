@@ -8,6 +8,10 @@ import openpyxl
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
+from PLIFv2.algorithms.distribution import (
+    DistributionRegistrationEstimate,
+    estimate_distribution_registration,
+)
 from PLIFv2.algorithms.mixing import (
     calc_flowrate_contour,
     fit_center_line,
@@ -35,6 +39,13 @@ class DistributionImageData:
     denoised: np.ndarray
     normalized: np.ndarray
     total: float
+
+
+@dataclass(frozen=True)
+class DistributionRegistrationResult:
+    f: DistributionRegistrationEstimate
+    o: DistributionRegistrationEstimate
+    fo: DistributionRegistrationEstimate
 
 
 class DistributionFitService:
@@ -223,6 +234,24 @@ class DistributionFitService:
             )
 
         return DistributionFitResult(fit_text, surface_text, display_images, fit_rows, curve_data)
+
+    def estimate_registration(self, settings: DistributionSettings) -> DistributionRegistrationResult:
+        source_images = _load_distribution_images(settings)
+        bounds = (
+            (settings.q_center_up_f, settings.q_center_down_f),
+            (settings.q_center_up_o, settings.q_center_down_o),
+            (settings.q_center_up_fo, settings.q_center_down_fo),
+        )
+        estimates = tuple(
+            estimate_distribution_registration(
+                source.denoised,
+                up_limit,
+                down_limit,
+                settings.max_k,
+            )
+            for source, (up_limit, down_limit) in zip(source_images, bounds)
+        )
+        return DistributionRegistrationResult(*estimates)
 
     def export(self, settings: DistributionSettings, result: DistributionFitResult) -> Path:
         output = Path(settings.output_folder) if path_is_set(settings.output_folder) else Path(settings.image_folder).parent / "distribution_results"

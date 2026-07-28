@@ -7,7 +7,11 @@ from PLIFv2.services.average_service import AverageImageService, AverageResult
 from PLIFv2.services.calibration_service import CalibrationService
 from PLIFv2.services.davis_service import DavisImportResult, DavisService
 from PLIFv2.services.intensifier_service import CorrectionResult, IntensifierCorrectionService, MatrixFitResult
-from PLIFv2.services.distribution_service import DistributionFitResult, DistributionFitService
+from PLIFv2.services.distribution_service import (
+    DistributionFitResult,
+    DistributionFitService,
+    DistributionRegistrationResult,
+)
 from PLIFv2.services.mixing_service import ManualDisplayResult, ManualMixingResult, MixingService
 from PLIFv2.services.noise_service import NoiseAnalysisService
 from PLIFv2.algorithms.mixing import ShiftSearchResult
@@ -143,6 +147,9 @@ class PLIFActions:
         result = self.distribution_service.run(deepcopy(self.state.settings.distribution), annotations, image_mode)
         self.state.save()
         return result
+
+    def estimate_distribution_registration(self) -> DistributionRegistrationResult:
+        return self.distribution_service.estimate_registration(deepcopy(self.state.settings.distribution))
 
     def export_distribution_result(self, result: DistributionFitResult):
         output = self.distribution_service.export(self.state.settings.distribution, result)

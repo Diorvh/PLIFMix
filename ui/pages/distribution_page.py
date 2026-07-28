@@ -46,8 +46,10 @@ class DistributionPage(ttk.Frame):
         self.displays: dict[str, ImageDisplay] = {}
         self.latest_result = None
         self.request_id = 0
+        self.pending_status_notice = ""
         self._setup_ui()
         self.live_task = LatestTaskRunner(self, LabelLog(self.status))
+        self.registration_task = LatestTaskRunner(self, LabelLog(self.status), delay_ms=0)
 
     def _setup_ui(self) -> None:
         control_area = ttk.Frame(self)
@@ -171,6 +173,7 @@ class DistributionPage(ttk.Frame):
         self._entry(row, "thres_contour", "轮廓比例", 6)
         self._entry(row, "max_k", "最大值个数", 5)
         self._entry(row, "hori_fit_width", "横向拟合半宽", 7)
+        ttk.Button(row, text="自动原点和偏转角", command=self.auto_registration).pack(side=tk.LEFT, padx=(8, 0))
         return row
 
     def _image_parameter_panel(self, parent, name: str, label: str) -> ttk.Frame:
@@ -370,6 +373,36 @@ class DistributionPage(ttk.Frame):
             "计算质量分布...",
         )
 
+    def auto_registration(self) -> None:
+        try:
+            self._save_vars()
+        except Exception as exc:
+            self.status.config(text=f"错误: {exc}")
+            return
+        self.request_id += 1
+        request_id = self.request_id
+
+        def done(result) -> None:
+            if request_id != self.request_id:
+                return
+            estimates = {"f": result.f, "o": result.o, "fo": result.fo}
+            labels = {"f": "F", "o": "O", "fo": "FO"}
+            notices = []
+            for name, estimate in estimates.items():
+                self.vars[f"center_x{name}"].set(str(estimate.center_x))
+                self.vars[f"center_y{name}"].set(str(estimate.center_y))
+                self.vars[f"rotate_angle_{name}"].set(f"{estimate.angle_degrees:.2f}")
+                quality = "回退初值，需人工检查" if estimate.used_fallback else f"拟合 R²={estimate.fit_r_squared:.3f}"
+                notices.append(f"{labels[name]}: {quality}")
+            self.pending_status_notice = "；".join(notices)
+            self.process()
+
+        self.registration_task.submit(
+            self.actions.estimate_distribution_registration,
+            done,
+            "自动计算 F、O、FO 原点和偏转角...",
+        )
+
     def _show(self, result) -> None:
         self.latest_result = result
         self.summary.config(text=result.fit_text + "\n" + result.surface_text)
@@ -390,7 +423,11 @@ class DistributionPage(ttk.Frame):
                 special_points=item.special_points,
                 save_folder=output,
             )
-        self.status.config(text="计算完成")
+        status = "计算完成"
+        if self.pending_status_notice:
+            status += f"；{self.pending_status_notice}"
+            self.pending_status_notice = ""
+        self.status.config(text=status)
 
     def save_selected_outputs(self) -> None:
         try:
