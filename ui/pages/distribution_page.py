@@ -544,8 +544,10 @@ class DistributionSummaryPanel(ttk.Frame):
         ).pack(fill=tk.X, pady=(0, 3))
         distribution_group = ttk.LabelFrame(self, text="强度分布拟合")
         distribution_group.pack(fill=tk.X)
+        distribution_sections = ttk.Frame(distribution_group)
+        distribution_sections.pack(anchor=tk.W)
         self._build_fit_section(
-            distribution_group,
+            distribution_sections,
             "horizontal",
             "横向拟合",
             (
@@ -555,9 +557,9 @@ class DistributionSummaryPanel(ttk.Frame):
                 ("horizontal_c", "c"),
                 ("horizontal_r_squared", "R²"),
             ),
-        ).pack(anchor=tk.W)
+        ).pack(side=tk.LEFT, anchor=tk.NW)
         self._build_fit_section(
-            distribution_group,
+            distribution_sections,
             "vertical",
             "纵向拟合",
             (
@@ -567,9 +569,9 @@ class DistributionSummaryPanel(ttk.Frame):
                 ("vertical_c", "c"),
                 ("vertical_r_squared", "R²"),
             ),
-        ).pack(anchor=tk.W, pady=(3, 0))
+        ).pack(side=tk.LEFT, anchor=tk.NW, padx=(10, 0))
         self._build_fit_section(
-            distribution_group,
+            distribution_sections,
             "joint",
             "联合分布",
             (
@@ -577,7 +579,7 @@ class DistributionSummaryPanel(ttk.Frame):
                 ("joint_rho", "ρ"),
                 ("joint_r_squared", "R²"),
             ),
-        ).pack(anchor=tk.W, pady=(3, 0))
+        ).pack(side=tk.LEFT, anchor=tk.NW, padx=(10, 0))
 
     def _build_group(self, group_name: str, title: str, columns: tuple[tuple[str, str], ...]) -> ttk.LabelFrame:
         group = ttk.LabelFrame(self, text=title)
