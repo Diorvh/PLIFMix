@@ -20,6 +20,7 @@ class CorrectionResult:
     processed_count: int
     outputs: list[dict[str, Path]]
     records: list["CorrectionRecord"]
+    unmatched_paths: tuple[Path, ...] = ()
 
 
 @dataclass
@@ -50,6 +51,8 @@ class IntensifierCorrectionService:
     def apply_paths(self, settings: GainCorrectionSettings, paths: list[Path]) -> CorrectionResult:
         if not paths:
             raise ValueError("No image files selected.")
+        paths = [Path(path) for path in paths]
+        _ensure_unique_output_names(paths)
         matrix_path = Path(settings.matrix_path)
         if not matrix_path.exists():
             raise FileNotFoundError(f"Correction matrix does not exist: {matrix_path}")
@@ -58,7 +61,7 @@ class IntensifierCorrectionService:
         records: list[CorrectionRecord] = []
         for path in paths:
             outputs = apply_correction_matrix(path, matrix, output_folder)
-            records.append(CorrectionRecord(Path(path), matrix_path, None, outputs))
+            records.append(CorrectionRecord(path, matrix_path, None, outputs))
         return CorrectionResult(len(records), [record.outputs for record in records], records)
 
     def apply_by_excel(self, settings: GainCorrectionSettings) -> CorrectionResult:
@@ -92,17 +95,33 @@ class IntensifierCorrectionService:
         output_folder = Path(settings.output_folder) if path_is_set(settings.output_folder) else image_folder.parent / "intensifier_corrected"
         records: list[CorrectionRecord] = []
         image_paths = sorted(path for path in image_folder.rglob("*.npy") if path.is_file())
+        unmatched_paths: list[Path] = []
+        matched_paths: list[tuple[Path, int, int]] = []
         for image_path in image_paths:
             exp_no = _experiment_number(image_path.stem)
             if exp_no is None or exp_no not in gain_by_experiment:
-                continue
-            gain = gain_by_experiment[exp_no]
+                unmatched_paths.append(image_path)
+            else:
+                matched_paths.append((image_path, exp_no, gain_by_experiment[exp_no]))
+        _ensure_unique_output_names([path for path, _exp_no, _gain in matched_paths])
+
+        matrix_cache: dict[int, np.ndarray] = {}
+        for image_path, exp_no, gain in matched_paths:
             matrix_path = matrix_folder / f"Gain{gain}.npy"
             if not matrix_path.exists():
                 raise FileNotFoundError(f"Experiment {exp_no}: matrix not found: {matrix_path}")
-            outputs = apply_correction_matrix(image_path, np.load(matrix_path), output_folder)
+            matrix = matrix_cache.get(gain)
+            if matrix is None:
+                matrix = np.load(matrix_path)
+                matrix_cache[gain] = matrix
+            outputs = apply_correction_matrix(image_path, matrix, output_folder)
             records.append(CorrectionRecord(image_path, matrix_path, gain, outputs))
-        return CorrectionResult(len(records), [record.outputs for record in records], records)
+        return CorrectionResult(
+            len(records),
+            [record.outputs for record in records],
+            records,
+            tuple(unmatched_paths),
+        )
 
     def fit_matrix_from_folder(self, folder: str | Path, output_folder: str | Path | None = None) -> MatrixFitResult:
         folder = Path(folder)
@@ -135,3 +154,14 @@ def _experiment_number(stem: str) -> int | None:
         return int(match.group(1))
     match = re.search(r"(\d+)", stem)
     return int(match.group(1)) if match else None
+
+
+def _ensure_unique_output_names(paths: list[Path]) -> None:
+    by_stem: dict[str, Path] = {}
+    for path in paths:
+        previous = by_stem.get(path.stem)
+        if previous is not None and previous.resolve() != path.resolve():
+            raise FileExistsError(
+                f"输出文件名冲突: {previous} 与 {path} 都会保存为 {path.stem}.npy"
+            )
+        by_stem[path.stem] = path

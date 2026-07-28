@@ -76,6 +76,8 @@ class DavisService:
             gain = _extract_gain(path.name)
             if gain is None:
                 raise ValueError(f"Davis output has no GAIN value in its file name: {path.name}")
+            if gain <= 0:
+                raise ValueError(f"Davis output GAIN must be greater than zero: {path.name}")
             image = read_image(path).astype(np.float64) / gain
             save_float_image(image, output, experiment_name)
             tif_count += 1
@@ -85,7 +87,7 @@ class DavisService:
 
 def _first_file(folder: Path) -> Path | None:
     for item in sorted(folder.iterdir(), key=lambda item: item.name):
-        if item.is_file():
+        if item.is_file() and item.suffix.lower() in {".tif", ".tiff", ".png", ".bmp", ".npy"}:
             return item
     return None
 
@@ -99,5 +101,5 @@ def _extract_experiment_name(filename: str) -> str:
 
 
 def _extract_gain(filename: str) -> float | None:
-    match = re.search(r"GAIN([\d.]+)", filename)
+    match = re.search(r"GAIN(\d+(?:\.\d+)?)", filename, flags=re.IGNORECASE)
     return float(match.group(1)) if match else None

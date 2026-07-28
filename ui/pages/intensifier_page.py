@@ -215,6 +215,12 @@ class IntensifierPage(ttk.Frame):
             for record in result.records:
                 gain_text = f", Gain={record.gain:g}" if record.gain is not None else ""
                 self.log.write(f"{record.image_path.name}{gain_text} -> {record.matrix_path.name}")
+            if result.unmatched_paths:
+                self.log.write(f"未匹配 Excel 实验编号，跳过 {len(result.unmatched_paths)} 个文件:")
+                for path in result.unmatched_paths[:20]:
+                    self.log.write(f"  {path}")
+                if len(result.unmatched_paths) > 20:
+                    self.log.write(f"  ...其余 {len(result.unmatched_paths) - 20} 个文件省略")
 
         run_in_background(self, self.log, work, done, message)
 

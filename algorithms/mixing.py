@@ -61,17 +61,20 @@ def calc_flowrate_contour(image: np.ndarray, thres_contour: float) -> tuple[floa
     index = min(index, len(sorted_values) - 1)
     contour_value = float(sorted_values[index])
 
-    height, width = image.shape
-    boundary_points: set[tuple[int, int]] = set()
-    for y in range(height):
-        for x in range(width):
-            for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                ny, nx = y + dy, x + dx
-                if 0 <= ny < height and 0 <= nx < width:
-                    if (image[y, x] - contour_value) * (image[ny, nx] - contour_value) < 0:
-                        boundary_points.add((y, x))
-                        boundary_points.add((ny, nx))
-    return contour_value, boundary_points
+    above = image > contour_value
+    below = image < contour_value
+    boundary = np.zeros(image.shape, dtype=bool)
+
+    horizontal_crossing = (above[:, :-1] & below[:, 1:]) | (below[:, :-1] & above[:, 1:])
+    boundary[:, :-1] |= horizontal_crossing
+    boundary[:, 1:] |= horizontal_crossing
+
+    vertical_crossing = (above[:-1, :] & below[1:, :]) | (below[:-1, :] & above[1:, :])
+    boundary[:-1, :] |= vertical_crossing
+    boundary[1:, :] |= vertical_crossing
+
+    rows, columns = np.nonzero(boundary)
+    return contour_value, set(zip(rows.tolist(), columns.tolist()))
 
 
 def rotate_points_clockwise(x: np.ndarray, y: np.ndarray, angle_degrees: float) -> tuple[np.ndarray, np.ndarray]:
@@ -92,12 +95,13 @@ def fit_center_line(
 ) -> tuple[float, float, float, tuple[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray], np.ndarray]:
     up_limit = max(0, up_limit)
     down_limit = min(image.shape[0] - 1, down_limit)
-    max_k = max(1, max_k)
+    max_k = min(max(1, max_k), image.shape[1])
     if up_limit > down_limit:
         raise FitConvergenceError("中心线上界必须小于或等于下界。")
 
     source_rows = image[up_limit : down_limit + 1]
-    top_k_indices = np.argsort(source_rows, axis=1)[:, -max_k:]
+    partition_index = source_rows.shape[1] - max_k
+    top_k_indices = np.argpartition(source_rows, partition_index, axis=1)[:, -max_k:]
     top_k_values = np.take_along_axis(source_rows, top_k_indices, axis=1)
     valid_rows = np.all(top_k_values != 0, axis=1)
     py_arr = np.arange(up_limit, down_limit + 1, dtype=np.int32)[valid_rows]
@@ -280,12 +284,16 @@ def calculate_shift_search(
     f_shifts = list(range(*f_range))
     o_shifts = list(range(*o_range))
     workers = min(process_count or cpu_count(), max(1, len(f_shifts)))
-    tasks = [(f_shift, o_shifts, images, coords_me, global_mix_ratio) for f_shift in f_shifts]
     if workers <= 1:
+        tasks = [(f_shift, o_shifts, images, coords_me, global_mix_ratio) for f_shift in f_shifts]
         rows = [_process_f_shift(task) for task in tasks]
     else:
-        with Pool(processes=workers) as pool:
-            rows = pool.map(_process_f_shift, tasks)
+        with Pool(
+            processes=workers,
+            initializer=_initialize_shift_worker,
+            initargs=(images, coords_me, global_mix_ratio),
+        ) as pool:
+            rows = pool.map(_process_cached_f_shift, [(f_shift, o_shifts) for f_shift in f_shifts])
 
     abs_matrix = np.zeros((len(f_shifts), len(o_shifts)))
     me1_matrix = np.zeros_like(abs_matrix)
@@ -309,3 +317,28 @@ def _process_f_shift(args: tuple[int, Iterable[int], tuple[np.ndarray, np.ndarra
         calc_result(shifted_f, shift_image(o_img, o_shift), fo_img, coords_me, global_mix_ratio)
         for o_shift in o_shifts
     ]
+
+
+_SHIFT_WORKER_IMAGES: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
+_SHIFT_WORKER_COORDS: tuple[np.ndarray, np.ndarray] | None = None
+_SHIFT_WORKER_RATIO = 0.0
+
+
+def _initialize_shift_worker(
+    images: tuple[np.ndarray, np.ndarray, np.ndarray],
+    coords_me: tuple[np.ndarray, np.ndarray],
+    global_mix_ratio: float,
+) -> None:
+    global _SHIFT_WORKER_IMAGES, _SHIFT_WORKER_COORDS, _SHIFT_WORKER_RATIO
+    _SHIFT_WORKER_IMAGES = images
+    _SHIFT_WORKER_COORDS = coords_me
+    _SHIFT_WORKER_RATIO = global_mix_ratio
+
+
+def _process_cached_f_shift(args: tuple[int, Iterable[int]]):
+    if _SHIFT_WORKER_IMAGES is None or _SHIFT_WORKER_COORDS is None:
+        raise RuntimeError("平移搜索子进程尚未初始化。")
+    f_shift, o_shifts = args
+    return _process_f_shift(
+        (f_shift, o_shifts, _SHIFT_WORKER_IMAGES, _SHIFT_WORKER_COORDS, _SHIFT_WORKER_RATIO)
+    )
