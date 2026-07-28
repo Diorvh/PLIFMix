@@ -386,7 +386,11 @@ class DistributionPage(ttk.Frame):
                 self.vars[f"center_x{name}"].set(str(estimate.center_x))
                 self.vars[f"center_y{name}"].set(str(estimate.center_y))
                 self.vars[f"rotate_angle_{name}"].set(str(estimate.angle_degrees))
-                quality = "回退初值，需人工检查" if estimate.used_fallback else f"拟合 R²={estimate.fit_r_squared:.3f}"
+                quality = (
+                    "回退初值，需人工检查"
+                    if estimate.used_fallback
+                    else f"两侧亮脊对称误差={estimate.symmetry_error_pixels:.1f} px"
+                )
                 notices.append(f"{labels[name]}: {quality}")
             self.pending_status_notice = "；".join(notices)
             self.process()
