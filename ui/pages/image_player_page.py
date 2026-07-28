@@ -22,14 +22,17 @@ def _read_player_raw_frame(path: Path) -> np.ndarray:
     # retaining the three-channel source image through a NumPy view.
     return np.ascontiguousarray(image)
 
-def _read_player_raw_batch(indexed_paths: tuple[tuple[int, Path], ...]) -> tuple[list[tuple[int, np.ndarray | None]], int]:
-    frames: list[tuple[int, np.ndarray | None]] = []
+def _read_player_raw_batch(
+    indexed_paths: tuple[tuple[int, Path], ...],
+) -> tuple[list[tuple[int, np.ndarray | None, tuple[float, float] | None]], int]:
+    frames: list[tuple[int, np.ndarray | None, tuple[float, float] | None]] = []
     failed = 0
     for frame_index, path in indexed_paths:
         try:
-            frames.append((frame_index, _read_player_raw_frame(path)))
+            frame = _read_player_raw_frame(path)
+            frames.append((frame_index, frame, (float(np.min(frame)), float(np.max(frame)))))
         except Exception:
-            frames.append((frame_index, None))
+            frames.append((frame_index, None, None))
             failed += 1
     return frames, failed
 
@@ -40,6 +43,7 @@ class ImagePlayerPage(ttk.Frame):
         self.index = 0
         self.play_delta = 0
         self._frame_cache: list[np.ndarray | None] = []
+        self._cache_ranges: list[tuple[float, float] | None] = []
         self._cache_loaded = 0
         self._cache_failed = 0
         self._cache_bytes = 0
@@ -164,6 +168,7 @@ class ImagePlayerPage(ttk.Frame):
         self.play_delta = 0
         self.pixel_plot.reset()
         self._frame_cache = []
+        self._cache_ranges = []
         self._plot_index_set = set()
         self.files = list_image_files(folder, (".png", ".tif", ".tiff", ".bmp", ".npy"))
         if not self.files:
@@ -223,6 +228,7 @@ class ImagePlayerPage(ttk.Frame):
             start_index = stop_index
 
         self._frame_cache = [None] * total
+        self._cache_ranges = [None] * total
         self._cache_loaded = 0
         self._cache_failed = 0
         self._cache_bytes = 0
@@ -243,12 +249,13 @@ class ImagePlayerPage(ttk.Frame):
                     try:
                         results.append(future.result())
                     except Exception:
-                        results.append(([(index, None) for index, _path in indexed_paths], len(indexed_paths)))
+                        results.append(([(index, None, None) for index, _path in indexed_paths], len(indexed_paths)))
 
         for frames, failed in results:
             self._cache_failed += failed
-            for frame_index, frame in frames:
+            for frame_index, frame, value_range in frames:
                 self._frame_cache[frame_index] = frame
+                self._cache_ranges[frame_index] = value_range
                 if frame is not None:
                     self._cache_loaded += 1
                     self._cache_bytes += frame.nbytes
@@ -263,6 +270,11 @@ class ImagePlayerPage(ttk.Frame):
     def _cached_frame(self, frame_index: int) -> np.ndarray | None:
         if 0 <= frame_index < len(self._frame_cache):
             return self._frame_cache[frame_index]
+        return None
+
+    def _cached_range(self, frame_index: int) -> tuple[float, float] | None:
+        if 0 <= frame_index < len(self._cache_ranges):
+            return self._cache_ranges[frame_index]
         return None
 
     def show(self) -> None:
@@ -295,10 +307,11 @@ class ImagePlayerPage(ttk.Frame):
                 show_histogram=False,
                 raw_single=raw_single,
                 point_selected_callback=self._request_pixel_series,
+                retain_base_display=False,
             )
             self.panel.pack(fill="both", expand=True)
         else:
-            self.panel.set_path(path, raw_single)
+            self.panel.set_path(path, raw_single, self._cached_range(self.index))
         computed_gain = self.panel.update_display(
             gain=gain,
             auto_gain=auto_gain,
@@ -344,6 +357,7 @@ class ImagePlayerPage(ttk.Frame):
         frame_started = time.perf_counter()
         self.index = next_index
         self.show()
+        self.update_idletasks()
         remaining_seconds = (1 / frame_rate) - (time.perf_counter() - frame_started)
         if remaining_seconds > 0:
             self.after(ceil(remaining_seconds * 1000), self._tick)
@@ -401,7 +415,9 @@ class ImagePlayerPage(ttk.Frame):
             pixel_value = float(raw_single[y, x]) * value_scale
             if pixel_value <= zero_threshold_8bit * 256:
                 continue
-            if relative_denoise > 0 and pixel_value < float(np.max(raw_single)) * value_scale * relative_denoise:
+            value_range = self._cached_range(frame_index)
+            native_maximum = value_range[1] if value_range is not None else float(np.max(raw_single))
+            if relative_denoise > 0 and pixel_value < native_maximum * value_scale * relative_denoise:
                 continue
             values[frame_index] = pixel_value
         frame_axis, frame_labels = self._frame_axis(tuple(self.files))

@@ -29,6 +29,7 @@ class ViewerPanel(ttk.Frame):
         point_selected_callback=None,
         name: str | None = None,
         show_save_button: bool = False,
+        retain_base_display: bool = True,
     ):
         super().__init__(master)
         self.show_histogram = show_histogram
@@ -37,6 +38,10 @@ class ViewerPanel(ttk.Frame):
         self.original = np.empty((0, 0), dtype=np.float64)
         self.raw_single = np.empty((0, 0), dtype=np.float64)
         self.value_image = np.empty((0, 0), dtype=np.float64)
+        self.value_scale = 1.0
+        self._value_min = 0.0
+        self._value_max = 0.0
+        self._raw_value_range = (0.0, 0.0)
         self.image: np.ndarray | None = None
         self.display: np.ndarray | None = None
         self.base_display: np.ndarray | None = None
@@ -48,6 +53,7 @@ class ViewerPanel(ttk.Frame):
         self.canvas_image_id: int | None = None
         self._canvas_image_size: tuple[int, int] | None = None
         self.point_selected_callback = point_selected_callback
+        self.retain_base_display = retain_base_display
         self.save_name_suffix = ""
         self.save_folder = Path("manual_outputs")
         self._last_crosshair: tuple[int, int, int] | None = None
@@ -99,13 +105,24 @@ class ViewerPanel(ttk.Frame):
         if path is not None:
             self.set_path(path, raw_single)
 
-    def set_path(self, path: Path, raw_single: np.ndarray | None = None) -> None:
+    def set_path(
+        self,
+        path: Path,
+        raw_single: np.ndarray | None = None,
+        raw_range: tuple[float, float] | None = None,
+    ) -> None:
         self.path = path
         source = read_image(path) if raw_single is None else raw_single
         self.original = source
         self.image = source
-        self.raw_single = _to_16bit_single_channel(source)
-        self.value_image = self.raw_single
+        if raw_single is not None and source.ndim == 2:
+            self.raw_single = source
+            self.value_scale = 256.0 if source.dtype == np.uint8 else 1.0
+        else:
+            self.raw_single = _to_16bit_single_channel(source)
+            self.value_scale = 1.0
+        self._raw_value_range = raw_range or _finite_range(self.raw_single)
+        self._set_value_image(self.raw_single, self.value_scale, self._raw_value_range)
         self._refresh_info()
 
     def update_display(
@@ -125,35 +142,40 @@ class ViewerPanel(ttk.Frame):
         zero_threshold_8bit: float = 0,
     ) -> float | None:
         image = self.raw_single
+        value_range = self._raw_value_range
         if zero_threshold_8bit < 0:
             raise ValueError("去噪阈值不能小于0")
         if zero_threshold_8bit > 0:
             image = image.copy()
-            image[image <= zero_threshold_8bit * 256] = 0
+            image[image <= zero_threshold_8bit * 256 / self.value_scale] = 0
+            value_range = None
         if denoise > 0:
             if image is self.raw_single:
                 image = image.copy()
             image[image < np.max(image) * denoise] = 0
+            value_range = None
         if rotate:
             height, width = image.shape
             matrix = cv2.getRotationMatrix2D((width / 2, height / 2), -rotate, 1)
             image = cv2.warpAffine(image, matrix, (width, height))
+            value_range = None
         if shift:
             image = shift_image(image, shift)
-        self.value_image = image
+            value_range = None
+        self._set_value_image(image, self.value_scale, value_range)
         self._refresh_info()
         computed_gain = None
         if auto_gain:
-            maximum = float(np.max(image)) if image.size else 0.0
+            maximum = self._value_max
             computed_gain = 65535.0 / maximum if maximum > 0 else None
             gain = computed_gain if computed_gain is not None else 0.0
-        scaled = _scale_gray_for_display(image, gain)
+        scaled = _scale_gray_for_display(image, gain, self.value_scale)
         self.display = cv2.applyColorMap(scaled, blacked_jet_colormap()) if pseudo else cv2.cvtColor(scaled, cv2.COLOR_GRAY2BGR)
-        self.base_display = self.display.copy()
+        self.base_display = self.display.copy() if self.retain_base_display else None
         self._draw_overlays(center, ellipse, crosshair, line_width, quad, None)
         self._set_zoom_and_render(zoom)
         if self.show_histogram and self.axis is not None and self.hist_canvas is not None:
-            values = _quad_values(image, quad)
+            values = _quad_values(image, quad).astype(np.float32, copy=False) * self.value_scale
             self.axis.clear()
             self.axis.hist(values.ravel(), bins=100)
             self.axis.set_title("灰度直方图")
@@ -190,7 +212,7 @@ class ViewerPanel(ttk.Frame):
         if save_folder is not None:
             self.save_folder = Path(save_folder)
         if image.ndim == 2:
-            self.value_image = image
+            self._set_value_image(image, 1.0)
             shown = image.copy()
             if denoise > 0:
                 shown[shown < np.max(shown) * denoise] = 0
@@ -208,9 +230,9 @@ class ViewerPanel(ttk.Frame):
             else:
                 self.display = cv2.applyColorMap(shown, blacked_jet_colormap())
         else:
-            self.value_image = image
+            self._set_value_image(image, 1.0)
             self.display = np.clip(image, 0, 255).astype(np.uint8)
-        self.base_display = self.display.copy()
+        self.base_display = self.display.copy() if self.retain_base_display else None
         self._last_crosshair = crosshair
         self._last_ellipse = ellipse
         self._last_special_points = special_points
@@ -321,14 +343,29 @@ class ViewerPanel(ttk.Frame):
         if image.size == 0:
             return
         x, y = self.cursor_position if self.cursor_position is not None else (-1, -1)
-        minimum = float(np.nanmin(image))
-        maximum = float(np.nanmax(image))
+        minimum = self._value_min
+        maximum = self._value_max
         if 0 <= x < image.shape[1] and 0 <= y < image.shape[0]:
             value = image[y, x]
-            value_text = ", ".join(f"{item:g}" for item in value) if np.ndim(value) else f"{value:g}"
+            if np.ndim(value):
+                value_text = ", ".join(f"{float(item) * self.value_scale:g}" for item in value)
+            else:
+                value_text = f"{float(value) * self.value_scale:g}"
             self.info.config(text=f"坐标({x}, {y})  值={value_text}  最小={minimum:g}  最大={maximum:g}")
         else:
             self.info.config(text=f"坐标(-, -)  值=-  最小={minimum:g}  最大={maximum:g}")
+
+    def _set_value_image(
+        self,
+        image: np.ndarray,
+        value_scale: float,
+        value_range: tuple[float, float] | None = None,
+    ) -> None:
+        self.value_image = image
+        self.value_scale = value_scale
+        native_minimum, native_maximum = value_range or _finite_range(image)
+        self._value_min = native_minimum * value_scale
+        self._value_max = native_maximum * value_scale
 
     def save_image(self) -> None:
         if self.display is None:
@@ -361,9 +398,15 @@ def _rotate_special_points(special_points, matrix: np.ndarray, shape: tuple[int,
         return special_points
 
 
-def _scale_gray_for_display(image: np.ndarray, gain: float) -> np.ndarray:
-    scaled = image.astype(np.float32, copy=False) * np.float32(gain / 256)
+def _scale_gray_for_display(image: np.ndarray, gain: float, value_scale: float = 1.0) -> np.ndarray:
+    scaled = image.astype(np.float32, copy=False) * np.float32(value_scale * gain / 256)
     return np.clip(scaled, 0, 255).astype(np.uint8)
+
+
+def _finite_range(image: np.ndarray) -> tuple[float, float]:
+    if image.size == 0:
+        return 0.0, 0.0
+    return float(np.nanmin(image)), float(np.nanmax(image))
 
 
 def _quad_values(image: np.ndarray, quad):
