@@ -127,8 +127,7 @@ class DistributionFitService:
                     rotate_angles[index],
                 )
                 center_text = (
-                    f"y={a:.4f}*sqrt(x^2+{b * b:.4f})-"
-                    f"{a:.4f}*{b:.4f}; R²={r_squared:.4f}"
+                    f"x=a(√(y²+b²)-b); a={a:.4f}; b={b:.4f}; R²={r_squared:.4f}"
                 )
             except FitConvergenceError as exc:
                 a = b = r_squared = np.nan

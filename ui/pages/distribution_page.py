@@ -544,27 +544,26 @@ class DistributionSummaryPanel(ttk.Frame):
 
     def _build_group(self, group_name: str, title: str, columns: tuple[tuple[str, str], ...]) -> ttk.LabelFrame:
         group = ttk.LabelFrame(self, text=title)
-        ttk.Label(group, text="图像", width=5, anchor=tk.CENTER).grid(row=0, column=0, padx=4, sticky="ew")
+        ttk.Label(group, text="图像", width=5, anchor=tk.W).grid(row=0, column=0, padx=4, sticky="w")
         for column_index, (_field, heading) in enumerate(columns, start=1):
             ttk.Label(group, text=heading, anchor=tk.W).grid(
                 row=0,
                 column=column_index,
                 padx=4,
-                sticky="ew",
+                sticky="w",
             )
-            group.columnconfigure(column_index, weight=1)
 
         for row_index, image_name in enumerate(("F", "O", "FO"), start=1):
-            ttk.Label(group, text=image_name, width=5, anchor=tk.CENTER).grid(
+            ttk.Label(group, text=image_name, width=5, anchor=tk.W).grid(
                 row=row_index,
                 column=0,
                 padx=4,
                 pady=1,
-                sticky="ew",
+                sticky="w",
             )
             for column_index, (field, _heading) in enumerate(columns, start=1):
                 cell = ttk.Label(group, text="-", anchor=tk.W)
-                cell.grid(row=row_index, column=column_index, padx=4, pady=1, sticky="ew")
+                cell.grid(row=row_index, column=column_index, padx=4, pady=1, sticky="w")
                 self.cells[(group_name, image_name, field)] = cell
         return group
 
