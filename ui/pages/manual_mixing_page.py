@@ -12,9 +12,13 @@ from PLIFv2.core.image_io import write_png
 from PLIFv2.core.mixing_presets import (
     MixingPreset,
     create_mixing_presets_from_excel,
-    default_mixing_preset_path,
     load_mixing_presets,
     save_mixing_presets,
+)
+from PLIFv2.ui.components.experiment_group_controls import (
+    ExperimentTripletControls,
+    MixingPresetControls,
+    split_save_name,
 )
 from PLIFv2.ui.components.shift_search_panel import ShiftSearchPanel
 from PLIFv2.ui.image_display import ImageDisplay
@@ -167,43 +171,29 @@ class ManualMixingPage(ttk.Frame):
         return panel
 
     def _row_image_source(self, parent) -> ttk.Frame:
-        row = ttk.Frame(parent)
-        self._path_entry(row, "image_folder", "图像文件夹", self._select_image_folder, width=68)
-        self._entry(row, "f_exp_no", "F 编号", 5)
-        self._entry(row, "fo_exp_no", "FO 编号", 5)
-        self._entry(row, "o_exp_no", "O 编号", 5)
-        return row
+        return ExperimentTripletControls(
+            parent,
+            self.settings,
+            self.vars,
+            self._select_image_folder,
+            self.process,
+        )
 
     def _row_preset(self, parent) -> ttk.Frame:
-        row = ttk.Frame(parent)
-        ttk.Label(row, text="预设数据组").pack(side=tk.LEFT, padx=(4, 2))
-        configured_path = self._value_to_str(self.settings.preset_path)
-        default_path = default_mixing_preset_path()
-        initial_path = configured_path or (str(default_path) if default_path.exists() else "")
-        var = tk.StringVar(value=initial_path)
-        self.vars["preset_path"] = var
-        entry = ttk.Entry(row, textvariable=var, width=68)
-        entry.pack(side=tk.LEFT)
-        entry.bind("<Return>", self._load_preset_file)
-        ttk.Button(row, text="...", width=3, command=self._select_preset_path).pack(side=tk.LEFT, padx=(3, 2))
-        ttk.Button(row, text="Excel 转预设", command=self._create_preset_from_excel).pack(side=tk.LEFT, padx=(0, 3))
-        ttk.Button(row, text="加载", command=self._load_preset_file).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(row, text="上一组", command=lambda: self._move_preset(-1)).pack(side=tk.LEFT, padx=(0, 2))
-        ttk.Button(row, text="下一组", command=lambda: self._move_preset(1)).pack(side=tk.LEFT)
-        group_selector = ttk.Frame(row)
-        group_selector.pack(side=tk.LEFT, padx=(8, 0))
-        self.preset_group_entry = ttk.Entry(group_selector, textvariable=self.preset_group_var, width=4, justify=tk.RIGHT)
-        self.preset_group_entry.pack(side=tk.LEFT)
-        self.preset_group_entry.bind("<Return>", self._go_to_preset)
-        self.preset_total_label = ttk.Label(group_selector, text="/-")
-        self.preset_total_label.pack(side=tk.LEFT)
-
-        dr_value, u_value = self._split_save_name(self.settings.save_name)
-        ttk.Label(row, text="图像保存名称").pack(side=tk.LEFT, padx=(8, 2))
-        ttk.Label(row, text="DR:").pack(side=tk.LEFT, padx=(4, 2))
-        self._text_entry(row, "save_dr", dr_value, width=8)
-        ttk.Label(row, text="U").pack(side=tk.LEFT, padx=(4, 2))
-        self._text_entry(row, "save_u", u_value, width=8)
+        row = MixingPresetControls(
+            parent,
+            self.settings,
+            self.vars,
+            self.preset_group_var,
+            self._select_preset_path,
+            self._create_preset_from_excel,
+            self._load_preset_file,
+            self._move_preset,
+            self._go_to_preset,
+            self.process,
+        )
+        self.preset_group_entry = row.group_entry
+        self.preset_total_label = row.total_label
         return row
 
     def _row_display(self, parent) -> ttk.Frame:
@@ -248,15 +238,6 @@ class ManualMixingPage(ttk.Frame):
             command=self.process,
         ).pack(side=tk.LEFT, padx=(7, 2))
         return row
-
-    def _path_entry(self, row: ttk.Frame, attr: str, label: str, command, width: int) -> None:
-        ttk.Label(row, text=label).pack(side=tk.LEFT, padx=(4, 2))
-        var = tk.StringVar(value=self._value_to_str(getattr(self.settings, attr)))
-        self.vars[attr] = var
-        entry = ttk.Entry(row, textvariable=var, width=width)
-        entry.pack(side=tk.LEFT)
-        ttk.Button(row, text="...", width=3, command=command).pack(side=tk.LEFT, padx=(3, 4))
-        entry.bind("<Return>", self.process)
 
     def _entry(self, row: ttk.Frame, attr: str, label: str, width: int) -> None:
         ttk.Label(row, text=label).pack(side=tk.LEFT, padx=(4, 2))
@@ -547,7 +528,7 @@ class ManualMixingPage(ttk.Frame):
         for attr, var in self.vars.items():
             if attr not in {"save_dr", "save_u"}:
                 var.set(self._value_to_str(getattr(self.settings, attr)))
-        dr_value, u_value = self._split_save_name(self.settings.save_name)
+        dr_value, u_value = split_save_name(self.settings.save_name)
         self.vars["save_dr"].set(dr_value)
         self.vars["save_u"].set(u_value)
 
@@ -586,15 +567,6 @@ class ManualMixingPage(ttk.Frame):
         if isinstance(value, Path):
             return "" if str(value) == "." else str(value)
         return str(value)
-
-    @staticmethod
-    def _split_save_name(save_name: str) -> tuple[str, str]:
-        name = save_name.strip()
-        if name.startswith("DR") and "_U" in name:
-            dr_value, u_value = name[2:].split("_U", maxsplit=1)
-            return dr_value, u_value
-        return name, ""
-
 
 class MixCurvePanel(ttk.Frame):
     def __init__(self, master):
