@@ -45,6 +45,8 @@ RESULT_LAYOUT = (
 class ManualMixingPage(ttk.Frame):
     """Manual F/O/FO alignment and mixing-characteristic calculation."""
 
+    persist_widget_values = False
+
     def __init__(self, master, actions: PLIFActions):
         super().__init__(master)
         self.actions = actions

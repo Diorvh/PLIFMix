@@ -15,20 +15,22 @@ class UIStateStore:
 
     def restore_page(self, page_key: str, root: tk.Misc) -> None:
         values = self.data.pages.get(page_key, {})
-        for widget in _walk_widgets(root):
-            key = _relative_widget_path(root, widget)
-            if key in values:
-                _restore_widget(widget, values[key])
+        if getattr(root, "persist_widget_values", True):
+            for widget in _walk_widgets(root):
+                key = _relative_widget_path(root, widget)
+                if key in values:
+                    _restore_widget(widget, values[key])
         restore_custom = getattr(root, "restore_ui_state", None)
         if callable(restore_custom):
             restore_custom(values.get("__custom__", {}))
 
     def capture_page(self, page_key: str, root: tk.Misc) -> None:
         values: dict[str, Any] = {}
-        for widget in _walk_widgets(root):
-            value = _capture_widget(widget)
-            if value is not None:
-                values[_relative_widget_path(root, widget)] = value
+        if getattr(root, "persist_widget_values", True):
+            for widget in _walk_widgets(root):
+                value = _capture_widget(widget)
+                if value is not None:
+                    values[_relative_widget_path(root, widget)] = value
         export_custom = getattr(root, "export_ui_state", None)
         if callable(export_custom):
             values["__custom__"] = export_custom()

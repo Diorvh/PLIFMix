@@ -30,6 +30,8 @@ DISTRIBUTION_SAVE_LAYOUT = (
 
 
 class DistributionPage(ttk.Frame):
+    persist_widget_values = False
+
     def __init__(self, master, actions: PLIFActions):
         super().__init__(master)
         self.actions = actions
