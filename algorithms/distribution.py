@@ -3,11 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from scipy import optimize
 from scipy.ndimage import gaussian_filter
 
 
 _MIN_RIDGE_POINTS = 12
 _MAX_ABS_ANGLE = 35.0
+_MIN_STUDENT_EXPONENT = 1.0001
+_MAX_STUDENT_EXPONENT = 100.0
+_MIN_STUDENT_SCALE = 0.25
+_COMPACT_CUTOFF_POWER = 2.0
 
 
 @dataclass(frozen=True)
@@ -21,9 +26,268 @@ class DistributionRegistrationEstimate:
 
 
 @dataclass(frozen=True)
+class EllipticalStudentFit:
+    scale_x: float
+    scale_y: float
+    exponent: float
+    cutoff_radius: float | None
+    r_squared: float
+    prediction: np.ndarray
+
+
+class DistributionModelFitError(RuntimeError):
+    pass
+
+
+@dataclass(frozen=True)
 class _AngleCandidate:
     angle_degrees: int
     score: float
+
+
+def fit_elliptical_student(
+    target: np.ndarray,
+    pixel_x: np.ndarray,
+    pixel_y: np.ndarray,
+    initial_scale_x: float,
+    initial_scale_y: float,
+    initial_exponent: float,
+) -> EllipticalStudentFit:
+    """Fit a normalized three-parameter elliptical Pearson VII surface."""
+    fit_data = _prepare_surface_fit(
+        target,
+        pixel_x,
+        pixel_y,
+        initial_scale_x,
+        initial_scale_y,
+        initial_exponent,
+    )
+    initial = np.log(
+        [
+            fit_data.initial_scale_x,
+            fit_data.initial_scale_y,
+            fit_data.initial_exponent - 1.0,
+        ]
+    )
+    bounds = (
+        (np.log(_MIN_STUDENT_SCALE), np.log(fit_data.maximum_scale_x)),
+        (np.log(_MIN_STUDENT_SCALE), np.log(fit_data.maximum_scale_y)),
+        (
+            np.log(_MIN_STUDENT_EXPONENT - 1.0),
+            np.log(_MAX_STUDENT_EXPONENT - 1.0),
+        ),
+    )
+
+    def predict(parameters: np.ndarray) -> np.ndarray | None:
+        scale_x, scale_y, exponent_minus_one = np.exp(parameters)
+        exponent = 1.0 + exponent_minus_one
+        radius_squared = (
+            fit_data.pixel_x_squared / (scale_x * scale_x)
+            + fit_data.pixel_y_squared / (scale_y * scale_y)
+        )
+        weights = np.power(1.0 + radius_squared, -exponent)
+        return _normalize_prediction(weights)
+
+    result, prediction = _optimize_surface(initial, bounds, predict, fit_data)
+    scale_x, scale_y, exponent_minus_one = np.exp(result.x)
+    return EllipticalStudentFit(
+        scale_x=float(scale_x),
+        scale_y=float(scale_y),
+        exponent=float(1.0 + exponent_minus_one),
+        cutoff_radius=None,
+        r_squared=_surface_r_squared(fit_data.target, prediction, fit_data.ss_total),
+        prediction=prediction,
+    )
+
+
+def fit_compact_elliptical_student(
+    target: np.ndarray,
+    pixel_x: np.ndarray,
+    pixel_y: np.ndarray,
+    initial_scale_x: float,
+    initial_scale_y: float,
+    initial_exponent: float,
+) -> EllipticalStudentFit:
+    """Fit an elliptical Pearson VII surface with a smooth finite cutoff."""
+    fit_data = _prepare_surface_fit(
+        target,
+        pixel_x,
+        pixel_y,
+        initial_scale_x,
+        initial_scale_y,
+        initial_exponent,
+    )
+    initial_radius_squared = (
+        fit_data.pixel_x_squared / (fit_data.initial_scale_x**2)
+        + fit_data.pixel_y_squared / (fit_data.initial_scale_y**2)
+    )
+    initial_cutoff = max(
+        0.5,
+        _weighted_radius_quantile(initial_radius_squared, fit_data.target, 0.995) * 1.05,
+    )
+    maximum_cutoff = max(
+        initial_cutoff * 4.0,
+        float(np.sqrt(np.max(initial_radius_squared))) * 2.0,
+        2.0,
+    )
+    initial = np.log(
+        [
+            fit_data.initial_scale_x,
+            fit_data.initial_scale_y,
+            fit_data.initial_exponent - 1.0,
+            initial_cutoff,
+        ]
+    )
+    bounds = (
+        (np.log(_MIN_STUDENT_SCALE), np.log(fit_data.maximum_scale_x)),
+        (np.log(_MIN_STUDENT_SCALE), np.log(fit_data.maximum_scale_y)),
+        (
+            np.log(_MIN_STUDENT_EXPONENT - 1.0),
+            np.log(_MAX_STUDENT_EXPONENT - 1.0),
+        ),
+        (np.log(0.25), np.log(maximum_cutoff)),
+    )
+
+    def predict(parameters: np.ndarray) -> np.ndarray | None:
+        scale_x, scale_y, exponent_minus_one, cutoff_radius = np.exp(parameters)
+        exponent = 1.0 + exponent_minus_one
+        radius_squared = (
+            fit_data.pixel_x_squared / (scale_x * scale_x)
+            + fit_data.pixel_y_squared / (scale_y * scale_y)
+        )
+        cutoff = 1.0 - radius_squared / (cutoff_radius * cutoff_radius)
+        valid = cutoff > 0
+        weights = np.zeros_like(radius_squared)
+        weights[valid] = (
+            np.power(1.0 + radius_squared[valid], -exponent)
+            * np.power(cutoff[valid], _COMPACT_CUTOFF_POWER)
+        )
+        return _normalize_prediction(weights)
+
+    result, prediction = _optimize_surface(initial, bounds, predict, fit_data)
+    scale_x, scale_y, exponent_minus_one, cutoff_radius = np.exp(result.x)
+    return EllipticalStudentFit(
+        scale_x=float(scale_x),
+        scale_y=float(scale_y),
+        exponent=float(1.0 + exponent_minus_one),
+        cutoff_radius=float(cutoff_radius),
+        r_squared=_surface_r_squared(fit_data.target, prediction, fit_data.ss_total),
+        prediction=prediction,
+    )
+
+
+@dataclass(frozen=True)
+class _SurfaceFitData:
+    target: np.ndarray
+    pixel_x_squared: np.ndarray
+    pixel_y_squared: np.ndarray
+    initial_scale_x: float
+    initial_scale_y: float
+    initial_exponent: float
+    maximum_scale_x: float
+    maximum_scale_y: float
+    ss_total: float
+
+
+def _prepare_surface_fit(
+    target: np.ndarray,
+    pixel_x: np.ndarray,
+    pixel_y: np.ndarray,
+    initial_scale_x: float,
+    initial_scale_y: float,
+    initial_exponent: float,
+) -> _SurfaceFitData:
+    normalized = np.asarray(target, dtype=np.float64)
+    x_values = np.asarray(pixel_x, dtype=np.float64)
+    y_values = np.asarray(pixel_y, dtype=np.float64)
+    if normalized.ndim != 2 or normalized.shape != x_values.shape or normalized.shape != y_values.shape:
+        raise DistributionModelFitError("二维拟合图像和坐标网格必须是形状相同的二维数组。")
+    if not np.all(np.isfinite(normalized)) or np.any(normalized < 0):
+        raise DistributionModelFitError("二维拟合图像包含负值或非有限值。")
+    total = float(np.sum(normalized))
+    if total <= 0:
+        raise DistributionModelFitError("二维拟合图像总量必须大于 0。")
+    normalized = normalized / total
+    ss_total = float(np.sum((normalized - np.mean(normalized)) ** 2))
+    if ss_total <= 0:
+        raise DistributionModelFitError("二维拟合图像没有可拟合的强度变化。")
+
+    maximum_scale_x = max(float(np.max(np.abs(x_values))) * 4.0, 4.0)
+    maximum_scale_y = max(float(np.max(np.abs(y_values))) * 4.0, 4.0)
+    scale_x = _bounded_initial(initial_scale_x, _MIN_STUDENT_SCALE, maximum_scale_x)
+    scale_y = _bounded_initial(initial_scale_y, _MIN_STUDENT_SCALE, maximum_scale_y)
+    exponent = _bounded_initial(
+        initial_exponent,
+        _MIN_STUDENT_EXPONENT,
+        _MAX_STUDENT_EXPONENT,
+    )
+    return _SurfaceFitData(
+        target=normalized,
+        pixel_x_squared=x_values * x_values,
+        pixel_y_squared=y_values * y_values,
+        initial_scale_x=scale_x,
+        initial_scale_y=scale_y,
+        initial_exponent=exponent,
+        maximum_scale_x=maximum_scale_x,
+        maximum_scale_y=maximum_scale_y,
+        ss_total=ss_total,
+    )
+
+
+def _optimize_surface(
+    initial: np.ndarray,
+    bounds: tuple[tuple[float, float], ...],
+    predict,
+    fit_data: _SurfaceFitData,
+) -> tuple[optimize.OptimizeResult, np.ndarray]:
+    def objective(parameters: np.ndarray) -> float:
+        prediction = predict(parameters)
+        if prediction is None:
+            return np.inf
+        residual = fit_data.target - prediction
+        return float(np.sum(residual * residual) / fit_data.ss_total)
+
+    result = optimize.minimize(
+        objective,
+        initial,
+        method="L-BFGS-B",
+        bounds=bounds,
+        options={"maxiter": 400, "ftol": 1e-12, "gtol": 1e-8, "maxls": 40},
+    )
+    prediction = predict(result.x)
+    if not result.success or not np.isfinite(result.fun) or prediction is None:
+        raise DistributionModelFitError(f"二维 Student 拟合未收敛：{result.message}")
+    return result, prediction
+
+
+def _normalize_prediction(weights: np.ndarray) -> np.ndarray | None:
+    total = float(np.sum(weights))
+    if not np.isfinite(total) or total <= 0:
+        return None
+    prediction = weights / total
+    return prediction if np.all(np.isfinite(prediction)) else None
+
+
+def _surface_r_squared(target: np.ndarray, prediction: np.ndarray, ss_total: float) -> float:
+    residual = target - prediction
+    return float(1.0 - np.sum(residual * residual) / ss_total)
+
+
+def _weighted_radius_quantile(radius_squared: np.ndarray, weights: np.ndarray, quantile: float) -> float:
+    positive = weights > 0
+    radii = np.asarray(radius_squared[positive], dtype=np.float64)
+    positive_weights = np.asarray(weights[positive], dtype=np.float64)
+    order = np.argsort(radii)
+    cumulative = np.cumsum(positive_weights[order])
+    cutoff = quantile * cumulative[-1]
+    index = min(int(np.searchsorted(cumulative, cutoff, side="left")), radii.size - 1)
+    return float(np.sqrt(radii[order[index]]))
+
+
+def _bounded_initial(value: float, lower: float, upper: float) -> float:
+    if not np.isfinite(value):
+        return float(np.sqrt(lower * upper))
+    return float(np.clip(abs(value), lower, upper))
 
 
 def estimate_distribution_registration(

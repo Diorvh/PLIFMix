@@ -544,10 +544,10 @@ class DistributionSummaryPanel(ttk.Frame):
         ).pack(fill=tk.X, pady=(0, 3))
         distribution_group = ttk.LabelFrame(self, text="强度分布拟合")
         distribution_group.pack(fill=tk.X)
-        distribution_sections = ttk.Frame(distribution_group)
-        distribution_sections.pack(anchor=tk.W)
+        one_dimensional_sections = ttk.Frame(distribution_group)
+        one_dimensional_sections.pack(anchor=tk.W)
         self._build_fit_section(
-            distribution_sections,
+            one_dimensional_sections,
             "horizontal",
             "横向拟合",
             (
@@ -559,7 +559,7 @@ class DistributionSummaryPanel(ttk.Frame):
             ),
         ).pack(side=tk.LEFT, anchor=tk.NW)
         self._build_fit_section(
-            distribution_sections,
+            one_dimensional_sections,
             "vertical",
             "纵向拟合",
             (
@@ -570,14 +570,32 @@ class DistributionSummaryPanel(ttk.Frame):
                 ("vertical_r_squared", "R²"),
             ),
         ).pack(side=tk.LEFT, anchor=tk.NW, padx=(10, 0))
+
+        surface_sections = ttk.Frame(distribution_group)
+        surface_sections.pack(anchor=tk.W, pady=(3, 0))
         self._build_fit_section(
-            distribution_sections,
-            "joint",
-            "联合分布",
+            surface_sections,
+            "student",
+            "纯椭圆",
             (
-                ("joint_equation", "方程"),
-                ("joint_rho", "ρ"),
-                ("joint_r_squared", "R²"),
+                ("student_equation", "方程"),
+                ("student_scale_x", "sₓ"),
+                ("student_scale_y", "sᵧ"),
+                ("student_exponent", "m"),
+                ("student_r_squared", "R²"),
+            ),
+        ).pack(side=tk.LEFT, anchor=tk.NW)
+        self._build_fit_section(
+            surface_sections,
+            "compact",
+            "紧支撑",
+            (
+                ("compact_equation", "方程"),
+                ("compact_scale_x", "sₓ"),
+                ("compact_scale_y", "sᵧ"),
+                ("compact_exponent", "m"),
+                ("compact_cutoff_radius", "R"),
+                ("compact_r_squared", "R²"),
             ),
         ).pack(side=tk.LEFT, anchor=tk.NW, padx=(10, 0))
 
@@ -682,7 +700,27 @@ class DistributionSummaryPanel(ttk.Frame):
                         "vertical_r_squared",
                     ),
                 ),
-                ("joint", ("joint_equation", "joint_rho", "joint_r_squared")),
+                (
+                    "student",
+                    (
+                        "student_equation",
+                        "student_scale_x",
+                        "student_scale_y",
+                        "student_exponent",
+                        "student_r_squared",
+                    ),
+                ),
+                (
+                    "compact",
+                    (
+                        "compact_equation",
+                        "compact_scale_x",
+                        "compact_scale_y",
+                        "compact_exponent",
+                        "compact_cutoff_radius",
+                        "compact_r_squared",
+                    ),
+                ),
             ):
                 for field in fields:
                     cell = self.cells.get((group_name, row.image_name, field))

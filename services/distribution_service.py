@@ -10,8 +10,11 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
 from PLIFv2.algorithms.distribution import (
+    DistributionModelFitError,
     DistributionRegistrationEstimate,
     estimate_distribution_registration,
+    fit_compact_elliptical_student,
+    fit_elliptical_student,
 )
 from PLIFv2.algorithms.mixing import (
     FitConvergenceError,
@@ -56,9 +59,17 @@ class DistributionSummaryRow:
     vertical_b: str
     vertical_c: str
     vertical_r_squared: str
-    joint_equation: str
-    joint_rho: str
-    joint_r_squared: str
+    student_equation: str
+    student_scale_x: str
+    student_scale_y: str
+    student_exponent: str
+    student_r_squared: str
+    compact_equation: str
+    compact_scale_x: str
+    compact_scale_y: str
+    compact_exponent: str
+    compact_cutoff_radius: str
+    compact_r_squared: str
 
 
 @dataclass(frozen=True)
@@ -222,10 +233,10 @@ class DistributionFitService:
                 vertical_text = "未执行：中心线拟合没有有效数据"
             fit_text += f"{image_names[index]}{vertical_text}\n"
 
-            best_rho = 0.0
-            r_squared_p = 0.0
             bent_img: np.ndarray | None = None
             surface_prediction: np.ndarray | None = None
+            student_fit = None
+            compact_fit = None
             if image_mode != "ori_img":
                 if not len(fitted_point):
                     raise FitConvergenceError(f"{image_names[index]} 无有效拟合中心线，不能生成掰直图像。")
@@ -234,53 +245,78 @@ class DistributionFitService:
             if need_surface_fit:
                 assert grid_x is not None and grid_y is not None and bent_img is not None
                 if not np.all(np.isfinite([ah, bh, ch, av, bv, cv])):
-                    raise FitConvergenceError(f"{image_names[index]} 横向或纵向拟合失败，不能执行二维联合拟合。")
+                    raise FitConvergenceError(f"{image_names[index]} 横向或纵向拟合失败，不能执行二维 Student 拟合。")
                 pixel_x = grid_x - cx
                 pixel_y = grid_y - cy
-                aa = (ah + av) / 2
-                static_surface = ((pixel_x * pixel_x * bh * bh + 1) ** ch - 1) + ((pixel_y * pixel_y * bv * bv + 1) ** cv - 1)
-                coupling_base = np.abs(pixel_x * bh) * np.abs(pixel_y * bv)
-                objective_buffer = np.empty_like(static_surface)
+                initial_scale_x = 1.0 / max(abs(bh), 1e-12)
+                initial_scale_y = 1.0 / max(abs(bv), 1e-12)
+                initial_exponent = (ch + cv) / 2.0
 
-                def predict_img_func(rho: float) -> np.ndarray:
-                    denominator = static_surface + np.power(coupling_base, rho)
-                    denominator += 1
-                    pred = aa / denominator
-                    pred_sum = np.sum(pred)
-                    return pred / pred_sum if pred_sum else pred
+                try:
+                    student_fit = fit_elliptical_student(
+                        bent_img,
+                        pixel_x,
+                        pixel_y,
+                        initial_scale_x,
+                        initial_scale_y,
+                        initial_exponent,
+                    )
+                    student_equation = "p∝[1+(x/sₓ)²+(y/sᵧ)²]⁻ᵐ"
+                    student_scale_x = f"{student_fit.scale_x:.4f}"
+                    student_scale_y = f"{student_fit.scale_y:.4f}"
+                    student_exponent = f"{student_fit.exponent:.4f}"
+                    student_r_squared = f"{student_fit.r_squared:.4f}"
+                    surface_text += (
+                        f"{image_names[index]}纯椭圆 Student："
+                        f"sₓ={student_scale_x}; sᵧ={student_scale_y}; "
+                        f"m={student_exponent}; R²={student_r_squared}\n"
+                    )
+                except DistributionModelFitError as exc:
+                    student_equation = f"拟合失败：{exc}"
+                    student_scale_x = student_scale_y = student_exponent = student_r_squared = "-"
+                    warnings.append(f"{image_names[index]} 纯椭圆 Student 拟合失败：{exc}")
+                    surface_text += f"{image_names[index]}纯椭圆 Student：拟合失败\n"
 
-                from scipy import optimize
+                compact_initial = student_fit
+                try:
+                    compact_fit = fit_compact_elliptical_student(
+                        bent_img,
+                        pixel_x,
+                        pixel_y,
+                        compact_initial.scale_x if compact_initial is not None else initial_scale_x,
+                        compact_initial.scale_y if compact_initial is not None else initial_scale_y,
+                        compact_initial.exponent if compact_initial is not None else initial_exponent,
+                    )
+                    compact_equation = "p∝(1+rₑ²)⁻ᵐ(1-rₑ²/R²)₊²"
+                    compact_scale_x = f"{compact_fit.scale_x:.4f}"
+                    compact_scale_y = f"{compact_fit.scale_y:.4f}"
+                    compact_exponent = f"{compact_fit.exponent:.4f}"
+                    assert compact_fit.cutoff_radius is not None
+                    compact_cutoff_radius = f"{compact_fit.cutoff_radius:.4f}"
+                    compact_r_squared = f"{compact_fit.r_squared:.4f}"
+                    surface_text += (
+                        f"{image_names[index]}紧支撑 Student："
+                        f"sₓ={compact_scale_x}; sᵧ={compact_scale_y}; "
+                        f"m={compact_exponent}; R={compact_cutoff_radius}; "
+                        f"R²={compact_r_squared}\n"
+                    )
+                except DistributionModelFitError as exc:
+                    compact_equation = f"拟合失败：{exc}"
+                    compact_scale_x = compact_scale_y = compact_exponent = compact_cutoff_radius = "-"
+                    compact_r_squared = "-"
+                    warnings.append(f"{image_names[index]} 紧支撑 Student 拟合失败：{exc}")
+                    surface_text += f"{image_names[index]}紧支撑 Student：拟合失败\n"
 
-                def object_loss(rho: float) -> float:
-                    np.power(coupling_base, rho, out=objective_buffer)
-                    np.add(static_surface, objective_buffer, out=objective_buffer)
-                    np.add(objective_buffer, 1, out=objective_buffer)
-                    np.divide(aa, objective_buffer, out=objective_buffer)
-                    total = float(np.sum(objective_buffer))
-                    if not np.isfinite(total) or total <= 0:
-                        return np.inf
-                    np.divide(objective_buffer, total, out=objective_buffer)
-                    np.subtract(bent_img, objective_buffer, out=objective_buffer)
-                    np.square(objective_buffer, out=objective_buffer)
-                    return float(np.sum(objective_buffer))
-
-                res = optimize.minimize_scalar(object_loss, bounds=(0.01, 100), method="bounded")
-                if not res.success or not np.isfinite(res.fun):
-                    raise FitConvergenceError(f"{image_names[index]} 二维联合拟合未收敛: {res.message}")
-                ss_tot = np.sum((bent_img - np.mean(bent_img)) ** 2)
-                best_rho = float(res.x)
-                r_squared_p = float(1 - (res.fun / ss_tot)) if ss_tot != 0 else 0.0
-                surface_prediction = predict_img_func(best_rho)
-                joint_equation = "p∝[(x²bₕ²+1)^cₕ+(y²bᵥ²+1)^cᵥ+(|bₕx||bᵥy|)^ρ-1]⁻¹"
-                joint_rho = f"{best_rho:.4f}"
-                joint_r_squared = f"{r_squared_p:.4f}"
-                joint_text = f"rho={best_rho:.4f}; R²={r_squared_p:.4f}"
-                surface_text += f"{image_names[index]}横纵向联合分布拟合：{joint_text}\n"
+                selected_fit = compact_fit if compact_fit is not None else student_fit
+                if selected_fit is None:
+                    raise FitConvergenceError(f"{image_names[index]} 两种二维 Student 模型均拟合失败。")
+                surface_prediction = selected_fit.prediction
             else:
-                joint_equation = "未执行"
-                joint_rho = joint_r_squared = "-"
-                joint_text = "未执行"
-                surface_text += f"{image_names[index]}横纵向联合分布拟合：未执行\n"
+                student_equation = compact_equation = "未执行"
+                student_scale_x = student_scale_y = student_exponent = student_r_squared = "-"
+                compact_scale_x = compact_scale_y = compact_exponent = compact_cutoff_radius = "-"
+                compact_r_squared = "-"
+                surface_text += f"{image_names[index]}二维 Student 拟合：未执行\n"
             fit_rows.append(
                 _finite_values_or_none([
                     cx,
@@ -297,8 +333,19 @@ class DistributionFitService:
                     bv,
                     cv,
                     r_squared_v,
-                    best_rho,
-                    r_squared_p,
+                    student_fit.scale_x if student_fit is not None else np.nan,
+                    student_fit.scale_y if student_fit is not None else np.nan,
+                    student_fit.exponent if student_fit is not None else np.nan,
+                    student_fit.r_squared if student_fit is not None else np.nan,
+                    compact_fit.scale_x if compact_fit is not None else np.nan,
+                    compact_fit.scale_y if compact_fit is not None else np.nan,
+                    compact_fit.exponent if compact_fit is not None else np.nan,
+                    (
+                        compact_fit.cutoff_radius
+                        if compact_fit is not None and compact_fit.cutoff_radius is not None
+                        else np.nan
+                    ),
+                    compact_fit.r_squared if compact_fit is not None else np.nan,
                 ])
             )
 
@@ -348,9 +395,17 @@ class DistributionFitService:
                     vertical_b=vertical_b,
                     vertical_c=vertical_c,
                     vertical_r_squared=vertical_r_squared,
-                    joint_equation=joint_equation,
-                    joint_rho=joint_rho,
-                    joint_r_squared=joint_r_squared,
+                    student_equation=student_equation,
+                    student_scale_x=student_scale_x,
+                    student_scale_y=student_scale_y,
+                    student_exponent=student_exponent,
+                    student_r_squared=student_r_squared,
+                    compact_equation=compact_equation,
+                    compact_scale_x=compact_scale_x,
+                    compact_scale_y=compact_scale_y,
+                    compact_exponent=compact_exponent,
+                    compact_cutoff_radius=compact_cutoff_radius,
+                    compact_r_squared=compact_r_squared,
                 )
             )
 
@@ -426,8 +481,15 @@ class DistributionFitService:
             "vert_b",
             "vert_c",
             "vert_r2",
-            "rho",
-            "surface_r2",
+            "student_scale_x",
+            "student_scale_y",
+            "student_exponent",
+            "student_r2",
+            "compact_scale_x",
+            "compact_scale_y",
+            "compact_exponent",
+            "compact_cutoff_radius",
+            "compact_r2",
         ]
         sheet.append(["image", *headers])
         for image_name, row in zip(["f_img", "o_img", "fo_img"], result.fit_rows):
