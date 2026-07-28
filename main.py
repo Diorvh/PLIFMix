@@ -17,7 +17,7 @@ def main() -> None:
         app = PLIFAppWindow()
     except tk.TclError as exc:
         raise SystemExit(
-            "PLIFv2 无法创建窗口。请修复或重新安装带 Tcl/Tk 组件的 Python 3.11-3.13。\n"
+            "PLIFv2 无法创建窗口。请修复或重新安装带 Tcl/Tk 组件的 Python 3.11 或更高版本。\n"
             f"原始错误: {exc}"
         ) from exc
     app.mainloop()
