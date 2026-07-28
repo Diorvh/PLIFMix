@@ -154,11 +154,11 @@ def straighten_center_line_image(
     fitted_point: tuple[np.ndarray, np.ndarray],
     center_x: int,
 ) -> np.ndarray:
-    """Shift every image row to the fitted centre line using the full extrapolated curve."""
+    """Straighten rows with conservative subpixel redistribution."""
     rows, columns = fitted_point
     height, width = image.shape
     if len(rows) == 0:
-        return np.zeros_like(image)
+        return np.zeros(image.shape, dtype=np.float64)
 
     row_sums = np.bincount(rows, weights=columns, minlength=height)
     row_counts = np.bincount(rows, minlength=height)
@@ -168,13 +168,63 @@ def straighten_center_line_image(
     if len(known_rows) > 1:
         centre_columns = np.interp(np.arange(height), known_rows, centre_columns[known_rows])
 
-    destination_x = np.broadcast_to(np.arange(width), (height, width))
-    source_x = np.rint(destination_x - (center_x - centre_columns[:, None])).astype(np.int32)
-    valid = (0 <= source_x) & (source_x < width)
-    row_indices = np.broadcast_to(np.arange(height)[:, None], source_x.shape)
-    straightened = np.zeros_like(image)
-    straightened[valid] = image[row_indices[valid], source_x[valid]]
+    source = np.asarray(image, dtype=np.float64)
+    straightened = np.zeros(source.shape, dtype=np.float64)
+    shifts = center_x - centre_columns
+    for row_index, shift in enumerate(shifts):
+        integer_shift = int(np.floor(shift))
+        fraction = float(shift - integer_shift)
+        _redistribute_shifted_row(
+            source[row_index],
+            straightened[row_index],
+            integer_shift,
+            1.0 - fraction,
+            row_index,
+        )
+        _redistribute_shifted_row(
+            source[row_index],
+            straightened[row_index],
+            integer_shift + 1,
+            fraction,
+            row_index,
+        )
+
+    source_total = float(np.sum(source))
+    straightened_total = float(np.sum(straightened))
+    absolute_total = float(np.sum(np.abs(source)))
+    tolerance = np.finfo(np.float64).eps * max(1.0, absolute_total) * 32
+    if not np.isclose(straightened_total, source_total, rtol=0.0, atol=tolerance):
+        raise RuntimeError(
+            "亚像素掰直后强度和发生变化："
+            f"原图={source_total:.16g}，掰直后={straightened_total:.16g}"
+        )
     return straightened
+
+
+def _redistribute_shifted_row(
+    source: np.ndarray,
+    destination: np.ndarray,
+    offset: int,
+    weight: float,
+    row_index: int,
+) -> None:
+    if weight <= np.finfo(np.float64).eps:
+        return
+    width = source.size
+    source_start = max(0, -offset)
+    source_stop = min(width, width - offset)
+    if source_start >= source_stop:
+        if np.any(source != 0):
+            raise ValueError(f"第 {row_index} 行亚像素平移会使非零强度移出图像边界。")
+        return
+    if (
+        (source_start > 0 and np.any(source[:source_start] != 0))
+        or (source_stop < width and np.any(source[source_stop:] != 0))
+    ):
+        raise ValueError(f"第 {row_index} 行亚像素平移会使非零强度移出图像边界。")
+    destination_start = source_start + offset
+    destination_stop = source_stop + offset
+    destination[destination_start:destination_stop] += source[source_start:source_stop] * weight
 
 
 def func_fit_2(x: np.ndarray, y: np.ndarray, fit_function):
