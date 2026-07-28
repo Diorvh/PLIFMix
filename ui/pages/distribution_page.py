@@ -18,6 +18,7 @@ from PLIFv2.ui.components.experiment_group_controls import (
     split_save_name,
 )
 from PLIFv2.ui.image_display import ImageDisplay
+from PLIFv2.ui.settings_binding import set_dataclass_text_field
 from PLIFv2.ui.widgets import LatestTaskRunner
 
 
@@ -212,17 +213,7 @@ class DistributionPage(ttk.Frame):
         for name, variable in self.vars.items():
             if name in {"save_dr", "save_u"}:
                 continue
-            current = getattr(self.settings, name)
-            raw = variable.get()
-            if isinstance(current, Path):
-                value = Path(raw) if raw else Path()
-            elif isinstance(current, int):
-                value = int(raw)
-            elif isinstance(current, float):
-                value = float(raw)
-            else:
-                value = raw
-            setattr(self.settings, name, value)
+            set_dataclass_text_field(self.settings, name, variable.get())
         dr_value = self.vars["save_dr"].get().strip()
         u_value = self.vars["save_u"].get().strip()
         self.settings.save_name = f"DR{dr_value}_U{u_value}" if dr_value or u_value else ""
@@ -394,7 +385,7 @@ class DistributionPage(ttk.Frame):
             for name, estimate in estimates.items():
                 self.vars[f"center_x{name}"].set(str(estimate.center_x))
                 self.vars[f"center_y{name}"].set(str(estimate.center_y))
-                self.vars[f"rotate_angle_{name}"].set(f"{estimate.angle_degrees:.2f}")
+                self.vars[f"rotate_angle_{name}"].set(str(estimate.angle_degrees))
                 quality = "回退初值，需人工检查" if estimate.used_fallback else f"拟合 R²={estimate.fit_r_squared:.3f}"
                 notices.append(f"{labels[name]}: {quality}")
             self.pending_status_notice = "；".join(notices)

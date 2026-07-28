@@ -23,6 +23,7 @@ from PLIFv2.ui.components.experiment_group_controls import (
 from PLIFv2.ui.components.shift_search_panel import ShiftSearchPanel
 from PLIFv2.ui.image_display import ImageDisplay
 from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
+from PLIFv2.ui.settings_binding import set_dataclass_text_field
 from PLIFv2.ui.widgets import LatestTaskRunner
 
 
@@ -365,17 +366,7 @@ class ManualMixingPage(ttk.Frame):
         for attr, var in self.vars.items():
             if attr in {"save_dr", "save_u"}:
                 continue
-            current = getattr(self.settings, attr)
-            raw = var.get()
-            if isinstance(current, Path):
-                value = Path(raw) if raw else Path()
-            elif isinstance(current, int):
-                value = int(raw)
-            elif isinstance(current, float):
-                value = float(raw)
-            else:
-                value = raw
-            setattr(self.settings, attr, value)
+            set_dataclass_text_field(self.settings, attr, var.get())
         dr_value = self.vars["save_dr"].get().strip()
         u_value = self.vars["save_u"].get().strip()
         self.settings.save_name = f"DR{dr_value}_U{u_value}" if dr_value or u_value else ""

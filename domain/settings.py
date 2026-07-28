@@ -99,9 +99,9 @@ class DistributionSettings:
     q_center_up_fo: int = 0
     q_center_down_fo: int = 0
     max_k: int = 30
-    rotate_angle_f: float = 0
-    rotate_angle_o: float = 0
-    rotate_angle_fo: float = 0
+    rotate_angle_f: int = 0
+    rotate_angle_o: int = 0
+    rotate_angle_fo: int = 0
     hori_fit_width: int = 200
     output_folder: Path = Path()
 

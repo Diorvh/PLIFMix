@@ -4,7 +4,7 @@ import json
 from dataclasses import fields, is_dataclass
 from pathlib import Path
 from threading import get_ident
-from typing import Any, TypeVar, get_args, get_origin
+from typing import Any, TypeVar, get_args, get_origin, get_type_hints
 
 from PLIFv2.domain.settings import AppSettings, dataclass_to_jsonable
 
@@ -79,6 +79,7 @@ def _migrate_ui_state(data: dict[str, Any], config_path: Path) -> None:
 
 def _from_dict(cls: type[T], data: dict[str, Any]) -> T:
     obj = cls()  # type: ignore[call-arg]
+    type_hints = get_type_hints(type(obj))
     for field_info in fields(obj):
         if field_info.name not in data:
             continue
@@ -87,7 +88,8 @@ def _from_dict(cls: type[T], data: dict[str, Any]) -> T:
         if is_dataclass(current):
             setattr(obj, field_info.name, _from_dict(type(current), value))
         else:
-            setattr(obj, field_info.name, _coerce_value(field_info.type, value, current))
+            field_type = type_hints.get(field_info.name, field_info.type)
+            setattr(obj, field_info.name, _coerce_value(field_type, value, current))
     return obj
 
 
@@ -100,4 +102,14 @@ def _coerce_value(type_hint: Any, value: Any, current: Any) -> Any:
     args = get_args(type_hint)
     if origin is tuple and args:
         return tuple(value)
+    if type_hint is int:
+        if isinstance(value, float) and not value.is_integer():
+            raise ValueError(f"整数设置不能使用小数值: {value}")
+        return int(value)
+    if type_hint is float:
+        return float(value)
+    if type_hint is str:
+        return str(value)
+    if type_hint is bool:
+        return bool(value)
     return value

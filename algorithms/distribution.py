@@ -14,7 +14,7 @@ _MAX_ABS_ANGLE = 35.0
 class DistributionRegistrationEstimate:
     center_x: int
     center_y: int
-    angle_degrees: float
+    angle_degrees: int
     fit_r_squared: float
     ridge_point_count: int
     used_fallback: bool
@@ -22,7 +22,7 @@ class DistributionRegistrationEstimate:
 
 @dataclass(frozen=True)
 class _QuadraticCandidate:
-    angle_degrees: float
+    angle_degrees: int
     vertex_u: float
     vertex_v: float
     r_squared: float
@@ -104,7 +104,7 @@ def estimate_distribution_registration(
     return DistributionRegistrationEstimate(
         center_x=int(np.clip(np.rint(center_x), 0, width - 1)),
         center_y=int(np.clip(np.rint(center_y), 0, height - 1)),
-        angle_degrees=round(candidate.angle_degrees, 4),
+        angle_degrees=int(np.rint(candidate.angle_degrees)),
         fit_r_squared=candidate.r_squared,
         ridge_point_count=int(ridge_y.size),
         used_fallback=False,
@@ -184,7 +184,7 @@ def _find_quadratic_candidate(
     principal_angle: float,
 ) -> _QuadraticCandidate | None:
     best: _QuadraticCandidate | None = None
-    for angle in np.linspace(-_MAX_ABS_ANGLE, _MAX_ABS_ANGLE, 141):
+    for angle in range(-int(_MAX_ABS_ANGLE), int(_MAX_ABS_ANGLE) + 1):
         theta = np.radians(angle)
         u = u0 * np.cos(theta) + v0 * np.sin(theta)
         v = -u0 * np.sin(theta) + v0 * np.cos(theta)
@@ -214,7 +214,7 @@ def _find_quadratic_candidate(
         direction_penalty = abs(angle - principal_angle) / (2 * _MAX_ABS_ANGLE)
         score = rmse / max(scale, 1e-6) + 2.0 * outside_span + 0.02 * direction_penalty
         candidate = _QuadraticCandidate(
-            angle_degrees=float(angle),
+            angle_degrees=angle,
             vertex_u=vertex_u,
             vertex_v=vertex_v,
             r_squared=float(r_squared),
@@ -286,7 +286,7 @@ def _fallback_estimate(
     return DistributionRegistrationEstimate(
         center_x=int(peak_x),
         center_y=int(peak_y),
-        angle_degrees=round(float(principal_angle or 0.0), 4),
+        angle_degrees=int(np.rint(principal_angle or 0.0)),
         fit_r_squared=0.0,
         ridge_point_count=int(ridge_y.size),
         used_fallback=True,
