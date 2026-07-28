@@ -534,7 +534,13 @@ class DistributionSummaryPanel(ttk.Frame):
         self._build_group(
             "geometry",
             "轮廓与中心线",
-            (("contour", "轮廓值"), ("center_line", "中心线方程")),
+            (
+                ("contour", "轮廓值"),
+                ("center_line", "中心线方程"),
+                ("center_a", "a"),
+                ("center_b", "b"),
+                ("center_r_squared", "R²"),
+            ),
         ).pack(fill=tk.X, pady=(0, 3))
         self._build_group(
             "distribution",
@@ -562,15 +568,22 @@ class DistributionSummaryPanel(ttk.Frame):
                 sticky="w",
             )
             for column_index, (field, _heading) in enumerate(columns, start=1):
-                cell = ttk.Label(group, text="-", anchor=tk.W)
-                cell.grid(row=row_index, column=column_index, padx=4, pady=1, sticky="w")
+                numeric = field in {"contour", "center_a", "center_b", "center_r_squared"}
+                cell = ttk.Label(group, text="-", anchor=tk.E if numeric else tk.W)
+                cell.grid(
+                    row=row_index,
+                    column=column_index,
+                    padx=4,
+                    pady=1,
+                    sticky="e" if numeric else "w",
+                )
                 self.cells[(group_name, image_name, field)] = cell
         return group
 
     def set_rows(self, rows) -> None:
         for row in rows:
             for group_name, fields in (
-                ("geometry", ("contour", "center_line")),
+                ("geometry", ("contour", "center_line", "center_a", "center_b", "center_r_squared")),
                 ("distribution", ("horizontal", "vertical", "joint")),
             ):
                 for field in fields:

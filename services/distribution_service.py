@@ -43,6 +43,9 @@ class DistributionSummaryRow:
     image_name: str
     contour: str
     center_line: str
+    center_a: str
+    center_b: str
+    center_r_squared: str
     horizontal: str
     vertical: str
     joint: str
@@ -126,13 +129,19 @@ class DistributionFitService:
                     cy,
                     rotate_angles[index],
                 )
+                center_equation = "x=a(√(y²+b²)-b)"
+                center_a = f"{a:.4f}"
+                center_b = f"{b:.4f}"
+                center_r_squared = f"{r_squared:.4f}"
                 center_text = (
-                    f"x=a(√(y²+b²)-b); a={a:.4f}; b={b:.4f}; R²={r_squared:.4f}"
+                    f"{center_equation}; a={center_a}; b={center_b}; R²={center_r_squared}"
                 )
             except FitConvergenceError as exc:
                 a = b = r_squared = np.nan
                 origin_point = fitted_point = empty_points
                 verti_px_rotated = np.array([], dtype=np.float64)
+                center_equation = f"拟合失败：{exc}"
+                center_a = center_b = center_r_squared = "-"
                 center_text = f"拟合失败：{exc}"
                 warnings.append(f"{image_names[index]} {center_text}")
             fit_text += f"{image_names[index]}流量轮廓值:{contour_value};{center_text}     "
@@ -294,7 +303,10 @@ class DistributionFitService:
                 DistributionSummaryRow(
                     image_name=display_names[index].upper(),
                     contour=f"{contour_value:g}" if "contour" in annotations else "未计算",
-                    center_line=center_text,
+                    center_line=center_equation,
+                    center_a=center_a,
+                    center_b=center_b,
+                    center_r_squared=center_r_squared,
                     horizontal=horizontal_text,
                     vertical=vertical_text,
                     joint=joint_text,
