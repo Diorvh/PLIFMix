@@ -208,10 +208,10 @@ class ManualMixingPage(ttk.Frame):
 
     def _row_display(self, parent) -> ttk.Frame:
         row = ttk.Frame(parent)
-        ttk.Checkbutton(row, text="伪彩图", variable=self.is_pseudo, command=self.process).pack(side=tk.LEFT, padx=(3, 5))
-        self._entry(row, "gain", "增益", 6)
-        ttk.Checkbutton(row, text="自动", variable=self.auto_gain, command=self.process).pack(side=tk.LEFT, padx=(4, 5))
-        self._entry(row, "zoom", "缩小倍数", 6)
+        ttk.Checkbutton(row, text="伪彩图", variable=self.is_pseudo, command=self._redraw_cached_result).pack(side=tk.LEFT, padx=(3, 5))
+        self._display_entry(row, "gain", "增益", 6)
+        ttk.Checkbutton(row, text="自动", variable=self.auto_gain, command=self._redraw_cached_result).pack(side=tk.LEFT, padx=(4, 5))
+        self._display_entry(row, "zoom", "缩小倍数", 6)
         self._entry(row, "denoise_ratio", "相对去噪阈值", 7)
         self._entry(row, "f_shift", "F 平移", 6)
         self._entry(row, "o_shift", "O 平移", 6)
@@ -226,8 +226,8 @@ class ManualMixingPage(ttk.Frame):
 
     def _row_geometry(self, parent) -> ttk.Frame:
         row = ttk.Frame(parent)
-        self._entry(row, "line_width", "线宽", 6)
-        ttk.Checkbutton(row, text="十字线", variable=self.show_crosshair, command=self.process).pack(side=tk.LEFT, padx=(5, 2))
+        self._display_entry(row, "line_width", "线宽", 6)
+        ttk.Checkbutton(row, text="十字线", variable=self.show_crosshair, command=self._redraw_cached_result).pack(side=tk.LEFT, padx=(5, 2))
         ttk.Label(row, text="F").pack(side=tk.LEFT, padx=(5, 0))
         self._entry(row, "center_xf", "X", 6)
         self._entry(row, "center_yf", "Y", 6)
@@ -238,7 +238,7 @@ class ManualMixingPage(ttk.Frame):
         ttk.Label(row, text="FO").pack(side=tk.LEFT, padx=(5, 0))
         self._entry(row, "center_xfo", "X", 6)
         self._entry(row, "center_yfo", "Y", 6)
-        ttk.Checkbutton(row, text="椭圆", variable=self.show_ellipse, command=self.process).pack(side=tk.LEFT, padx=(5, 2))
+        ttk.Checkbutton(row, text="椭圆", variable=self.show_ellipse, command=self._redraw_cached_result).pack(side=tk.LEFT, padx=(5, 2))
         self._entry(row, "major_axis", "长轴", 6)
         self._entry(row, "minor_axis", "短轴", 6)
         ttk.Checkbutton(
@@ -262,12 +262,22 @@ class ManualMixingPage(ttk.Frame):
         ttk.Label(row, text=label).pack(side=tk.LEFT, padx=(4, 2))
         self._text_entry(row, attr, self._value_to_str(getattr(self.settings, attr)), width)
 
-    def _text_entry(self, row: ttk.Frame, attr: str, value: str, width: int) -> None:
+    def _display_entry(self, row: ttk.Frame, attr: str, label: str, width: int) -> None:
+        ttk.Label(row, text=label).pack(side=tk.LEFT, padx=(4, 2))
+        self._text_entry(
+            row,
+            attr,
+            self._value_to_str(getattr(self.settings, attr)),
+            width,
+            self._redraw_cached_result,
+        )
+
+    def _text_entry(self, row: ttk.Frame, attr: str, value: str, width: int, command=None) -> None:
         var = tk.StringVar(value=value)
         self.vars[attr] = var
         entry = ttk.Entry(row, textvariable=var, width=width)
         entry.pack(side=tk.LEFT)
-        entry.bind("<Return>", self.process)
+        entry.bind("<Return>", command or self.process)
 
     def _select_image_folder(self) -> None:
         path = filedialog.askdirectory()
@@ -399,8 +409,19 @@ class ManualMixingPage(ttk.Frame):
         self.process()
 
     def _redraw_cached_result(self) -> None:
-        if self.latest_result is not None:
-            self._show_result(self.latest_result)
+        try:
+            self.settings.gain = float(self.vars["gain"].get())
+            self.settings.zoom = float(self.vars["zoom"].get())
+            self.settings.line_width = int(self.vars["line_width"].get())
+            self.settings.auto_gain = self.auto_gain.get()
+            if not self.settings.auto_gain and self.settings.gain <= 0:
+                raise ValueError("关闭自动增益后，手动增益必须大于 0")
+            if self.settings.zoom <= 0 or self.settings.line_width < 1:
+                raise ValueError("缩小倍数必须大于 0，线宽必须至少为 1")
+            if self.latest_result is not None:
+                self._show_result(self.latest_result)
+        except Exception as exc:
+            self.status_label.config(text=f"错误: {exc}")
 
     def process(self, event=None) -> None:
         try:

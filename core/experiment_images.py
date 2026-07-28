@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
+from threading import RLock
 
 import numpy as np
 
@@ -16,6 +18,50 @@ class ExperimentImageTriplet:
 
     def as_tuple(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         return self.f, self.o, self.fo
+
+
+class ExperimentTripletCache:
+    """Small file-aware cache shared by workflows that use the same F/O/FO set."""
+
+    def __init__(self, max_entries: int = 4):
+        self.max_entries = max(1, max_entries)
+        self._entries: OrderedDict[tuple, ExperimentImageTriplet] = OrderedDict()
+        self._lock = RLock()
+
+    def load(
+        self,
+        folder: str | Path,
+        f_exp_no: str,
+        o_exp_no: str,
+        fo_exp_no: str,
+    ) -> ExperimentImageTriplet:
+        paths = tuple(
+            experiment_npy_path(folder, number).resolve()
+            for number in (f_exp_no, o_exp_no, fo_exp_no)
+        )
+        key = (
+            paths,
+            tuple(_file_signature(path) for path in paths),
+        )
+        with self._lock:
+            cached = self._entries.get(key)
+            if cached is not None:
+                self._entries.move_to_end(key)
+                return cached
+            loaded = load_experiment_triplet(folder, f_exp_no, o_exp_no, fo_exp_no)
+            self._entries[key] = loaded
+            self._entries.move_to_end(key)
+            while len(self._entries) > self.max_entries:
+                self._entries.popitem(last=False)
+            return loaded
+
+
+def _file_signature(path: Path) -> tuple[int, int] | None:
+    try:
+        stat = path.stat()
+    except FileNotFoundError:
+        return None
+    return stat.st_mtime_ns, stat.st_size
 
 
 def load_experiment_triplet(

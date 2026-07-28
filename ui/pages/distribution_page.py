@@ -135,9 +135,9 @@ class DistributionPage(ttk.Frame):
     def _row_display(self, parent) -> ttk.Frame:
         row = ttk.Frame(parent)
         ttk.Checkbutton(row, text="伪彩图", variable=self.is_pseudo, command=self._redraw_cached_result).pack(side=tk.LEFT, padx=(3, 5))
-        self._entry(row, "gain", "增益", 6)
+        self._display_entry(row, "gain", "增益", 6)
         ttk.Checkbutton(row, text="自动", variable=self.auto_gain, command=self._redraw_cached_result).pack(side=tk.LEFT, padx=(4, 5))
-        self._entry(row, "zoom", "缩小倍数", 6)
+        self._display_entry(row, "zoom", "缩小倍数", 6)
         self._entry(row, "denoise_ratio", "相对去噪阈值", 7)
         self._entry(row, "f_shift", "F 平移", 6)
         self._entry(row, "o_shift", "O 平移", 6)
@@ -169,7 +169,7 @@ class DistributionPage(ttk.Frame):
 
     def _row_fit_parameters(self, parent) -> ttk.Frame:
         row = ttk.Frame(parent)
-        self._entry(row, "line_width", "线宽", 6)
+        self._display_entry(row, "line_width", "线宽", 6)
         self._entry(row, "thres_contour", "轮廓比例", 6)
         self._entry(row, "max_k", "最大值个数", 5)
         self._entry(row, "hori_fit_width", "横向拟合半宽", 7)
@@ -208,12 +208,22 @@ class DistributionPage(ttk.Frame):
         ttk.Label(row, text=label).pack(side=tk.LEFT, padx=(4, 2))
         self._text_entry(row, name, self._value_to_str(getattr(self.settings, name)), width)
 
-    def _text_entry(self, row, name: str, value: str, width: int) -> None:
+    def _display_entry(self, row, name: str, label: str, width: int) -> None:
+        ttk.Label(row, text=label).pack(side=tk.LEFT, padx=(4, 2))
+        self._text_entry(
+            row,
+            name,
+            self._value_to_str(getattr(self.settings, name)),
+            width,
+            self._redraw_cached_result,
+        )
+
+    def _text_entry(self, row, name: str, value: str, width: int, command=None) -> None:
         var = tk.StringVar(value=value)
         self.vars[name] = var
         entry = ttk.Entry(row, textvariable=var, width=width)
         entry.pack(side=tk.LEFT)
-        entry.bind("<Return>", self.process)
+        entry.bind("<Return>", command or self.process)
 
     def _save_vars(self) -> None:
         for name, variable in self.vars.items():
@@ -319,8 +329,18 @@ class DistributionPage(ttk.Frame):
         self.process()
 
     def _redraw_cached_result(self) -> None:
-        if self.latest_result is not None:
-            self._show(self.latest_result)
+        try:
+            self.settings.gain = float(self.vars["gain"].get())
+            self.settings.zoom = float(self.vars["zoom"].get())
+            self.settings.line_width = int(self.vars["line_width"].get())
+            if not self.auto_gain.get() and self.settings.gain <= 0:
+                raise ValueError("关闭自动增益后，手动增益必须大于 0")
+            if self.settings.zoom <= 0 or self.settings.line_width < 1:
+                raise ValueError("缩小倍数必须大于 0，线宽必须至少为 1")
+            if self.latest_result is not None:
+                self._show(self.latest_result)
+        except Exception as exc:
+            self.status.config(text=f"错误: {exc}")
 
     def _on_center_line_changed(self, selected_line: str) -> None:
         if selected_line == "center" and self.show_center_line.get():

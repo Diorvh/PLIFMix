@@ -14,7 +14,7 @@ from PLIFv2.algorithms.mixing import (
     generate_mask_coords,
     shift_image,
 )
-from PLIFv2.core.experiment_images import load_experiment_triplet
+from PLIFv2.core.experiment_images import ExperimentTripletCache
 from PLIFv2.domain.settings import ManualMixingSettings, ShiftSearchSettings
 from PLIFv2.services.display_types import DisplayImage
 
@@ -43,8 +43,11 @@ class ManualDisplayResult:
 
 
 class MixingService:
+    def __init__(self, image_cache: ExperimentTripletCache | None = None):
+        self.image_cache = image_cache or ExperimentTripletCache()
+
     def run_shift_search(self, settings: ShiftSearchSettings) -> ShiftSearchResult:
-        images = load_experiment_triplet(
+        images = self.image_cache.load(
             settings.image_folder,
             settings.f_exp_no,
             settings.o_exp_no,
@@ -64,7 +67,7 @@ class MixingService:
         return self.run_manual_display(settings).summary
 
     def run_manual_display(self, settings: ManualMixingSettings) -> ManualDisplayResult:
-        triplet = load_experiment_triplet(
+        triplet = self.image_cache.load(
             settings.image_folder,
             settings.f_exp_no,
             settings.o_exp_no,
@@ -73,6 +76,7 @@ class MixingService:
         f_img, o_img, fo_img = triplet.as_tuple()
         f_img = shift_image(f_img, settings.f_shift)
         o_img = shift_image(o_img, settings.o_shift)
+        fo_img = fo_img.copy()
 
         mask = (f_img < (np.max(f_img) * settings.denoise_ratio)) & (o_img < (np.max(o_img) * settings.denoise_ratio))
         f_img[mask] = 0

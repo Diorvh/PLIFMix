@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 from PLIFv2.application.app_state import AppState
+from PLIFv2.core.experiment_images import ExperimentTripletCache
 from PLIFv2.services.average_service import AverageImageService, AverageResult
 from PLIFv2.services.calibration_service import CalibrationService
 from PLIFv2.services.davis_service import DavisImportResult, DavisService
@@ -24,8 +25,9 @@ class PLIFActions:
         self.calibration_service = CalibrationService()
         self.intensifier_service = IntensifierCorrectionService()
         self.davis_service = DavisService()
-        self.mixing_service = MixingService()
-        self.distribution_service = DistributionFitService()
+        experiment_image_cache = ExperimentTripletCache()
+        self.mixing_service = MixingService(experiment_image_cache)
+        self.distribution_service = DistributionFitService(experiment_image_cache)
         self.noise_service = NoiseAnalysisService()
 
     def run_average(self) -> AverageResult:

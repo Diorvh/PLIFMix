@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from threading import RLock
 
 import numpy as np
 import openpyxl
@@ -21,7 +22,7 @@ from PLIFv2.algorithms.mixing import (
     shift_image,
     straighten_center_line_image,
 )
-from PLIFv2.core.experiment_images import load_experiment_triplet
+from PLIFv2.core.experiment_images import ExperimentImageTriplet, ExperimentTripletCache
 from PLIFv2.core.paths import path_is_set
 from PLIFv2.domain.settings import DistributionSettings
 from PLIFv2.services.display_types import DisplayImage
@@ -53,13 +54,19 @@ class DistributionRegistrationResult:
 class DistributionFitService:
     """Fit independently normalized F, O, and FO mass distributions."""
 
+    def __init__(self, image_cache: ExperimentTripletCache | None = None):
+        self.image_cache = image_cache or ExperimentTripletCache()
+        self._processed_cache_key: tuple | None = None
+        self._processed_cache: tuple[DistributionImageData, ...] | None = None
+        self._cache_lock = RLock()
+
     def run(
         self,
         settings: DistributionSettings,
         annotations: frozenset[str] = frozenset(),
         image_mode: str = "ori_img",
     ) -> DistributionFitResult:
-        source_images = _load_distribution_images(settings)
+        source_images = self._distribution_images(settings)
 
         fit_text = ""
         surface_text = ""
@@ -274,7 +281,7 @@ class DistributionFitService:
         return DistributionFitResult(fit_text, surface_text, display_images, fit_rows, curve_data, tuple(warnings))
 
     def estimate_registration(self, settings: DistributionSettings) -> DistributionRegistrationResult:
-        source_images = _load_distribution_images(settings)
+        source_images = self._distribution_images(settings)
         bounds = (
             (settings.q_center_up_f, settings.q_center_down_f),
             (settings.q_center_up_o, settings.q_center_down_o),
@@ -290,6 +297,27 @@ class DistributionFitService:
             for source, (up_limit, down_limit) in zip(source_images, bounds)
         )
         return DistributionRegistrationResult(*estimates)
+
+    def _distribution_images(self, settings: DistributionSettings) -> tuple[DistributionImageData, ...]:
+        triplet = self.image_cache.load(
+            settings.image_folder,
+            settings.f_exp_no,
+            settings.o_exp_no,
+            settings.fo_exp_no,
+        )
+        key = (
+            id(triplet.f),
+            id(triplet.o),
+            id(triplet.fo),
+            settings.f_shift,
+            settings.o_shift,
+            settings.denoise_ratio,
+        )
+        with self._cache_lock:
+            if key != self._processed_cache_key or self._processed_cache is None:
+                self._processed_cache = _prepare_distribution_images(triplet, settings)
+                self._processed_cache_key = key
+            return self._processed_cache
 
     def export(self, settings: DistributionSettings, result: DistributionFitResult) -> Path:
         output = Path(settings.output_folder) if path_is_set(settings.output_folder) else Path(settings.image_folder).parent / "distribution_results"
@@ -337,13 +365,10 @@ class DistributionFitService:
         return output
 
 
-def _load_distribution_images(settings: DistributionSettings) -> tuple[DistributionImageData, ...]:
-    triplet = load_experiment_triplet(
-        settings.image_folder,
-        settings.f_exp_no,
-        settings.o_exp_no,
-        settings.fo_exp_no,
-    )
+def _prepare_distribution_images(
+    triplet: ExperimentImageTriplet,
+    settings: DistributionSettings,
+) -> tuple[DistributionImageData, ...]:
     shifted_images = (
         shift_image(triplet.f, settings.f_shift),
         shift_image(triplet.o, settings.o_shift),
