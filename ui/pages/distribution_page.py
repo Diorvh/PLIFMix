@@ -70,8 +70,8 @@ class DistributionPage(ttk.Frame):
         self._row_display_options(controls).pack(anchor=tk.W, pady=1)
         self._row_fit_parameters(controls).pack(anchor=tk.W, pady=1)
 
-        self.summary = ttk.Label(self, text="质量分布拟合结果", wraplength=1500, justify=tk.LEFT)
-        self.summary.pack(anchor=tk.W, padx=8)
+        self.summary = DistributionSummaryPanel(self)
+        self.summary.pack(fill=tk.X, padx=8)
         self.status = ttk.Label(self, text="")
         self.status.pack(anchor=tk.W, padx=8)
 
@@ -403,7 +403,7 @@ class DistributionPage(ttk.Frame):
 
     def _show(self, result) -> None:
         self.latest_result = result
-        self.summary.config(text=result.fit_text + "\n" + result.surface_text)
+        self.summary.set_rows(result.summary_rows)
         output = self._output_folder()
         for item in result.images:
             display = self.displays.get(item.name)
@@ -526,6 +526,59 @@ class DistributionPage(ttk.Frame):
         if isinstance(value, Path):
             return "" if str(value) == "." else str(value)
         return str(value)
+
+class DistributionSummaryPanel(ttk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.cells: dict[tuple[str, str, str], ttk.Label] = {}
+        self._build_group(
+            "geometry",
+            "轮廓与中心线",
+            (("contour", "轮廓值"), ("center_line", "中心线方程")),
+        ).pack(fill=tk.X, pady=(0, 3))
+        self._build_group(
+            "distribution",
+            "强度分布拟合",
+            (("horizontal", "横向拟合"), ("vertical", "纵向拟合"), ("joint", "联合分布")),
+        ).pack(fill=tk.X)
+
+    def _build_group(self, group_name: str, title: str, columns: tuple[tuple[str, str], ...]) -> ttk.LabelFrame:
+        group = ttk.LabelFrame(self, text=title)
+        ttk.Label(group, text="图像", width=5, anchor=tk.CENTER).grid(row=0, column=0, padx=4, sticky="ew")
+        for column_index, (_field, heading) in enumerate(columns, start=1):
+            ttk.Label(group, text=heading, anchor=tk.W).grid(
+                row=0,
+                column=column_index,
+                padx=4,
+                sticky="ew",
+            )
+            group.columnconfigure(column_index, weight=1)
+
+        for row_index, image_name in enumerate(("F", "O", "FO"), start=1):
+            ttk.Label(group, text=image_name, width=5, anchor=tk.CENTER).grid(
+                row=row_index,
+                column=0,
+                padx=4,
+                pady=1,
+                sticky="ew",
+            )
+            for column_index, (field, _heading) in enumerate(columns, start=1):
+                cell = ttk.Label(group, text="-", anchor=tk.W)
+                cell.grid(row=row_index, column=column_index, padx=4, pady=1, sticky="ew")
+                self.cells[(group_name, image_name, field)] = cell
+        return group
+
+    def set_rows(self, rows) -> None:
+        for row in rows:
+            for group_name, fields in (
+                ("geometry", ("contour", "center_line")),
+                ("distribution", ("horizontal", "vertical", "joint")),
+            ):
+                for field in fields:
+                    cell = self.cells.get((group_name, row.image_name, field))
+                    if cell is not None:
+                        cell.config(text=getattr(row, field))
+
 
 class LabelLog:
     def __init__(self, label):

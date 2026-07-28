@@ -35,6 +35,17 @@ class DistributionFitResult:
     fit_rows: list[list[float | None]]
     curve_data: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]]
     warnings: tuple[str, ...]
+    summary_rows: tuple["DistributionSummaryRow", ...]
+
+
+@dataclass(frozen=True)
+class DistributionSummaryRow:
+    image_name: str
+    contour: str
+    center_line: str
+    horizontal: str
+    vertical: str
+    joint: str
 
 
 @dataclass(frozen=True)
@@ -74,6 +85,7 @@ class DistributionFitService:
         fit_rows: list[list[float | None]] = []
         curve_data: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
         warnings: list[str] = []
+        summary_rows: list[DistributionSummaryRow] = []
         centers = [
             (settings.center_xf, settings.center_yf),
             (settings.center_xo, settings.center_yo),
@@ -115,14 +127,14 @@ class DistributionFitService:
                     rotate_angles[index],
                 )
                 center_text = (
-                    f"流量中心线方程：y={a:.4f}*sqrt(x^2+{b * b:.4f})-"
-                    f"{a:.4f}*{b:.4f}; R2={r_squared:.4f}"
+                    f"y={a:.4f}*sqrt(x^2+{b * b:.4f})-"
+                    f"{a:.4f}*{b:.4f}; R²={r_squared:.4f}"
                 )
             except FitConvergenceError as exc:
                 a = b = r_squared = np.nan
                 origin_point = fitted_point = empty_points
                 verti_px_rotated = np.array([], dtype=np.float64)
-                center_text = f"流量中心线拟合失败：{exc}"
+                center_text = f"拟合失败：{exc}"
                 warnings.append(f"{image_names[index]} {center_text}")
             fit_text += f"{image_names[index]}流量轮廓值:{contour_value};{center_text}     "
 
@@ -140,12 +152,12 @@ class DistributionFitService:
                 ah, bh, ch, r_squared_h, hori_predicted = func_fit_3(hori_px, hori_intensity, fit_func)
                 curve_data[f"横向分布_{image_names[index]}"] = (hori_px, hori_intensity, hori_predicted)
                 horizontal_text = (
-                    f"横向强度分布拟合：y={ah * 1e4:.4f}E-4/"
-                    f"(x^2*{bh:.4f}^2+1)^{ch:.4f}; R2={r_squared_h:.4f}"
+                    f"y={ah * 1e4:.4f}E-4/"
+                    f"(x^2*{bh:.4f}^2+1)^{ch:.4f}; R²={r_squared_h:.4f}"
                 )
             except FitConvergenceError as exc:
                 ah = bh = ch = r_squared_h = np.nan
-                horizontal_text = f"横向强度分布拟合失败：{exc}"
+                horizontal_text = f"拟合失败：{exc}"
                 warnings.append(f"{image_names[index]} {horizontal_text}")
             fit_text += f"{image_names[index]}{horizontal_text}     "
 
@@ -164,16 +176,16 @@ class DistributionFitService:
                         vertical_predicted,
                     )
                     vertical_text = (
-                        f"纵向强度分布拟合：y={av * 1e4:.4f}E-4/"
-                        f"(x^2*{bv:.4f}^2+1)^{cv:.4f}; R2={r_squared_v:.4f}"
+                        f"y={av * 1e4:.4f}E-4/"
+                        f"(x^2*{bv:.4f}^2+1)^{cv:.4f}; R²={r_squared_v:.4f}"
                     )
                 except FitConvergenceError as exc:
                     av = bv = cv = r_squared_v = np.nan
-                    vertical_text = f"纵向强度分布拟合失败：{exc}"
+                    vertical_text = f"拟合失败：{exc}"
                     warnings.append(f"{image_names[index]} {vertical_text}")
             else:
                 av = bv = cv = r_squared_v = np.nan
-                vertical_text = "纵向强度分布拟合未执行：中心线拟合没有有效数据。"
+                vertical_text = "未执行：中心线拟合没有有效数据"
             fit_text += f"{image_names[index]}{vertical_text}\n"
 
             best_rho = 0.0
@@ -225,8 +237,10 @@ class DistributionFitService:
                 best_rho = float(res.x)
                 r_squared_p = float(1 - (res.fun / ss_tot)) if ss_tot != 0 else 0.0
                 surface_prediction = predict_img_func(best_rho)
-                surface_text += f"{image_names[index]}横纵向联合分布拟合：rho={best_rho:.4f}; R2={r_squared_p:.4f}\n"
+                joint_text = f"rho={best_rho:.4f}; R²={r_squared_p:.4f}"
+                surface_text += f"{image_names[index]}横纵向联合分布拟合：{joint_text}\n"
             else:
+                joint_text = "未执行"
                 surface_text += f"{image_names[index]}横纵向联合分布拟合：未执行\n"
             fit_rows.append(
                 _finite_values_or_none([
@@ -277,8 +291,26 @@ class DistributionFitService:
                     special_points,
                 )
             )
+            summary_rows.append(
+                DistributionSummaryRow(
+                    image_name=display_names[index].upper(),
+                    contour=f"{contour_value:g}" if "contour" in annotations else "未计算",
+                    center_line=center_text,
+                    horizontal=horizontal_text,
+                    vertical=vertical_text,
+                    joint=joint_text,
+                )
+            )
 
-        return DistributionFitResult(fit_text, surface_text, display_images, fit_rows, curve_data, tuple(warnings))
+        return DistributionFitResult(
+            fit_text,
+            surface_text,
+            display_images,
+            fit_rows,
+            curve_data,
+            tuple(warnings),
+            tuple(summary_rows),
+        )
 
     def estimate_registration(self, settings: DistributionSettings) -> DistributionRegistrationResult:
         source_images = self._distribution_images(settings)
