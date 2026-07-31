@@ -15,7 +15,7 @@ from PLIFv2.algorithms.mixing import (
     shift_image,
 )
 from PLIFv2.core.experiment_images import ExperimentTripletCache
-from PLIFv2.core.safe_io import atomic_save_workbook
+from PLIFv2.core.safe_io import atomic_save_workbook, excel_write_session
 from PLIFv2.domain.settings import ManualMixingSettings, ShiftSearchSettings
 from PLIFv2.services.display_types import DisplayImage
 
@@ -166,7 +166,8 @@ class MixingService:
         for x_value, y_value in zip(*mix_curve):
             curve_sheet.append([float(x_value), float(y_value)])
         curve_path = output / f"{name}.xlsx"
-        return atomic_save_workbook(curve_workbook, curve_path)
+        with excel_write_session(curve_path):
+            return atomic_save_workbook(curve_workbook, curve_path)
 
 
 def _build_display_outputs(

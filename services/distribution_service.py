@@ -33,8 +33,7 @@ from PLIFv2.core.paths import path_is_set
 from PLIFv2.core.safe_io import (
     atomic_save_workbook,
     atomic_write,
-    close_open_excel_workbook,
-    reopen_external_file,
+    excel_write_session,
 )
 from PLIFv2.domain.settings import DistributionSettings
 from PLIFv2.services.display_types import DisplayImage
@@ -822,7 +821,9 @@ class DistributionFitService:
         sheet.append(["image", *headers])
         for image_name, row in zip(["f_img", "o_img", "fo_img"], result.fit_rows):
             sheet.append([image_name, *row])
-        atomic_save_workbook(workbook, output / f"{name}-fit-results.xlsx")
+        workbook_path = output / f"{name}-fit-results.xlsx"
+        with excel_write_session(workbook_path):
+            atomic_save_workbook(workbook, workbook_path)
 
         for curve_name, (x_values, values, predicted) in result.curve_data.items():
             figure = Figure(figsize=(8, 5), dpi=150)
@@ -849,87 +850,91 @@ class DistributionFitService:
         if len(result.fit_rows) < 3:
             raise ValueError("当前拟合结果不完整，至少需要 F、O、FO 三行数据。")
 
-        reopen_after_write = False
         try:
-            workbook = openpyxl.load_workbook(target, data_only=False)
-        except PermissionError as exc:
-            if not close_open_excel_workbook(target):
-                raise ValueError("拟合结果 Excel 可能正在被其他程序占用，请关闭后重试。") from exc
-            reopen_after_write = True
-            try:
+            with excel_write_session(target):
                 workbook = openpyxl.load_workbook(target, data_only=False)
-            except PermissionError as retry_exc:
-                raise ValueError("拟合结果 Excel 在关闭后仍无法读取。") from retry_exc
+                workbook_open = True
+                try:
+                    worksheet = workbook["测量数据"] if "测量数据" in workbook.sheetnames else workbook.active
+                    expected_headers = (
+                        "中心x",
+                        "中心y",
+                        "旋转角度",
+                        "上界",
+                        "下界",
+                        "中心线a",
+                        "中心线b",
+                        "R2",
+                        "横向a",
+                        "横向b",
+                        "横向c",
+                        "R2",
+                        "纵向a",
+                        "纵向b",
+                        "纵向c",
+                        "R2",
+                        "sx",
+                        "sy",
+                        "m",
+                        "R2",
+                        "sx",
+                        "sy",
+                        "m",
+                        "R",
+                        "R2",
+                    )
+                    actual_headers = tuple(worksheet.cell(row=1, column=column).value for column in range(20, 45))
+                    if actual_headers != expected_headers:
+                        raise ValueError("目标 Excel 的 T:AR 表头与拟合结果模板不一致。")
 
-        workbook_open = True
-        try:
-            worksheet = workbook["测量数据"] if "测量数据" in workbook.sheetnames else workbook.active
-            expected_headers = (
-                "中心x",
-                "中心y",
-                "旋转角度",
-                "上界",
-                "下界",
-                "中心线a",
-                "中心线b",
-                "R2",
-                "横向a",
-                "横向b",
-                "横向c",
-                "R2",
-                "纵向a",
-                "纵向b",
-                "纵向c",
-                "R2",
-                "sx",
-                "sy",
-                "m",
-                "R2",
-                "sx",
-                "sy",
-                "m",
-                "R",
-                "R2",
-            )
-            actual_headers = tuple(worksheet.cell(row=1, column=column).value for column in range(20, 45))
-            if actual_headers != expected_headers:
-                raise ValueError("目标 Excel 的 T:AR 表头与拟合结果模板不一致。")
+                    requested = (
+                        (
+                            _experiment_number_key(settings.f_exp_no),
+                            result.fit_rows[0],
+                            settings.q_center_up_f,
+                            settings.q_center_down_f,
+                        ),
+                        (
+                            _experiment_number_key(settings.o_exp_no),
+                            result.fit_rows[1],
+                            settings.q_center_up_o,
+                            settings.q_center_down_o,
+                        ),
+                        (
+                            _experiment_number_key(settings.fo_exp_no),
+                            result.fit_rows[2],
+                            settings.q_center_up_fo,
+                            settings.q_center_down_fo,
+                        ),
+                    )
+                    rows_by_number: dict[str, list[int]] = {}
+                    for row_index in range(1, worksheet.max_row + 1):
+                        key = _experiment_number_key(worksheet.cell(row=row_index, column=1).value)
+                        if key:
+                            rows_by_number.setdefault(key, []).append(row_index)
 
-            requested = (
-                (_experiment_number_key(settings.f_exp_no), result.fit_rows[0], settings.q_center_up_f, settings.q_center_down_f),
-                (_experiment_number_key(settings.o_exp_no), result.fit_rows[1], settings.q_center_up_o, settings.q_center_down_o),
-                (_experiment_number_key(settings.fo_exp_no), result.fit_rows[2], settings.q_center_up_fo, settings.q_center_down_fo),
-            )
-            rows_by_number: dict[str, list[int]] = {}
-            for row_index in range(1, worksheet.max_row + 1):
-                key = _experiment_number_key(worksheet.cell(row=row_index, column=1).value)
-                if key:
-                    rows_by_number.setdefault(key, []).append(row_index)
+                    target_rows: list[tuple[int, list[float | None], int, int]] = []
+                    for number, fit_row, upper, lower in requested:
+                        if not number:
+                            raise ValueError("F、O、FO 实验编号不能为空。")
+                        matches = rows_by_number.get(number, [])
+                        if not matches:
+                            raise ValueError(f"Excel A 列中找不到实验编号 {number}。")
+                        if len(matches) > 1:
+                            raise ValueError(f"Excel A 列中实验编号 {number} 出现多次，无法确定写入行。")
+                        target_rows.append((matches[0], fit_row, upper, lower))
 
-            target_rows: list[tuple[int, list[float | None], int, int]] = []
-            for number, fit_row, upper, lower in requested:
-                if not number:
-                    raise ValueError("F、O、FO 实验编号不能为空。")
-                matches = rows_by_number.get(number, [])
-                if not matches:
-                    raise ValueError(f"Excel A 列中找不到实验编号 {number}。")
-                if len(matches) > 1:
-                    raise ValueError(f"Excel A 列中实验编号 {number} 出现多次，无法确定写入行。")
-                target_rows.append((matches[0], fit_row, upper, lower))
-
-            for row_index, fit_row, upper, lower in target_rows:
-                values = [fit_row[0], fit_row[1], fit_row[2], upper, lower, *fit_row[3:23]]
-                for column, value in enumerate(values, start=20):
-                    worksheet.cell(row=row_index, column=column).value = value
-            atomic_save_workbook(workbook, target)
-            workbook_open = False
-            if reopen_after_write:
-                reopen_external_file(target)
+                    for row_index, fit_row, upper, lower in target_rows:
+                        values = [fit_row[0], fit_row[1], fit_row[2], upper, lower, *fit_row[3:23]]
+                        for column, value in enumerate(values, start=20):
+                            worksheet.cell(row=row_index, column=column).value = value
+                    atomic_save_workbook(workbook, target)
+                    workbook_open = False
+                finally:
+                    if workbook_open:
+                        workbook.close()
         except PermissionError as exc:
             raise ValueError("拟合结果 Excel 可能正在被其他程序占用，请关闭后重试。") from exc
-        finally:
-            if workbook_open:
-                workbook.close()
         return target
 
 

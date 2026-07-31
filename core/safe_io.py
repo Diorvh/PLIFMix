@@ -5,8 +5,9 @@ import os
 import shutil
 import uuid
 from collections.abc import Callable
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import numpy as np
 
@@ -88,6 +89,18 @@ def close_open_excel_workbook(path: str | Path) -> bool:
 
 def reopen_external_file(path: str | Path) -> None:
     _reopen_excel_workbook(Path(path))
+
+
+@contextmanager
+def excel_write_session(path: str | Path) -> Iterator[None]:
+    """Close an open Excel workbook without saving, then reopen it on exit."""
+    target = Path(path)
+    was_open = close_open_excel_workbook(target)
+    try:
+        yield
+    finally:
+        if was_open:
+            reopen_external_file(target)
 
 
 def _is_lock_error(exc: OSError) -> bool:
