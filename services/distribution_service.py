@@ -30,6 +30,12 @@ from PLIFv2.algorithms.mixing import (
 )
 from PLIFv2.core.experiment_images import ExperimentImageTriplet, ExperimentTripletCache
 from PLIFv2.core.paths import path_is_set
+from PLIFv2.core.safe_io import (
+    atomic_save_workbook,
+    atomic_write,
+    close_open_excel_workbook,
+    reopen_external_file,
+)
 from PLIFv2.domain.settings import DistributionSettings
 from PLIFv2.services.display_types import DisplayImage
 from PLIFv2.services.distribution_workers import (
@@ -816,8 +822,7 @@ class DistributionFitService:
         sheet.append(["image", *headers])
         for image_name, row in zip(["f_img", "o_img", "fo_img"], result.fit_rows):
             sheet.append([image_name, *row])
-        workbook.save(output / f"{name}-fit-results.xlsx")
-        workbook.close()
+        atomic_save_workbook(workbook, output / f"{name}-fit-results.xlsx")
 
         for curve_name, (x_values, values, predicted) in result.curve_data.items():
             figure = Figure(figsize=(8, 5), dpi=150)
@@ -829,7 +834,11 @@ class DistributionFitService:
             axis.grid(True, alpha=0.3)
             axis.legend()
             FigureCanvasAgg(figure)
-            figure.savefig(output / f"{name}-{curve_name}.png", bbox_inches="tight")
+            atomic_write(
+                output / f"{name}-{curve_name}.png",
+                lambda temporary: figure.savefig(temporary, format="png", bbox_inches="tight"),
+                "save fit curve image",
+            )
         return output
 
     def write_fit_results_to_excel(self, settings: DistributionSettings, result: DistributionFitResult) -> Path:
@@ -840,11 +849,19 @@ class DistributionFitService:
         if len(result.fit_rows) < 3:
             raise ValueError("当前拟合结果不完整，至少需要 F、O、FO 三行数据。")
 
+        reopen_after_write = False
         try:
             workbook = openpyxl.load_workbook(target, data_only=False)
         except PermissionError as exc:
-            raise ValueError("拟合结果 Excel 可能正在被其他程序占用，请关闭后重试。") from exc
+            if not close_open_excel_workbook(target):
+                raise ValueError("拟合结果 Excel 可能正在被其他程序占用，请关闭后重试。") from exc
+            reopen_after_write = True
+            try:
+                workbook = openpyxl.load_workbook(target, data_only=False)
+            except PermissionError as retry_exc:
+                raise ValueError("拟合结果 Excel 在关闭后仍无法读取。") from retry_exc
 
+        workbook_open = True
         try:
             worksheet = workbook["测量数据"] if "测量数据" in workbook.sheetnames else workbook.active
             expected_headers = (
@@ -904,11 +921,15 @@ class DistributionFitService:
                 values = [fit_row[0], fit_row[1], fit_row[2], upper, lower, *fit_row[3:23]]
                 for column, value in enumerate(values, start=20):
                     worksheet.cell(row=row_index, column=column).value = value
-            workbook.save(target)
+            atomic_save_workbook(workbook, target)
+            workbook_open = False
+            if reopen_after_write:
+                reopen_external_file(target)
         except PermissionError as exc:
             raise ValueError("拟合结果 Excel 可能正在被其他程序占用，请关闭后重试。") from exc
         finally:
-            workbook.close()
+            if workbook_open:
+                workbook.close()
         return target
 
 

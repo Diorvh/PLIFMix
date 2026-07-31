@@ -6,6 +6,8 @@ from typing import Iterable
 import cv2
 import numpy as np
 
+from PLIFv2.core.safe_io import atomic_save_npy, atomic_write_bytes
+
 
 def read_image(path: str | Path) -> np.ndarray:
     path = Path(path)
@@ -24,8 +26,7 @@ def write_tif(path: str | Path, image: np.ndarray) -> Path:
     ok, encoded = cv2.imencode(".tif", image)
     if not ok:
         raise ValueError(f"Failed to encode tif: {path}")
-    encoded.tofile(str(path))
-    return path
+    return atomic_write_bytes(path, encoded.tobytes(), "write TIF image")
 
 
 def write_png(path: str | Path, image: np.ndarray) -> Path:
@@ -34,15 +35,14 @@ def write_png(path: str | Path, image: np.ndarray) -> Path:
     ok, encoded = cv2.imencode(".png", image)
     if not ok:
         raise ValueError(f"Failed to encode png: {path}")
-    encoded.tofile(str(path))
-    return path
+    return atomic_write_bytes(path, encoded.tobytes(), "write PNG image")
 
 
 def save_float_image(image: np.ndarray, folder: str | Path, name: str) -> dict[str, Path]:
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
     npy_path = folder / f"{name}.npy"
-    np.save(npy_path, image)
+    atomic_save_npy(npy_path, image)
 
     tif_path = folder / f"{name}.tif"
     clipped = np.clip(image, 0, np.iinfo(np.uint16).max).astype(np.uint16)

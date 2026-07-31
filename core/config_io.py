@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from dataclasses import fields, is_dataclass
 from pathlib import Path
-from threading import get_ident
 from typing import Any, TypeVar, get_args, get_origin, get_type_hints
 
+from PLIFv2.core.safe_io import atomic_write_text
 from PLIFv2.domain.settings import AppSettings, dataclass_to_jsonable
 
 T = TypeVar("T")
@@ -17,14 +17,10 @@ def default_config_path() -> Path:
 
 def save_settings(settings: AppSettings, path: Path | None = None) -> Path:
     config_path = path or default_config_path()
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = config_path.with_name(f".{config_path.name}.{get_ident()}.tmp")
-    temporary_path.write_text(
+    return atomic_write_text(
+        config_path,
         json.dumps(dataclass_to_jsonable(settings), ensure_ascii=False, indent=2),
-        encoding="utf-8",
     )
-    temporary_path.replace(config_path)
-    return config_path
 
 
 def load_settings(path: Path | None = None) -> AppSettings:

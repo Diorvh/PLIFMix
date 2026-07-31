@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 
 from PLIFv2.core.image_io import list_image_files, read_image, write_tif
+from PLIFv2.core.safe_io import atomic_save_npy, atomic_write
 
 
 def export_gif(
@@ -34,9 +35,22 @@ def export_gif(
             ratio = max_width / image.width
             image = image.resize((max_width, int(image.height * ratio)), Image.Resampling.LANCZOS)
         images.append(image)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    images[0].save(output_path, save_all=True, append_images=images[1:], duration=duration_ms, loop=0)
-    return output_path
+    try:
+        return atomic_write(
+            output_path,
+            lambda temporary: images[0].save(
+                temporary,
+                format="GIF",
+                save_all=True,
+                append_images=images[1:],
+                duration=duration_ms,
+                loop=0,
+            ),
+            "export GIF",
+        )
+    finally:
+        for image in images:
+            image.close()
 
 
 def create_colorbar(
@@ -89,6 +103,4 @@ def transform_npy(input_path: Path, output_path: Path, operation: str, value: fl
         result = np.divide(1, array, out=np.zeros_like(array), where=array != 0)
     else:
         raise ValueError(f"Unsupported NPY operation: {operation}")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    np.save(output_path, result)
-    return output_path
+    return atomic_save_npy(output_path, result)

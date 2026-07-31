@@ -7,6 +7,8 @@ from typing import Any
 
 import openpyxl
 
+from PLIFv2.core.safe_io import atomic_write_text
+
 
 PRESET_FORMAT = "plifv2.manual-mixing-presets"
 PRESET_VERSION = 1
@@ -127,8 +129,7 @@ def save_mixing_presets(catalog: MixingPresetCatalog, path: str | Path) -> Path:
         "source_excel": catalog.source_excel,
         "groups": [asdict(group) for group in catalog.groups],
     }
-    output.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return output
+    return atomic_write_text(output, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
 
 
 def _record_role(row: tuple[Any, ...]) -> str:

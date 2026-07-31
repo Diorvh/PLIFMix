@@ -9,6 +9,7 @@ import uuid
 from PLIFv2.algorithms.average import AverageSetError, average_image_sets
 from PLIFv2.core.image_io import list_image_files, save_float_image
 from PLIFv2.core.paths import path_is_set
+from PLIFv2.core.safe_io import rename_path
 from PLIFv2.domain.settings import AverageSettings, IntensifierAverageSettings
 
 
@@ -215,18 +216,18 @@ def _ensure_numbered_sequence(files: list[Path]) -> list[Path]:
     try:
         for index, path in enumerate(files):
             temp = path.with_name(f".plifv2_{token}_{index}{path.suffix}")
-            path.rename(temp)
+            rename_path(path, temp)
             temporary.append((temp, path))
         for index, (temp, original) in enumerate(temporary):
             final = original.with_name(f"{index:04d}{original.suffix.upper()}")
-            temp.rename(final)
+            rename_path(temp, final)
             renamed.append((final, original))
     except Exception:
         for final, original in reversed(renamed):
             if final.exists():
-                final.rename(original)
+                rename_path(final, original)
         for temp, original in reversed(temporary):
             if temp.exists():
-                temp.rename(original)
+                rename_path(temp, original)
         raise
     return list_image_files(files[0].parent, (".png", ".tif", ".tiff", ".bmp"))

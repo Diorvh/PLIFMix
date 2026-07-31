@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -9,6 +8,7 @@ import numpy as np
 
 from PLIFv2.core.image_io import read_image, save_float_image
 from PLIFv2.core.paths import path_is_set
+from PLIFv2.core.safe_io import atomic_copy2
 from PLIFv2.domain.settings import DavisSettings
 
 
@@ -42,7 +42,7 @@ class DavisService:
             if destination.exists() and destination.resolve() != path.resolve():
                 raise FileExistsError(f"Duplicate Davis input file name: {destination.name}")
             if destination.resolve() != path.resolve():
-                shutil.copy2(path, destination)
+                atomic_copy2(path, destination)
             copied += 1
         return DavisPrepareResult(copied, output)
 
