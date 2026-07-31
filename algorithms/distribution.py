@@ -54,7 +54,7 @@ def fit_elliptical_student(
     initial_exponent: float,
 ) -> EllipticalStudentFit:
     """Fit a normalized three-parameter elliptical Pearson VII surface."""
-    fit_data = _prepare_surface_fit(
+    fit_data = prepare_surface_fit_data(
         target,
         pixel_x,
         pixel_y,
@@ -62,6 +62,11 @@ def fit_elliptical_student(
         initial_scale_y,
         initial_exponent,
     )
+    return fit_elliptical_student_prepared(fit_data)
+
+
+def fit_elliptical_student_prepared(fit_data: _SurfaceFitData) -> EllipticalStudentFit:
+    """Fit the pure model using an already prepared surface workspace."""
     initial = np.log(
         [
             fit_data.initial_scale_x,
@@ -109,7 +114,7 @@ def fit_compact_elliptical_student(
     initial_exponent: float,
 ) -> EllipticalStudentFit:
     """Fit an elliptical Pearson VII surface with a smooth finite cutoff."""
-    fit_data = _prepare_surface_fit(
+    fit_data = prepare_surface_fit_data(
         target,
         pixel_x,
         pixel_y,
@@ -117,9 +122,34 @@ def fit_compact_elliptical_student(
         initial_scale_y,
         initial_exponent,
     )
+    return fit_compact_elliptical_student_prepared(fit_data)
+
+
+def fit_compact_elliptical_student_prepared(
+    fit_data: _SurfaceFitData,
+    initial_scale_x: float | None = None,
+    initial_scale_y: float | None = None,
+    initial_exponent: float | None = None,
+) -> EllipticalStudentFit:
+    """Fit the compact model using an already prepared surface workspace."""
+    compact_scale_x = _bounded_initial(
+        fit_data.initial_scale_x if initial_scale_x is None else initial_scale_x,
+        _MIN_STUDENT_SCALE,
+        fit_data.maximum_scale_x,
+    )
+    compact_scale_y = _bounded_initial(
+        fit_data.initial_scale_y if initial_scale_y is None else initial_scale_y,
+        _MIN_STUDENT_SCALE,
+        fit_data.maximum_scale_y,
+    )
+    compact_exponent = _bounded_initial(
+        fit_data.initial_exponent if initial_exponent is None else initial_exponent,
+        _MIN_STUDENT_EXPONENT,
+        _MAX_STUDENT_EXPONENT,
+    )
     initial_radius_squared = (
-        fit_data.pixel_x_squared / (fit_data.initial_scale_x**2)
-        + fit_data.pixel_y_squared / (fit_data.initial_scale_y**2)
+        fit_data.pixel_x_squared / (compact_scale_x**2)
+        + fit_data.pixel_y_squared / (compact_scale_y**2)
     )
     initial_cutoff = max(
         0.5,
@@ -132,9 +162,9 @@ def fit_compact_elliptical_student(
     )
     initial = np.log(
         [
-            fit_data.initial_scale_x,
-            fit_data.initial_scale_y,
-            fit_data.initial_exponent - 1.0,
+            compact_scale_x,
+            compact_scale_y,
+            compact_exponent - 1.0,
             initial_cutoff,
         ]
     )
@@ -189,7 +219,7 @@ class _SurfaceFitData:
     ss_total: float
 
 
-def _prepare_surface_fit(
+def prepare_surface_fit_data(
     target: np.ndarray,
     pixel_x: np.ndarray,
     pixel_y: np.ndarray,
@@ -200,8 +230,18 @@ def _prepare_surface_fit(
     normalized = np.asarray(target, dtype=np.float64)
     x_values = np.asarray(pixel_x, dtype=np.float64)
     y_values = np.asarray(pixel_y, dtype=np.float64)
-    if normalized.ndim != 2 or normalized.shape != x_values.shape or normalized.shape != y_values.shape:
-        raise DistributionModelFitError("二维拟合图像和坐标网格必须是形状相同的二维数组。")
+    if normalized.ndim != 2:
+        raise DistributionModelFitError("二维拟合图像必须是二维数组。")
+    if x_values.ndim == 1 and y_values.ndim == 1:
+        if x_values.size != normalized.shape[1] or y_values.size != normalized.shape[0]:
+            raise DistributionModelFitError("一维坐标轴长度必须与二维拟合图像的宽高一致。")
+        pixel_x_squared = (x_values * x_values)[np.newaxis, :]
+        pixel_y_squared = (y_values * y_values)[:, np.newaxis]
+    elif x_values.shape == normalized.shape and y_values.shape == normalized.shape:
+        pixel_x_squared = x_values * x_values
+        pixel_y_squared = y_values * y_values
+    else:
+        raise DistributionModelFitError("二维拟合图像和坐标网格必须是形状相同的二维数组，或使用两个一维坐标轴。")
     if not np.all(np.isfinite(normalized)) or np.any(normalized < 0):
         raise DistributionModelFitError("二维拟合图像包含负值或非有限值。")
     total = float(np.sum(normalized))
@@ -223,8 +263,8 @@ def _prepare_surface_fit(
     )
     return _SurfaceFitData(
         target=normalized,
-        pixel_x_squared=x_values * x_values,
-        pixel_y_squared=y_values * y_values,
+        pixel_x_squared=pixel_x_squared,
+        pixel_y_squared=pixel_y_squared,
         initial_scale_x=scale_x,
         initial_scale_y=scale_y,
         initial_exponent=exponent,

@@ -12,9 +12,11 @@ from matplotlib.figure import Figure
 from PLIFv2.algorithms.distribution import (
     DistributionModelFitError,
     DistributionRegistrationEstimate,
+    EllipticalStudentFit,
     estimate_distribution_registration,
-    fit_compact_elliptical_student,
-    fit_elliptical_student,
+    fit_compact_elliptical_student_prepared,
+    fit_elliptical_student_prepared,
+    prepare_surface_fit_data,
 )
 from PLIFv2.algorithms.mixing import (
     FitConvergenceError,
@@ -86,6 +88,16 @@ class DistributionRegistrationResult:
     fo: DistributionRegistrationEstimate
 
 
+@dataclass(frozen=True)
+class _SurfaceModelFits:
+    student_fit: EllipticalStudentFit | None
+    compact_fit: EllipticalStudentFit | None
+    selected_prediction: np.ndarray | None
+    student_error: str | None
+    compact_error: str | None
+    warnings: tuple[str, ...]
+
+
 class DistributionFitService:
     """Fit independently normalized F, O, and FO mass distributions."""
 
@@ -93,6 +105,8 @@ class DistributionFitService:
         self.image_cache = image_cache or ExperimentTripletCache()
         self._processed_cache_key: tuple | None = None
         self._processed_cache: tuple[DistributionImageData, ...] | None = None
+        self._result_cache_key: tuple | None = None
+        self._result_cache: DistributionFitResult | None = None
         self._cache_lock = RLock()
 
     def run(
@@ -102,6 +116,10 @@ class DistributionFitService:
         image_mode: str = "ori_img",
     ) -> DistributionFitResult:
         source_images = self._distribution_images(settings)
+        result_cache_key = self._result_cache_signature(settings, annotations, image_mode)
+        with self._cache_lock:
+            if result_cache_key == self._result_cache_key and self._result_cache is not None:
+                return self._result_cache
 
         fit_text = ""
         surface_text = ""
@@ -125,9 +143,10 @@ class DistributionFitService:
         display_names = ["f", "o", "fo"]
         height, width = source_images[0].denoised.shape
         need_surface_fit = image_mode in {"fit_img", "delta_img"}
-        grid_x = grid_y = None
+        pixel_x_axis = pixel_y_axis = None
         if need_surface_fit:
-            grid_x, grid_y = np.meshgrid(np.arange(width), np.arange(height), indexing="xy")
+            pixel_x_axis = np.arange(width, dtype=np.float64)
+            pixel_y_axis = np.arange(height, dtype=np.float64)
 
         for index, source in enumerate(source_images):
             image = source.denoised
@@ -243,24 +262,26 @@ class DistributionFitService:
                 bent_img = straighten_center_line_image(norm_img, fitted_point, cx)
 
             if need_surface_fit:
-                assert grid_x is not None and grid_y is not None and bent_img is not None
+                assert pixel_x_axis is not None and pixel_y_axis is not None and bent_img is not None
                 if not np.all(np.isfinite([ah, bh, ch, av, bv, cv])):
                     raise FitConvergenceError(f"{image_names[index]} 横向或纵向拟合失败，不能执行二维 Student 拟合。")
-                pixel_x = grid_x - cx
-                pixel_y = grid_y - cy
                 initial_scale_x = 1.0 / max(abs(bh), 1e-12)
                 initial_scale_y = 1.0 / max(abs(bv), 1e-12)
                 initial_exponent = (ch + cv) / 2.0
-
-                try:
-                    student_fit = fit_elliptical_student(
-                        bent_img,
-                        pixel_x,
-                        pixel_y,
-                        initial_scale_x,
-                        initial_scale_y,
-                        initial_exponent,
-                    )
+                surface_fits = self._fit_surface_models(
+                    bent_img,
+                    pixel_x_axis - cx,
+                    pixel_y_axis - cy,
+                    initial_scale_x,
+                    initial_scale_y,
+                    initial_exponent,
+                    image_names[index],
+                )
+                student_fit = surface_fits.student_fit
+                compact_fit = surface_fits.compact_fit
+                surface_prediction = surface_fits.selected_prediction
+                warnings.extend(surface_fits.warnings)
+                if student_fit is not None:
                     student_equation = "p∝[1+(x/sₓ)²+(y/sᵧ)²]⁻ᵐ"
                     student_scale_x = f"{student_fit.scale_x:.4f}"
                     student_scale_y = f"{student_fit.scale_y:.4f}"
@@ -271,22 +292,12 @@ class DistributionFitService:
                         f"sₓ={student_scale_x}; sᵧ={student_scale_y}; "
                         f"m={student_exponent}; R²={student_r_squared}\n"
                     )
-                except DistributionModelFitError as exc:
-                    student_equation = f"拟合失败：{exc}"
+                else:
+                    student_error = surface_fits.student_error or "未知错误"
+                    student_equation = f"拟合失败：{student_error}"
                     student_scale_x = student_scale_y = student_exponent = student_r_squared = "-"
-                    warnings.append(f"{image_names[index]} 纯椭圆 Student 拟合失败：{exc}")
                     surface_text += f"{image_names[index]}纯椭圆 Student：拟合失败\n"
-
-                compact_initial = student_fit
-                try:
-                    compact_fit = fit_compact_elliptical_student(
-                        bent_img,
-                        pixel_x,
-                        pixel_y,
-                        compact_initial.scale_x if compact_initial is not None else initial_scale_x,
-                        compact_initial.scale_y if compact_initial is not None else initial_scale_y,
-                        compact_initial.exponent if compact_initial is not None else initial_exponent,
-                    )
+                if compact_fit is not None:
                     compact_equation = "p∝(1+rₑ²)⁻ᵐ(1-rₑ²/R²)₊²"
                     compact_scale_x = f"{compact_fit.scale_x:.4f}"
                     compact_scale_y = f"{compact_fit.scale_y:.4f}"
@@ -300,17 +311,15 @@ class DistributionFitService:
                         f"m={compact_exponent}; R={compact_cutoff_radius}; "
                         f"R²={compact_r_squared}\n"
                     )
-                except DistributionModelFitError as exc:
-                    compact_equation = f"拟合失败：{exc}"
+                else:
+                    compact_error = surface_fits.compact_error or "未知错误"
+                    compact_equation = f"拟合失败：{compact_error}"
                     compact_scale_x = compact_scale_y = compact_exponent = compact_cutoff_radius = "-"
                     compact_r_squared = "-"
-                    warnings.append(f"{image_names[index]} 紧支撑 Student 拟合失败：{exc}")
                     surface_text += f"{image_names[index]}紧支撑 Student：拟合失败\n"
 
-                selected_fit = compact_fit if compact_fit is not None else student_fit
-                if selected_fit is None:
+                if surface_prediction is None:
                     raise FitConvergenceError(f"{image_names[index]} 两种二维 Student 模型均拟合失败。")
-                surface_prediction = selected_fit.prediction
             else:
                 student_equation = compact_equation = "未执行"
                 student_scale_x = student_scale_y = student_exponent = student_r_squared = "-"
@@ -409,7 +418,7 @@ class DistributionFitService:
                 )
             )
 
-        return DistributionFitResult(
+        result = DistributionFitResult(
             fit_text,
             surface_text,
             display_images,
@@ -417,6 +426,104 @@ class DistributionFitService:
             curve_data,
             tuple(warnings),
             tuple(summary_rows),
+        )
+        with self._cache_lock:
+            self._result_cache_key = result_cache_key
+            self._result_cache = result
+        return result
+
+    def _result_cache_signature(
+        self,
+        settings: DistributionSettings,
+        annotations: frozenset[str],
+        image_mode: str,
+    ) -> tuple:
+        return (
+            self._processed_cache_key,
+            tuple(sorted(annotations)),
+            image_mode,
+            settings.thres_contour,
+            settings.center_xf,
+            settings.center_yf,
+            settings.center_xo,
+            settings.center_yo,
+            settings.center_xfo,
+            settings.center_yfo,
+            settings.q_center_up_f,
+            settings.q_center_down_f,
+            settings.q_center_up_o,
+            settings.q_center_down_o,
+            settings.q_center_up_fo,
+            settings.q_center_down_fo,
+            settings.max_k,
+            settings.rotate_angle_f,
+            settings.rotate_angle_o,
+            settings.rotate_angle_fo,
+            settings.hori_fit_width,
+        )
+
+    def _fit_surface_models(
+        self,
+        target: np.ndarray,
+        pixel_x: np.ndarray,
+        pixel_y: np.ndarray,
+        initial_scale_x: float,
+        initial_scale_y: float,
+        initial_exponent: float,
+        image_name: str,
+    ) -> _SurfaceModelFits:
+        """Prepare one image once, then run both surface models on that workspace."""
+        warnings: list[str] = []
+        try:
+            fit_data = prepare_surface_fit_data(
+                target,
+                pixel_x,
+                pixel_y,
+                initial_scale_x,
+                initial_scale_y,
+                initial_exponent,
+            )
+        except DistributionModelFitError as exc:
+            error = str(exc)
+            warnings.extend(
+                (
+                    f"{image_name} 纯椭圆 Student 拟合失败：{error}",
+                    f"{image_name} 紧支撑 Student 拟合失败：{error}",
+                )
+            )
+            return _SurfaceModelFits(None, None, None, error, error, tuple(warnings))
+
+        student_fit: EllipticalStudentFit | None = None
+        compact_fit: EllipticalStudentFit | None = None
+        student_error: str | None = None
+        compact_error: str | None = None
+
+        try:
+            student_fit = fit_elliptical_student_prepared(fit_data)
+        except DistributionModelFitError as exc:
+            student_error = str(exc)
+            warnings.append(f"{image_name} 纯椭圆 Student 拟合失败：{student_error}")
+
+        compact_initial = student_fit
+        try:
+            compact_fit = fit_compact_elliptical_student_prepared(
+                fit_data,
+                compact_initial.scale_x if compact_initial is not None else initial_scale_x,
+                compact_initial.scale_y if compact_initial is not None else initial_scale_y,
+                compact_initial.exponent if compact_initial is not None else initial_exponent,
+            )
+        except DistributionModelFitError as exc:
+            compact_error = str(exc)
+            warnings.append(f"{image_name} 紧支撑 Student 拟合失败：{compact_error}")
+
+        selected_fit = compact_fit if compact_fit is not None else student_fit
+        return _SurfaceModelFits(
+            student_fit,
+            compact_fit,
+            selected_fit.prediction if selected_fit is not None else None,
+            student_error,
+            compact_error,
+            tuple(warnings),
         )
 
     def estimate_registration(self, settings: DistributionSettings) -> DistributionRegistrationResult:
