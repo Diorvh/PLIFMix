@@ -104,6 +104,7 @@ class DistributionSettings:
     rotate_angle_fo: int = 0
     hori_fit_width: int = 200
     output_folder: Path = Path()
+    fit_result_path: Path = Path()
 
 
 @dataclass

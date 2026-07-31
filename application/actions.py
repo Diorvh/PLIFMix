@@ -170,3 +170,11 @@ class PLIFActions:
         output = self.distribution_service.export(self.state.settings.distribution, result)
         self.state.save()
         return output
+
+    def write_distribution_fit_results(self, result: DistributionFitResult):
+        output = self.distribution_service.write_fit_results_to_excel(
+            self.state.settings.distribution,
+            result,
+        )
+        self.state.save()
+        return output

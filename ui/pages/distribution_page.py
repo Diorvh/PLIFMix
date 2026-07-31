@@ -70,6 +70,7 @@ class DistributionPage(ttk.Frame):
         self._row_display(controls).pack(anchor=tk.W, pady=1)
         self._row_display_options(controls).pack(anchor=tk.W, pady=1)
         self._row_fit_parameters(controls).pack(anchor=tk.W, pady=1)
+        self._row_fit_result_file(controls).pack(anchor=tk.W, pady=1)
 
         self.summary = DistributionSummaryPanel(self)
         self.summary.pack(fill=tk.X, padx=8)
@@ -192,6 +193,19 @@ class DistributionPage(ttk.Frame):
         ttk.Button(row, text="自动原点和偏转角", command=self.auto_registration).pack(side=tk.LEFT, padx=(8, 0))
         return row
 
+    def _row_fit_result_file(self, parent) -> ttk.Frame:
+        row = ttk.Frame(parent)
+        ttk.Label(row, text="拟合结果写入文件").pack(side=tk.LEFT, padx=(4, 2))
+        self._text_entry(
+            row,
+            "fit_result_path",
+            self._value_to_str(self.settings.fit_result_path),
+            52,
+        )
+        ttk.Button(row, text="...", width=3, command=self._choose_fit_result_file).pack(side=tk.LEFT, padx=(3, 6))
+        ttk.Button(row, text="写入拟合结果", command=self.write_fit_results).pack(side=tk.LEFT)
+        return row
+
     def _image_parameter_panel(self, parent, name: str, label: str) -> ttk.Frame:
         panel = ttk.Frame(parent)
         title_row = ttk.Frame(panel)
@@ -245,6 +259,25 @@ class DistributionPage(ttk.Frame):
         path = filedialog.askdirectory()
         if path:
             self.vars["image_folder"].set(path)
+
+    def _choose_fit_result_file(self) -> None:
+        path = filedialog.askopenfilename(
+            title="选择拟合结果 Excel",
+            filetypes=[("Excel 文件", "*.xlsx"), ("所有文件", "*.*")],
+        )
+        if path:
+            self.vars["fit_result_path"].set(path)
+            self._save_vars()
+
+    def write_fit_results(self) -> None:
+        try:
+            self._save_vars()
+            if self.latest_result is None:
+                raise ValueError("请先完成当前 F、O、FO 的拟合计算。")
+            output = self.actions.write_distribution_fit_results(self.latest_result)
+            self.status.config(text=f"拟合结果已写入: {output}")
+        except Exception as exc:
+            self.status.config(text=f"写入拟合结果失败: {exc}")
 
     def _select_preset_path(self) -> None:
         path = filedialog.askopenfilename(filetypes=[("混合预设", "*.json"), ("所有文件", "*.*")])
@@ -569,10 +602,10 @@ class DistributionSummaryPanel(ttk.Frame):
         ).pack(fill=tk.X, pady=(0, 3))
         distribution_group = ttk.LabelFrame(self, text="强度分布拟合")
         distribution_group.pack(fill=tk.X)
-        one_dimensional_sections = ttk.Frame(distribution_group)
-        one_dimensional_sections.pack(anchor=tk.W)
+        fit_sections = ttk.Frame(distribution_group)
+        fit_sections.pack(anchor=tk.W)
         self._build_fit_section(
-            one_dimensional_sections,
+            fit_sections,
             "horizontal",
             "横向拟合",
             (
@@ -584,7 +617,7 @@ class DistributionSummaryPanel(ttk.Frame):
             ),
         ).pack(side=tk.LEFT, anchor=tk.NW)
         self._build_fit_section(
-            one_dimensional_sections,
+            fit_sections,
             "vertical",
             "纵向拟合",
             (
@@ -595,11 +628,8 @@ class DistributionSummaryPanel(ttk.Frame):
                 ("vertical_r_squared", "R²"),
             ),
         ).pack(side=tk.LEFT, anchor=tk.NW, padx=(10, 0))
-
-        surface_sections = ttk.Frame(distribution_group)
-        surface_sections.pack(anchor=tk.W, pady=(3, 0))
         self._build_fit_section(
-            surface_sections,
+            fit_sections,
             "student",
             "纯椭圆",
             (
@@ -609,9 +639,9 @@ class DistributionSummaryPanel(ttk.Frame):
                 ("student_exponent", "m"),
                 ("student_r_squared", "R²"),
             ),
-        ).pack(side=tk.LEFT, anchor=tk.NW)
+        ).pack(side=tk.LEFT, anchor=tk.NW, padx=(10, 0))
         self._build_fit_section(
-            surface_sections,
+            fit_sections,
             "compact",
             "紧支撑",
             (
