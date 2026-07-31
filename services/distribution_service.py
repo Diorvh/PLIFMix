@@ -162,6 +162,8 @@ class DistributionFitService:
         self._processed_cache: tuple[DistributionImageData, ...] | None = None
         self._result_cache_key: tuple | None = None
         self._result_cache: DistributionFitResult | None = None
+        self._surface_fit_cache_key: tuple | None = None
+        self._surface_fit_cache: tuple[_SurfaceModelFits, ...] | None = None
         self._surface_process_pool: ProcessPoolExecutor | None = None
         self._cache_lock = RLock()
 
@@ -190,9 +192,15 @@ class DistributionFitService:
             raise ValueError(f"不支持的图像数据类型: {image_mode}")
         source_images = self._distribution_images(settings)
         result_cache_key = self._result_cache_signature(settings, annotations, image_mode, show_bent)
+        surface_fit_cache_key = self._surface_fit_cache_signature(settings)
         with self._cache_lock:
             if result_cache_key == self._result_cache_key and self._result_cache is not None:
                 return self._result_cache
+            cached_surface_fits = (
+                self._surface_fit_cache
+                if surface_fit_cache_key == self._surface_fit_cache_key
+                else None
+            )
 
         fit_text = ""
         surface_text = ""
@@ -408,11 +416,24 @@ class DistributionFitService:
             )
 
         if need_surface_fit:
-            surface_fits = self._fit_surface_models_batch(
-                [prepared.surface_task for prepared in prepared_images if prepared.surface_task is not None]
-            )
+            if cached_surface_fits is not None and len(cached_surface_fits) == len(prepared_images):
+                surface_fits = list(cached_surface_fits)
+            else:
+                surface_fits = self._fit_surface_models_batch(
+                    [prepared.surface_task for prepared in prepared_images if prepared.surface_task is not None]
+                )
+                with self._cache_lock:
+                    self._surface_fit_cache_key = surface_fit_cache_key
+                    self._surface_fit_cache = tuple(surface_fits)
+        elif cached_surface_fits is not None and len(cached_surface_fits) == len(prepared_images):
+            # Keep the already computed fit values visible while viewing the original image.
+            surface_fits = list(cached_surface_fits)
         else:
             surface_fits = [None] * len(prepared_images)
+        surface_results_available = (
+            len(surface_fits) == len(prepared_images)
+            and all(surface_fit is not None for surface_fit in surface_fits)
+        )
 
         for prepared, surface_fit_result in zip(prepared_images, surface_fits):
             image_name = prepared.image_name
@@ -426,7 +447,7 @@ class DistributionFitService:
             symmetric_fitted_point = prepared.symmetric_fitted_point
             bent_img = prepared.bent_image
 
-            if need_surface_fit:
+            if surface_results_available:
                 assert surface_fit_result is not None
                 student_fit = surface_fit_result.student_fit
                 compact_fit = surface_fit_result.compact_fit
@@ -657,6 +678,28 @@ class DistributionFitService:
             settings.rotate_angle_fo,
         )
 
+    def _surface_fit_cache_signature(self, settings: DistributionSettings) -> tuple:
+        """Identify inputs that change the expensive two-dimensional fits."""
+        return (
+            self._processed_cache_key,
+            settings.center_xf,
+            settings.center_yf,
+            settings.center_xo,
+            settings.center_yo,
+            settings.center_xfo,
+            settings.center_yfo,
+            settings.q_center_up_f,
+            settings.q_center_down_f,
+            settings.q_center_up_o,
+            settings.q_center_down_o,
+            settings.q_center_up_fo,
+            settings.q_center_down_fo,
+            settings.max_k,
+            settings.rotate_angle_f,
+            settings.rotate_angle_o,
+            settings.rotate_angle_fo,
+        )
+
     def _fit_surface_models_batch(self, tasks: list[SurfaceFitTask]) -> list[_SurfaceModelFits]:
         """Run the three independent surface fits in a persistent process pool."""
         if not tasks:
@@ -733,6 +776,8 @@ class DistributionFitService:
             if key != self._processed_cache_key or self._processed_cache is None:
                 self._processed_cache = _prepare_distribution_images(triplet, settings)
                 self._processed_cache_key = key
+                self._surface_fit_cache_key = None
+                self._surface_fit_cache = None
             return self._processed_cache
 
     def export(self, settings: DistributionSettings, result: DistributionFitResult) -> Path:
