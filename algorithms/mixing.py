@@ -84,6 +84,57 @@ def rotate_points_clockwise(x: np.ndarray, y: np.ndarray, angle_degrees: float) 
     return x * cos_theta + y * sin_theta, -x * sin_theta + y * cos_theta
 
 
+def sample_horizontal_profile(
+    image: np.ndarray,
+    cx: int,
+    cy: int,
+    rotate_angle: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Sample the complete in-bounds horizontal profile through the origin."""
+    source = np.asarray(image)
+    if source.ndim != 2:
+        raise ValueError("横向剖面采样需要二维图像。")
+    height, width = source.shape
+
+    theta = np.radians(float(rotate_angle))
+    direction_column = float(np.cos(theta))
+    direction_row = float(-np.sin(theta))
+
+    def ray_extent(start: float, direction: float, limit: int) -> float:
+        if direction > 0:
+            return (limit - 1 - start) / direction
+        if direction < 0:
+            return (0 - start) / direction
+        return np.inf
+
+    positive_extent = min(
+        ray_extent(float(cx), direction_column, width),
+        ray_extent(float(cy), direction_row, height),
+    )
+    negative_extent = min(
+        ray_extent(float(cx), -direction_column, width),
+        ray_extent(float(cy), -direction_row, height),
+    )
+    half_width = int(np.floor(min(positive_extent, negative_extent)))
+    if half_width < 2:
+        raise FitConvergenceError("中心点附近没有足够的横向有效采样范围。")
+
+    profile_x = np.arange(-half_width, half_width + 1, dtype=np.float64)
+    zero_axis = np.zeros_like(profile_x)
+    rotated_x, rotated_y = rotate_points_clockwise(profile_x, zero_axis, -float(rotate_angle))
+    sample_y = np.rint(-rotated_y + cy).astype(np.int32)
+    sample_x = np.rint(rotated_x + cx).astype(np.int32)
+    valid = (
+        (0 <= sample_y)
+        & (sample_y < height)
+        & (0 <= sample_x)
+        & (sample_x < width)
+    )
+    if np.count_nonzero(valid) < 4:
+        raise FitConvergenceError("中心点附近没有足够的横向有效采样点。")
+    return profile_x[valid], source[sample_y[valid], sample_x[valid]]
+
+
 def fit_center_line(
     image: np.ndarray,
     up_limit: int,
@@ -325,9 +376,9 @@ def func_fit_2(x: np.ndarray, y: np.ndarray, fit_function):
 def func_fit_3(x: np.ndarray, y: np.ndarray, fit_function):
     x_values = np.asarray(x, dtype=np.float64)
     y_values = np.asarray(y, dtype=np.float64)
-    mask = np.isfinite(x_values) & np.isfinite(y_values) & (y_values > 0)
+    mask = np.isfinite(x_values) & np.isfinite(y_values)
     if np.count_nonzero(mask) < 4:
-        raise FitConvergenceError("三参数拟合至少需要 4 个正的有效数据点。")
+        raise FitConvergenceError("三参数拟合至少需要 4 个有效数据点。")
     try:
         from scipy.optimize import curve_fit
 

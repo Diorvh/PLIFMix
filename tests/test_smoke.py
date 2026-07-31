@@ -406,7 +406,6 @@ class WorkflowSmokeTests(unittest.TestCase):
             q_center_up_fo=10,
             q_center_down_fo=70,
             max_k=5,
-            hori_fit_width=40,
             output_folder=self.root / "distribution",
         )
         distribution_service = DistributionFitService()

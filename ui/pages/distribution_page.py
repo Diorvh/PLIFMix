@@ -189,7 +189,6 @@ class DistributionPage(ttk.Frame):
         self._display_entry(row, "line_width", "线宽", 6)
         self._entry(row, "thres_contour", "轮廓比例", 6)
         self._entry(row, "max_k", "最大值个数", 5)
-        self._entry(row, "hori_fit_width", "横向拟合半宽", 7)
         ttk.Button(row, text="自动原点和偏转角", command=self.auto_registration).pack(side=tk.LEFT, padx=(8, 0))
         return row
 

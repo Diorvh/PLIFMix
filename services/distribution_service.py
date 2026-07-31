@@ -23,7 +23,7 @@ from PLIFv2.algorithms.mixing import (
     fit_center_line,
     func_fit_3,
     map_center_line_points,
-    rotate_points_clockwise,
+    sample_horizontal_profile,
     shift_image,
     straighten_center_line_image,
     unstraighten_center_line_image,
@@ -275,16 +275,12 @@ class DistributionFitService:
                 )
             fit_text += f"{image_name}流量轮廓值:{contour_value};{center_text}     "
 
-            hori_px = np.array(range(-settings.hori_fit_width, settings.hori_fit_width))
-            hori_py = np.zeros_like(hori_px)
-            hori_px_rotated, hori_py_rotated = rotate_points_clockwise(
-                hori_px,
-                hori_py,
-                -rotate_angles[index],
+            hori_px, hori_intensity = sample_horizontal_profile(
+                norm_img,
+                cx,
+                cy,
+                rotate_angles[index],
             )
-            sample_y = np.clip(np.round(-hori_py_rotated + cy).astype(np.int32), 0, height - 1)
-            sample_x = np.clip(np.round(hori_px_rotated + cx).astype(np.int32), 0, width - 1)
-            hori_intensity = norm_img[sample_y, sample_x]
 
             def fit_func(x: np.ndarray, aa: float, bb: float, cc: float) -> np.ndarray:
                 return aa / (x**2 * bb**2 + 1) ** cc
@@ -659,7 +655,6 @@ class DistributionFitService:
             settings.rotate_angle_f,
             settings.rotate_angle_o,
             settings.rotate_angle_fo,
-            settings.hori_fit_width,
         )
 
     def _fit_surface_models_batch(self, tasks: list[SurfaceFitTask]) -> list[_SurfaceModelFits]:

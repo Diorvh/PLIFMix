@@ -125,9 +125,7 @@
     "rotate_angle_f": 4,
     "rotate_angle_o": -1,
     "rotate_angle_fo": 6,
-    "hori_fit_width": 200,
-    "output_folder": ".",
-    "fit_result_path": ""
+    "output_folder": "."
   },
   "ui": {
     "app": {
