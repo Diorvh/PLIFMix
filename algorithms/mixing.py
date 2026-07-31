@@ -155,22 +155,36 @@ def straighten_center_line_image(
     center_x: int,
 ) -> np.ndarray:
     """Straighten rows with conservative subpixel redistribution."""
+    return _remap_center_line_image(image, fitted_point, center_x, inverse=False)
+
+
+def unstraighten_center_line_image(
+    image: np.ndarray,
+    fitted_point: tuple[np.ndarray, np.ndarray],
+    center_x: int,
+) -> np.ndarray:
+    """Map a straightened image back using the inverse row-wise displacement."""
+    return _remap_center_line_image(image, fitted_point, center_x, inverse=True)
+
+
+def _remap_center_line_image(
+    image: np.ndarray,
+    fitted_point: tuple[np.ndarray, np.ndarray],
+    center_x: int,
+    inverse: bool,
+) -> np.ndarray:
     rows, columns = fitted_point
     height, width = image.shape
     if len(rows) == 0:
         return np.zeros(image.shape, dtype=np.float64)
 
-    row_sums = np.bincount(rows, weights=columns, minlength=height)
-    row_counts = np.bincount(rows, minlength=height)
-    known_rows = np.flatnonzero(row_counts)
-    centre_columns = np.full(height, center_x, dtype=np.float64)
-    centre_columns[known_rows] = row_sums[known_rows] / row_counts[known_rows]
-    if len(known_rows) > 1:
-        centre_columns = np.interp(np.arange(height), known_rows, centre_columns[known_rows])
+    centre_columns = _center_columns_for_rows(height, fitted_point, center_x)
 
     source = np.asarray(image, dtype=np.float64)
     straightened = np.zeros(source.shape, dtype=np.float64)
     shifts = center_x - centre_columns
+    if inverse:
+        shifts = -shifts
     for row_index, shift in enumerate(shifts):
         integer_shift = int(np.floor(shift))
         fraction = float(shift - integer_shift)
@@ -195,10 +209,57 @@ def straighten_center_line_image(
     tolerance = np.finfo(np.float64).eps * max(1.0, absolute_total) * 32
     if not np.isclose(straightened_total, source_total, rtol=0.0, atol=tolerance):
         raise RuntimeError(
-            "亚像素掰直后强度和发生变化："
-            f"原图={source_total:.16g}，掰直后={straightened_total:.16g}"
+            "中心线重映射后强度和发生变化："
+            f"输入={source_total:.16g}，输出={straightened_total:.16g}"
         )
     return straightened
+
+
+def map_center_line_points(
+    points: tuple[np.ndarray, np.ndarray],
+    fitted_point: tuple[np.ndarray, np.ndarray],
+    center_x: int,
+    image_shape: tuple[int, int],
+    inverse: bool = False,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Map overlay points with the same row-wise transform as an image."""
+    point_rows, point_columns = points
+    if len(point_rows) == 0:
+        empty = np.array([], dtype=np.int32)
+        return empty, empty
+
+    height, width = image_shape
+    point_rows = np.asarray(point_rows, dtype=np.int32)
+    point_columns = np.asarray(point_columns, dtype=np.float64)
+    valid_rows = (point_rows >= 0) & (point_rows < height)
+    if not np.any(valid_rows):
+        empty = np.array([], dtype=np.int32)
+        return empty, empty
+
+    centre_columns = _center_columns_for_rows(height, fitted_point, center_x)
+    shifts = center_x - centre_columns[point_rows[valid_rows]]
+    if inverse:
+        shifts = -shifts
+    mapped_columns = np.rint(point_columns[valid_rows] + shifts).astype(np.int32)
+    mapped_rows = point_rows[valid_rows]
+    valid_columns = (mapped_columns >= 0) & (mapped_columns < width)
+    return mapped_rows[valid_columns], mapped_columns[valid_columns]
+
+
+def _center_columns_for_rows(
+    height: int,
+    fitted_point: tuple[np.ndarray, np.ndarray],
+    center_x: int,
+) -> np.ndarray:
+    rows, columns = fitted_point
+    row_sums = np.bincount(rows, weights=columns, minlength=height)
+    row_counts = np.bincount(rows, minlength=height)
+    known_rows = np.flatnonzero(row_counts)
+    centre_columns = np.full(height, center_x, dtype=np.float64)
+    centre_columns[known_rows] = row_sums[known_rows] / row_counts[known_rows]
+    if len(known_rows) > 1:
+        centre_columns = np.interp(np.arange(height), known_rows, centre_columns[known_rows])
+    return centre_columns
 
 
 def _redistribute_shifted_row(

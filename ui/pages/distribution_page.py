@@ -45,6 +45,7 @@ class DistributionPage(ttk.Frame):
         self.show_center_line = tk.BooleanVar(value=False)
         self.show_fitted_center_line = tk.BooleanVar(value=False)
         self.image_mode = tk.StringVar(value="ori_img")
+        self.show_bent = tk.BooleanVar(value=False)
         self.save_crosshair = tk.BooleanVar(value=True)
         self.save_targets = {name: tk.BooleanVar(value=True) for name, _position in DISTRIBUTION_SAVE_LAYOUT}
         self.preset_groups: tuple[MixingPreset, ...] = ()
@@ -137,28 +138,50 @@ class DistributionPage(ttk.Frame):
         return row
 
     def _row_display_options(self, parent) -> ttk.Frame:
-        row = ttk.Frame(parent)
-        ttk.Checkbutton(row, text="十字线", variable=self.show_crosshair, command=self._redraw_cached_result).pack(side=tk.LEFT, padx=(3, 5))
-        ttk.Checkbutton(row, text="轮廓", variable=self.show_contour, command=self.process).pack(side=tk.LEFT, padx=(0, 5))
+        panel = ttk.Frame(parent)
+
+        overlay_row = ttk.Frame(panel)
+        overlay_row.pack(anchor=tk.W)
+        ttk.Label(overlay_row, text="覆盖件").pack(side=tk.LEFT, padx=(3, 6))
         ttk.Checkbutton(
-            row,
+            overlay_row,
+            text="十字线",
+            variable=self.show_crosshair,
+            command=self._redraw_cached_result,
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Checkbutton(
+            overlay_row,
+            text="轮廓",
+            variable=self.show_contour,
+            command=self.process,
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Checkbutton(
+            overlay_row,
             text="中心线",
             variable=self.show_center_line,
             command=lambda: self._on_center_line_changed("center"),
         ).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Checkbutton(
-            row,
+            overlay_row,
             text="拟合中心线",
             variable=self.show_fitted_center_line,
             command=lambda: self._on_center_line_changed("fitted"),
         ).pack(side=tk.LEFT, padx=(0, 5))
-        for label, mode in (("原图", "ori_img"), ("掰直", "bent_img"), ("拟合", "fit_img"), ("拟合-掰直绝对值", "delta_img")):
-            ttk.Radiobutton(row, text=label, variable=self.image_mode, value=mode, command=self.process).pack(
+        ttk.Button(overlay_row, text="还原", command=self._reset_display_options).pack(side=tk.LEFT, padx=(4, 0))
+
+        data_row = ttk.Frame(panel)
+        data_row.pack(anchor=tk.W)
+        ttk.Label(data_row, text="图像数据").pack(side=tk.LEFT, padx=(3, 6))
+        for label, mode in (("原图", "ori_img"), ("拟合", "fit_img"), ("拟合-原图绝对值", "delta_img")):
+            ttk.Radiobutton(data_row, text=label, variable=self.image_mode, value=mode, command=self.process).pack(
                 side=tk.LEFT,
                 padx=(0, 5),
             )
-        ttk.Button(row, text="还原", command=self._reset_display_options).pack(side=tk.LEFT, padx=(4, 0))
-        return row
+        ttk.Checkbutton(data_row, text="掰直", variable=self.show_bent, command=self.process).pack(
+            side=tk.LEFT,
+            padx=(2, 0),
+        )
+        return panel
 
     def _row_fit_parameters(self, parent) -> ttk.Frame:
         row = ttk.Frame(parent)
@@ -332,6 +355,7 @@ class DistributionPage(ttk.Frame):
         ):
             variable.set(False)
         self.image_mode.set("ori_img")
+        self.show_bent.set(False)
         self.process()
 
     def _annotations(self) -> frozenset[str]:
@@ -355,14 +379,14 @@ class DistributionPage(ttk.Frame):
             return
         self.request_id += 1
         request_id = self.request_id
-        annotations, image_mode = self._annotations(), self._image_mode()
+        annotations, image_mode, show_bent = self._annotations(), self._image_mode(), self.show_bent.get()
 
         def done(result) -> None:
             if request_id == self.request_id:
                 self._show(result)
 
         self.live_task.submit(
-            lambda: self.actions.run_distribution_display(annotations, image_mode),
+            lambda: self.actions.run_distribution_display(annotations, image_mode, show_bent),
             done,
             "计算质量分布...",
         )
@@ -415,8 +439,8 @@ class DistributionPage(ttk.Frame):
                 colormap=item.colormap if self.is_pseudo.get() else "none",
                 zoom=self.settings.zoom,
                 crosshair=self._crosshair_for(item.name) if self.show_crosshair.get() else None,
-                rotate=self._rotation_for(item.name),
-                rotation_center=self._center_for(item.name),
+                rotate=0,
+                rotation_center=None,
                 save_name_suffix=self.settings.save_name,
                 special_points=item.special_points,
                 save_folder=output,
@@ -465,13 +489,6 @@ class DistributionPage(ttk.Frame):
             return self.settings.center_xo, self.settings.center_yo
         return self.settings.center_xfo, self.settings.center_yfo
 
-    def _rotation_for(self, name: str) -> float:
-        if name == "f":
-            return self.settings.rotate_angle_f
-        if name == "o":
-            return self.settings.rotate_angle_o
-        return self.settings.rotate_angle_fo
-
     def _output_folder(self) -> Path:
         if str(self.settings.output_folder) not in {"", "."}:
             return Path(self.settings.output_folder)
@@ -490,6 +507,7 @@ class DistributionPage(ttk.Frame):
             "show_center_line": self.show_center_line.get(),
             "show_fitted_center_line": self.show_fitted_center_line.get(),
             "image_mode": self.image_mode.get(),
+            "show_bent": self.show_bent.get(),
             "save_crosshair": self.save_crosshair.get(),
             "save_targets": {name: target.get() for name, target in self.save_targets.items()},
         }
@@ -506,7 +524,14 @@ class DistributionPage(ttk.Frame):
             self.show_center_line.set(False)
         legacy_image_mode = "delta_img" if state.get("show_delta_image") else "fit_img" if state.get("show_fit_image") else "bent_img" if state.get("show_bent_image") else "ori_img"
         image_mode = str(state.get("image_mode", legacy_image_mode))
-        self.image_mode.set(image_mode if image_mode in {"ori_img", "bent_img", "fit_img", "delta_img"} else "ori_img")
+        legacy_bent = bool(state.get("show_bent", state.get("show_bent_image", False)))
+        if "show_bent" not in state and image_mode in {"fit_img", "delta_img"}:
+            legacy_bent = True
+        if image_mode == "bent_img":
+            image_mode = "ori_img"
+            legacy_bent = True
+        self.image_mode.set(image_mode if image_mode in {"ori_img", "fit_img", "delta_img"} else "ori_img")
+        self.show_bent.set(legacy_bent)
         self.save_crosshair.set(bool(state.get("save_crosshair", self.save_crosshair.get())))
         targets = state.get("save_targets", {})
         if isinstance(targets, dict):

@@ -21,11 +21,14 @@ from PLIFv2.algorithms.distribution import (
 from PLIFv2.algorithms.mixing import (
     FitConvergenceError,
     calc_flowrate_contour,
+    extrapolate_fitted_center_line,
     fit_center_line,
     func_fit_3,
+    map_center_line_points,
     rotate_points_clockwise,
     shift_image,
     straighten_center_line_image,
+    unstraighten_center_line_image,
 )
 from PLIFv2.core.experiment_images import ExperimentImageTriplet, ExperimentTripletCache
 from PLIFv2.core.paths import path_is_set
@@ -114,9 +117,18 @@ class DistributionFitService:
         settings: DistributionSettings,
         annotations: frozenset[str] = frozenset(),
         image_mode: str = "ori_img",
+        show_bent: bool | None = None,
     ) -> DistributionFitResult:
+        if image_mode == "bent_img":
+            image_mode = "ori_img"
+            show_bent = True
+        elif show_bent is None:
+            # Preserve the old API behavior for callers that did not pass the new flag.
+            show_bent = image_mode in {"fit_img", "delta_img"}
+        if image_mode not in {"ori_img", "fit_img", "delta_img"}:
+            raise ValueError(f"不支持的图像数据类型: {image_mode}")
         source_images = self._distribution_images(settings)
-        result_cache_key = self._result_cache_signature(settings, annotations, image_mode)
+        result_cache_key = self._result_cache_signature(settings, annotations, image_mode, show_bent)
         with self._cache_lock:
             if result_cache_key == self._result_cache_key and self._result_cache is not None:
                 return self._result_cache
@@ -143,6 +155,8 @@ class DistributionFitService:
         display_names = ["f", "o", "fo"]
         height, width = source_images[0].denoised.shape
         need_surface_fit = image_mode in {"fit_img", "delta_img"}
+        need_bent_image = bool(show_bent or need_surface_fit)
+        need_symmetric_restore = bool(need_surface_fit and not show_bent)
         pixel_x_axis = pixel_y_axis = None
         if need_surface_fit:
             pixel_x_axis = np.arange(width, dtype=np.float64)
@@ -184,6 +198,16 @@ class DistributionFitService:
                 center_a = center_b = center_r_squared = "-"
                 center_text = f"拟合失败：{exc}"
                 warnings.append(f"{image_names[index]} {center_text}")
+            symmetric_fitted_point = empty_points
+            if len(fitted_point[0]):
+                symmetric_fitted_point = extrapolate_fitted_center_line(
+                    image.shape,
+                    a,
+                    b,
+                    cx,
+                    cy,
+                    0,
+                )
             fit_text += f"{image_names[index]}流量轮廓值:{contour_value};{center_text}     "
 
             hori_px = np.array(range(-settings.hori_fit_width, settings.hori_fit_width))
@@ -256,8 +280,8 @@ class DistributionFitService:
             surface_prediction: np.ndarray | None = None
             student_fit = None
             compact_fit = None
-            if image_mode != "ori_img":
-                if not len(fitted_point):
+            if need_bent_image:
+                if len(fitted_point[0]) == 0:
                     raise FitConvergenceError(f"{image_names[index]} 无有效拟合中心线，不能生成掰直图像。")
                 bent_img = straighten_center_line_image(norm_img, fitted_point, cx)
 
@@ -365,19 +389,60 @@ class DistributionFitService:
                 point_sets.append(origin_point)
             if "fitted_center_line" in annotations:
                 point_sets.append(fitted_point)
+
+            if show_bent:
+                point_sets = [
+                    map_center_line_points(points, fitted_point, cx, image.shape, inverse=False)
+                    for points in point_sets
+                ]
+            elif need_symmetric_restore:
+                restored_point_sets = []
+                for points in point_sets:
+                    bent_points = map_center_line_points(
+                        points,
+                        fitted_point,
+                        cx,
+                        image.shape,
+                        inverse=False,
+                    )
+                    restored_point_sets.append(
+                        map_center_line_points(
+                            bent_points,
+                            symmetric_fitted_point,
+                            cx,
+                            image.shape,
+                            inverse=True,
+                        )
+                    )
+                point_sets = restored_point_sets
             special_points = _merge_special_points(point_sets)
 
-            if image_mode == "bent_img":
-                assert bent_img is not None
-                shown_normalized = bent_img
+            if image_mode == "ori_img":
+                assert not show_bent or bent_img is not None
+                shown_normalized = bent_img if show_bent else norm_img
             elif image_mode == "fit_img":
                 assert surface_prediction is not None
-                shown_normalized = surface_prediction
-            elif image_mode == "delta_img":
-                assert surface_prediction is not None and bent_img is not None
-                shown_normalized = np.abs(surface_prediction - bent_img)
+                shown_normalized = (
+                    surface_prediction
+                    if show_bent
+                    else unstraighten_center_line_image(
+                        surface_prediction,
+                        symmetric_fitted_point,
+                        cx,
+                    )
+                )
             else:
-                shown_normalized = norm_img
+                assert surface_prediction is not None and bent_img is not None
+                bent_difference = np.abs(surface_prediction - bent_img)
+                shown_normalized = (
+                    bent_difference
+                    if show_bent
+                    else unstraighten_center_line_image(
+                        bent_difference,
+                        symmetric_fitted_point,
+                        cx,
+                    )
+                )
             display_images.append(
                 DisplayImage(
                     display_names[index],
@@ -437,11 +502,13 @@ class DistributionFitService:
         settings: DistributionSettings,
         annotations: frozenset[str],
         image_mode: str,
+        show_bent: bool,
     ) -> tuple:
         return (
             self._processed_cache_key,
             tuple(sorted(annotations)),
             image_mode,
+            show_bent,
             settings.thres_contour,
             settings.center_xf,
             settings.center_yf,

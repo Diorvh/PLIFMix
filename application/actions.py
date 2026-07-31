@@ -145,8 +145,18 @@ class PLIFActions:
         self.state.save()
         return output
 
-    def run_distribution_display(self, annotations: frozenset[str], image_mode: str) -> DistributionFitResult:
-        result = self.distribution_service.run(deepcopy(self.state.settings.distribution), annotations, image_mode)
+    def run_distribution_display(
+        self,
+        annotations: frozenset[str],
+        image_mode: str,
+        show_bent: bool | None = None,
+    ) -> DistributionFitResult:
+        result = self.distribution_service.run(
+            deepcopy(self.state.settings.distribution),
+            annotations,
+            image_mode,
+            show_bent,
+        )
         self.state.save()
         return result
 
