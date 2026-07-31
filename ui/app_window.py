@@ -210,4 +210,5 @@ class PLIFAppWindow(tk.Tk):
         for page in self.pages.values():
             page.capture_state()
         self.state_model.save()
+        self.actions.close()
         self.destroy()

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
 from dataclasses import dataclass
 from pathlib import Path
 from threading import RLock
@@ -10,13 +13,8 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
 from PLIFv2.algorithms.distribution import (
-    DistributionModelFitError,
     DistributionRegistrationEstimate,
-    EllipticalStudentFit,
     estimate_distribution_registration,
-    fit_compact_elliptical_student_prepared,
-    fit_elliptical_student_prepared,
-    prepare_surface_fit_data,
 )
 from PLIFv2.algorithms.mixing import (
     FitConvergenceError,
@@ -34,6 +32,16 @@ from PLIFv2.core.experiment_images import ExperimentImageTriplet, ExperimentTrip
 from PLIFv2.core.paths import path_is_set
 from PLIFv2.domain.settings import DistributionSettings
 from PLIFv2.services.display_types import DisplayImage
+from PLIFv2.services.distribution_workers import (
+    SurfaceFitParameters,
+    SurfaceFitTask,
+    SurfaceFitWorkerResult,
+    fit_surface_models_worker,
+)
+
+
+_SURFACE_PROCESS_COUNT = 3
+
 
 @dataclass
 class DistributionFitResult:
@@ -93,12 +101,56 @@ class DistributionRegistrationResult:
 
 @dataclass(frozen=True)
 class _SurfaceModelFits:
-    student_fit: EllipticalStudentFit | None
-    compact_fit: EllipticalStudentFit | None
+    student_fit: SurfaceFitParameters | None
+    compact_fit: SurfaceFitParameters | None
     selected_prediction: np.ndarray | None
     student_error: str | None
     compact_error: str | None
     warnings: tuple[str, ...]
+
+
+@dataclass
+class _PreparedDistributionImage:
+    source: DistributionImageData
+    image_name: str
+    display_name: str
+    image: np.ndarray
+    normalized: np.ndarray
+    center_x: int
+    center_y: int
+    rotate_angle: int
+    contour_value: float
+    boundary_points: set[tuple[int, int]]
+    center_a: float
+    center_b: float
+    center_r_squared: float
+    center_equation: str
+    center_a_text: str
+    center_b_text: str
+    center_r_squared_text: str
+    origin_point: tuple[np.ndarray, np.ndarray]
+    fitted_point: tuple[np.ndarray, np.ndarray]
+    symmetric_fitted_point: tuple[np.ndarray, np.ndarray]
+    horizontal_a: float
+    horizontal_b: float
+    horizontal_c: float
+    horizontal_r_squared: float
+    horizontal_equation: str
+    horizontal_a_text: str
+    horizontal_b_text: str
+    horizontal_c_text: str
+    horizontal_r_squared_text: str
+    vertical_a: float
+    vertical_b: float
+    vertical_c: float
+    vertical_r_squared: float
+    vertical_equation: str
+    vertical_a_text: str
+    vertical_b_text: str
+    vertical_c_text: str
+    vertical_r_squared_text: str
+    bent_image: np.ndarray | None
+    surface_task: SurfaceFitTask | None
 
 
 class DistributionFitService:
@@ -110,7 +162,16 @@ class DistributionFitService:
         self._processed_cache: tuple[DistributionImageData, ...] | None = None
         self._result_cache_key: tuple | None = None
         self._result_cache: DistributionFitResult | None = None
+        self._surface_process_pool: ProcessPoolExecutor | None = None
         self._cache_lock = RLock()
+
+    def close(self) -> None:
+        """Release the persistent Windows process pool without blocking the GUI."""
+        with self._cache_lock:
+            process_pool = self._surface_process_pool
+            self._surface_process_pool = None
+        if process_pool is not None:
+            process_pool.shutdown(wait=False, cancel_futures=True)
 
     def run(
         self,
@@ -162,11 +223,14 @@ class DistributionFitService:
             pixel_x_axis = np.arange(width, dtype=np.float64)
             pixel_y_axis = np.arange(height, dtype=np.float64)
 
+        prepared_images: list[_PreparedDistributionImage] = []
         for index, source in enumerate(source_images):
             image = source.denoised
             norm_img = source.normalized
             cx, cy = centers[index]
             q_center_up, q_center_down = center_line_bounds[index]
+            image_name = image_names[index]
+            display_name = display_names[index]
             contour_value = 0.0
             boundary_points: set[tuple[int, int]] = set()
             if "contour" in annotations:
@@ -184,20 +248,21 @@ class DistributionFitService:
                     rotate_angles[index],
                 )
                 center_equation = "x=a(√(y²+b²)-b)"
-                center_a = f"{a:.4f}"
-                center_b = f"{b:.4f}"
-                center_r_squared = f"{r_squared:.4f}"
+                center_a_text = f"{a:.4f}"
+                center_b_text = f"{b:.4f}"
+                center_r_squared_text = f"{r_squared:.4f}"
                 center_text = (
-                    f"{center_equation}; a={center_a}; b={center_b}; R²={center_r_squared}"
+                    f"{center_equation}; a={center_a_text}; b={center_b_text}; "
+                    f"R²={center_r_squared_text}"
                 )
             except FitConvergenceError as exc:
                 a = b = r_squared = np.nan
                 origin_point = fitted_point = empty_points
                 verti_px_rotated = np.array([], dtype=np.float64)
                 center_equation = f"拟合失败：{exc}"
-                center_a = center_b = center_r_squared = "-"
+                center_a_text = center_b_text = center_r_squared_text = "-"
                 center_text = f"拟合失败：{exc}"
-                warnings.append(f"{image_names[index]} {center_text}")
+                warnings.append(f"{image_name} {center_text}")
             symmetric_fitted_point = empty_points
             if len(fitted_point[0]):
                 symmetric_fitted_point = extrapolate_fitted_center_line(
@@ -208,11 +273,15 @@ class DistributionFitService:
                     cy,
                     0,
                 )
-            fit_text += f"{image_names[index]}流量轮廓值:{contour_value};{center_text}     "
+            fit_text += f"{image_name}流量轮廓值:{contour_value};{center_text}     "
 
             hori_px = np.array(range(-settings.hori_fit_width, settings.hori_fit_width))
             hori_py = np.zeros_like(hori_px)
-            hori_px_rotated, hori_py_rotated = rotate_points_clockwise(hori_px, hori_py, -rotate_angles[index])
+            hori_px_rotated, hori_py_rotated = rotate_points_clockwise(
+                hori_px,
+                hori_py,
+                -rotate_angles[index],
+            )
             sample_y = np.clip(np.round(-hori_py_rotated + cy).astype(np.int32), 0, height - 1)
             sample_x = np.clip(np.round(hori_px_rotated + cx).astype(np.int32), 0, width - 1)
             hori_intensity = norm_img[sample_y, sample_x]
@@ -222,12 +291,12 @@ class DistributionFitService:
 
             try:
                 ah, bh, ch, r_squared_h, hori_predicted = func_fit_3(hori_px, hori_intensity, fit_func)
-                curve_data[f"横向分布_{image_names[index]}"] = (hori_px, hori_intensity, hori_predicted)
+                curve_data[f"横向分布_{image_name}"] = (hori_px, hori_intensity, hori_predicted)
                 horizontal_equation = "p=a/(x²b²+1)^c"
-                horizontal_a = f"{ah:.4e}"
-                horizontal_b = f"{bh:.4f}"
-                horizontal_c = f"{ch:.4f}"
-                horizontal_r_squared = f"{r_squared_h:.4f}"
+                horizontal_a_text = f"{ah:.4e}"
+                horizontal_b_text = f"{bh:.4f}"
+                horizontal_c_text = f"{ch:.4f}"
+                horizontal_r_squared_text = f"{r_squared_h:.4f}"
                 horizontal_text = (
                     f"y={ah * 1e4:.4f}E-4/"
                     f"(x^2*{bh:.4f}^2+1)^{ch:.4f}; R²={r_squared_h:.4f}"
@@ -235,10 +304,10 @@ class DistributionFitService:
             except FitConvergenceError as exc:
                 ah = bh = ch = r_squared_h = np.nan
                 horizontal_equation = f"拟合失败：{exc}"
-                horizontal_a = horizontal_b = horizontal_c = horizontal_r_squared = "-"
+                horizontal_a_text = horizontal_b_text = horizontal_c_text = horizontal_r_squared_text = "-"
                 horizontal_text = f"拟合失败：{exc}"
-                warnings.append(f"{image_names[index]} {horizontal_text}")
-            fit_text += f"{image_names[index]}{horizontal_text}     "
+                warnings.append(f"{image_name} {horizontal_text}")
+            fit_text += f"{image_name}{horizontal_text}     "
 
             verti_py, verti_px = origin_point
             if len(verti_py):
@@ -249,16 +318,16 @@ class DistributionFitService:
                         verti_intensity,
                         fit_func,
                     )
-                    curve_data[f"纵向分布_{image_names[index]}"] = (
+                    curve_data[f"纵向分布_{image_name}"] = (
                         verti_px_rotated,
                         verti_intensity,
                         vertical_predicted,
                     )
                     vertical_equation = "p=a/(y²b²+1)^c"
-                    vertical_a = f"{av:.4e}"
-                    vertical_b = f"{bv:.4f}"
-                    vertical_c = f"{cv:.4f}"
-                    vertical_r_squared = f"{r_squared_v:.4f}"
+                    vertical_a_text = f"{av:.4e}"
+                    vertical_b_text = f"{bv:.4f}"
+                    vertical_c_text = f"{cv:.4f}"
+                    vertical_r_squared_text = f"{r_squared_v:.4f}"
                     vertical_text = (
                         f"y={av * 1e4:.4f}E-4/"
                         f"(x^2*{bv:.4f}^2+1)^{cv:.4f}; R²={r_squared_v:.4f}"
@@ -266,45 +335,107 @@ class DistributionFitService:
                 except FitConvergenceError as exc:
                     av = bv = cv = r_squared_v = np.nan
                     vertical_equation = f"拟合失败：{exc}"
-                    vertical_a = vertical_b = vertical_c = vertical_r_squared = "-"
+                    vertical_a_text = vertical_b_text = vertical_c_text = vertical_r_squared_text = "-"
                     vertical_text = f"拟合失败：{exc}"
-                    warnings.append(f"{image_names[index]} {vertical_text}")
+                    warnings.append(f"{image_name} {vertical_text}")
             else:
                 av = bv = cv = r_squared_v = np.nan
                 vertical_equation = "未执行：中心线拟合没有有效数据"
-                vertical_a = vertical_b = vertical_c = vertical_r_squared = "-"
+                vertical_a_text = vertical_b_text = vertical_c_text = vertical_r_squared_text = "-"
                 vertical_text = "未执行：中心线拟合没有有效数据"
-            fit_text += f"{image_names[index]}{vertical_text}\n"
+            fit_text += f"{image_name}{vertical_text}\n"
 
             bent_img: np.ndarray | None = None
-            surface_prediction: np.ndarray | None = None
-            student_fit = None
-            compact_fit = None
             if need_bent_image:
                 if len(fitted_point[0]) == 0:
-                    raise FitConvergenceError(f"{image_names[index]} 无有效拟合中心线，不能生成掰直图像。")
+                    raise FitConvergenceError(f"{image_name} 无有效拟合中心线，不能生成掰直图像。")
                 bent_img = straighten_center_line_image(norm_img, fitted_point, cx)
 
+            surface_task: SurfaceFitTask | None = None
             if need_surface_fit:
                 assert pixel_x_axis is not None and pixel_y_axis is not None and bent_img is not None
                 if not np.all(np.isfinite([ah, bh, ch, av, bv, cv])):
-                    raise FitConvergenceError(f"{image_names[index]} 横向或纵向拟合失败，不能执行二维 Student 拟合。")
-                initial_scale_x = 1.0 / max(abs(bh), 1e-12)
-                initial_scale_y = 1.0 / max(abs(bv), 1e-12)
-                initial_exponent = (ch + cv) / 2.0
-                surface_fits = self._fit_surface_models(
+                    raise FitConvergenceError(f"{image_name} 横向或纵向拟合失败，不能执行二维 Student 拟合。")
+                surface_task = SurfaceFitTask(
                     bent_img,
                     pixel_x_axis - cx,
                     pixel_y_axis - cy,
-                    initial_scale_x,
-                    initial_scale_y,
-                    initial_exponent,
-                    image_names[index],
+                    1.0 / max(abs(bh), 1e-12),
+                    1.0 / max(abs(bv), 1e-12),
+                    (ch + cv) / 2.0,
+                    image_name,
                 )
-                student_fit = surface_fits.student_fit
-                compact_fit = surface_fits.compact_fit
-                surface_prediction = surface_fits.selected_prediction
-                warnings.extend(surface_fits.warnings)
+
+            prepared_images.append(
+                _PreparedDistributionImage(
+                    source,
+                    image_name,
+                    display_name,
+                    image,
+                    norm_img,
+                    cx,
+                    cy,
+                    rotate_angles[index],
+                    contour_value,
+                    boundary_points,
+                    a,
+                    b,
+                    r_squared,
+                    center_equation,
+                    center_a_text,
+                    center_b_text,
+                    center_r_squared_text,
+                    origin_point,
+                    fitted_point,
+                    symmetric_fitted_point,
+                    ah,
+                    bh,
+                    ch,
+                    r_squared_h,
+                    horizontal_equation,
+                    horizontal_a_text,
+                    horizontal_b_text,
+                    horizontal_c_text,
+                    horizontal_r_squared_text,
+                    av,
+                    bv,
+                    cv,
+                    r_squared_v,
+                    vertical_equation,
+                    vertical_a_text,
+                    vertical_b_text,
+                    vertical_c_text,
+                    vertical_r_squared_text,
+                    bent_img,
+                    surface_task,
+                )
+            )
+
+        if need_surface_fit:
+            surface_fits = self._fit_surface_models_batch(
+                [prepared.surface_task for prepared in prepared_images if prepared.surface_task is not None]
+            )
+        else:
+            surface_fits = [None] * len(prepared_images)
+
+        for prepared, surface_fit_result in zip(prepared_images, surface_fits):
+            image_name = prepared.image_name
+            display_name = prepared.display_name
+            source = prepared.source
+            image = prepared.image
+            norm_img = prepared.normalized
+            cx = prepared.center_x
+            cy = prepared.center_y
+            fitted_point = prepared.fitted_point
+            symmetric_fitted_point = prepared.symmetric_fitted_point
+            bent_img = prepared.bent_image
+
+            if need_surface_fit:
+                assert surface_fit_result is not None
+                student_fit = surface_fit_result.student_fit
+                compact_fit = surface_fit_result.compact_fit
+                surface_prediction = surface_fit_result.selected_prediction
+                warnings.extend(surface_fit_result.warnings)
                 if student_fit is not None:
                     student_equation = "p∝[1+(x/sₓ)²+(y/sᵧ)²]⁻ᵐ"
                     student_scale_x = f"{student_fit.scale_x:.4f}"
@@ -312,15 +443,15 @@ class DistributionFitService:
                     student_exponent = f"{student_fit.exponent:.4f}"
                     student_r_squared = f"{student_fit.r_squared:.4f}"
                     surface_text += (
-                        f"{image_names[index]}纯椭圆 Student："
+                        f"{image_name}纯椭圆 Student："
                         f"sₓ={student_scale_x}; sᵧ={student_scale_y}; "
                         f"m={student_exponent}; R²={student_r_squared}\n"
                     )
                 else:
-                    student_error = surface_fits.student_error or "未知错误"
+                    student_error = surface_fit_result.student_error or "未知错误"
                     student_equation = f"拟合失败：{student_error}"
                     student_scale_x = student_scale_y = student_exponent = student_r_squared = "-"
-                    surface_text += f"{image_names[index]}纯椭圆 Student：拟合失败\n"
+                    surface_text += f"{image_name}纯椭圆 Student：拟合失败\n"
                 if compact_fit is not None:
                     compact_equation = "p∝(1+rₑ²)⁻ᵐ(1-rₑ²/R²)₊²"
                     compact_scale_x = f"{compact_fit.scale_x:.4f}"
@@ -330,42 +461,44 @@ class DistributionFitService:
                     compact_cutoff_radius = f"{compact_fit.cutoff_radius:.4f}"
                     compact_r_squared = f"{compact_fit.r_squared:.4f}"
                     surface_text += (
-                        f"{image_names[index]}紧支撑 Student："
+                        f"{image_name}紧支撑 Student："
                         f"sₓ={compact_scale_x}; sᵧ={compact_scale_y}; "
                         f"m={compact_exponent}; R={compact_cutoff_radius}; "
                         f"R²={compact_r_squared}\n"
                     )
                 else:
-                    compact_error = surface_fits.compact_error or "未知错误"
+                    compact_error = surface_fit_result.compact_error or "未知错误"
                     compact_equation = f"拟合失败：{compact_error}"
                     compact_scale_x = compact_scale_y = compact_exponent = compact_cutoff_radius = "-"
                     compact_r_squared = "-"
-                    surface_text += f"{image_names[index]}紧支撑 Student：拟合失败\n"
-
+                    surface_text += f"{image_name}紧支撑 Student：拟合失败\n"
                 if surface_prediction is None:
-                    raise FitConvergenceError(f"{image_names[index]} 两种二维 Student 模型均拟合失败。")
+                    raise FitConvergenceError(f"{image_name} 两种二维 Student 模型均拟合失败。")
             else:
+                student_fit = compact_fit = None
+                surface_prediction = None
                 student_equation = compact_equation = "未执行"
                 student_scale_x = student_scale_y = student_exponent = student_r_squared = "-"
                 compact_scale_x = compact_scale_y = compact_exponent = compact_cutoff_radius = "-"
                 compact_r_squared = "-"
-                surface_text += f"{image_names[index]}二维 Student 拟合：未执行\n"
+                surface_text += f"{image_name}二维 Student 拟合：未执行\n"
+
             fit_rows.append(
                 _finite_values_or_none([
                     cx,
                     cy,
-                    rotate_angles[index],
-                    a,
-                    b,
-                    r_squared,
-                    ah,
-                    bh,
-                    ch,
-                    r_squared_h,
-                    av,
-                    bv,
-                    cv,
-                    r_squared_v,
+                    prepared.rotate_angle,
+                    prepared.center_a,
+                    prepared.center_b,
+                    prepared.center_r_squared,
+                    prepared.horizontal_a,
+                    prepared.horizontal_b,
+                    prepared.horizontal_c,
+                    prepared.horizontal_r_squared,
+                    prepared.vertical_a,
+                    prepared.vertical_b,
+                    prepared.vertical_c,
+                    prepared.vertical_r_squared,
                     student_fit.scale_x if student_fit is not None else np.nan,
                     student_fit.scale_y if student_fit is not None else np.nan,
                     student_fit.exponent if student_fit is not None else np.nan,
@@ -383,10 +516,10 @@ class DistributionFitService:
             )
 
             point_sets: list[tuple[np.ndarray, np.ndarray]] = []
-            if "contour" in annotations and boundary_points:
-                point_sets.append(tuple(np.array(points) for points in zip(*boundary_points)))
+            if "contour" in annotations and prepared.boundary_points:
+                point_sets.append(tuple(np.array(points) for points in zip(*prepared.boundary_points)))
             if "center_line" in annotations:
-                point_sets.append(origin_point)
+                point_sets.append(prepared.origin_point)
             if "fitted_center_line" in annotations:
                 point_sets.append(fitted_point)
 
@@ -445,7 +578,7 @@ class DistributionFitService:
                 )
             display_images.append(
                 DisplayImage(
-                    display_names[index],
+                    display_name,
                     shown_normalized * source.total,
                     "jet",
                     special_points,
@@ -453,22 +586,22 @@ class DistributionFitService:
             )
             summary_rows.append(
                 DistributionSummaryRow(
-                    image_name=display_names[index].upper(),
-                    contour=f"{contour_value:g}" if "contour" in annotations else "未计算",
-                    center_line=center_equation,
-                    center_a=center_a,
-                    center_b=center_b,
-                    center_r_squared=center_r_squared,
-                    horizontal_equation=horizontal_equation,
-                    horizontal_a=horizontal_a,
-                    horizontal_b=horizontal_b,
-                    horizontal_c=horizontal_c,
-                    horizontal_r_squared=horizontal_r_squared,
-                    vertical_equation=vertical_equation,
-                    vertical_a=vertical_a,
-                    vertical_b=vertical_b,
-                    vertical_c=vertical_c,
-                    vertical_r_squared=vertical_r_squared,
+                    image_name=display_name.upper(),
+                    contour=f"{prepared.contour_value:g}" if "contour" in annotations else "未计算",
+                    center_line=prepared.center_equation,
+                    center_a=prepared.center_a_text,
+                    center_b=prepared.center_b_text,
+                    center_r_squared=prepared.center_r_squared_text,
+                    horizontal_equation=prepared.horizontal_equation,
+                    horizontal_a=prepared.horizontal_a_text,
+                    horizontal_b=prepared.horizontal_b_text,
+                    horizontal_c=prepared.horizontal_c_text,
+                    horizontal_r_squared=prepared.horizontal_r_squared_text,
+                    vertical_equation=prepared.vertical_equation,
+                    vertical_a=prepared.vertical_a_text,
+                    vertical_b=prepared.vertical_b_text,
+                    vertical_c=prepared.vertical_c_text,
+                    vertical_r_squared=prepared.vertical_r_squared_text,
                     student_equation=student_equation,
                     student_scale_x=student_scale_x,
                     student_scale_y=student_scale_y,
@@ -529,68 +662,43 @@ class DistributionFitService:
             settings.hori_fit_width,
         )
 
-    def _fit_surface_models(
-        self,
-        target: np.ndarray,
-        pixel_x: np.ndarray,
-        pixel_y: np.ndarray,
-        initial_scale_x: float,
-        initial_scale_y: float,
-        initial_exponent: float,
-        image_name: str,
-    ) -> _SurfaceModelFits:
-        """Prepare one image once, then run both surface models on that workspace."""
-        warnings: list[str] = []
+    def _fit_surface_models_batch(self, tasks: list[SurfaceFitTask]) -> list[_SurfaceModelFits]:
+        """Run the three independent surface fits in a persistent process pool."""
+        if not tasks:
+            return []
         try:
-            fit_data = prepare_surface_fit_data(
-                target,
-                pixel_x,
-                pixel_y,
-                initial_scale_x,
-                initial_scale_y,
-                initial_exponent,
-            )
-        except DistributionModelFitError as exc:
-            error = str(exc)
-            warnings.extend(
-                (
-                    f"{image_name} 纯椭圆 Student 拟合失败：{error}",
-                    f"{image_name} 紧支撑 Student 拟合失败：{error}",
+            process_pool = self._get_surface_process_pool()
+            worker_results = list(process_pool.map(fit_surface_models_worker, tasks))
+        except BrokenProcessPool:
+            self._reset_surface_process_pool()
+            worker_results = [fit_surface_models_worker(task) for task in tasks]
+        return [self._surface_model_fits_from_worker(result) for result in worker_results]
+
+    def _get_surface_process_pool(self) -> ProcessPoolExecutor:
+        with self._cache_lock:
+            if self._surface_process_pool is None:
+                self._surface_process_pool = ProcessPoolExecutor(
+                    max_workers=_SURFACE_PROCESS_COUNT,
+                    mp_context=mp.get_context("spawn"),
                 )
-            )
-            return _SurfaceModelFits(None, None, None, error, error, tuple(warnings))
+            return self._surface_process_pool
 
-        student_fit: EllipticalStudentFit | None = None
-        compact_fit: EllipticalStudentFit | None = None
-        student_error: str | None = None
-        compact_error: str | None = None
+    def _reset_surface_process_pool(self) -> None:
+        with self._cache_lock:
+            process_pool = self._surface_process_pool
+            self._surface_process_pool = None
+        if process_pool is not None:
+            process_pool.shutdown(wait=False, cancel_futures=True)
 
-        try:
-            student_fit = fit_elliptical_student_prepared(fit_data)
-        except DistributionModelFitError as exc:
-            student_error = str(exc)
-            warnings.append(f"{image_name} 纯椭圆 Student 拟合失败：{student_error}")
-
-        compact_initial = student_fit
-        try:
-            compact_fit = fit_compact_elliptical_student_prepared(
-                fit_data,
-                compact_initial.scale_x if compact_initial is not None else initial_scale_x,
-                compact_initial.scale_y if compact_initial is not None else initial_scale_y,
-                compact_initial.exponent if compact_initial is not None else initial_exponent,
-            )
-        except DistributionModelFitError as exc:
-            compact_error = str(exc)
-            warnings.append(f"{image_name} 紧支撑 Student 拟合失败：{compact_error}")
-
-        selected_fit = compact_fit if compact_fit is not None else student_fit
+    @staticmethod
+    def _surface_model_fits_from_worker(result: SurfaceFitWorkerResult) -> _SurfaceModelFits:
         return _SurfaceModelFits(
-            student_fit,
-            compact_fit,
-            selected_fit.prediction if selected_fit is not None else None,
-            student_error,
-            compact_error,
-            tuple(warnings),
+            result.student_fit,
+            result.compact_fit,
+            result.selected_prediction,
+            result.student_error,
+            result.compact_error,
+            result.warnings,
         )
 
     def estimate_registration(self, settings: DistributionSettings) -> DistributionRegistrationResult:

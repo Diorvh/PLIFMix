@@ -30,6 +30,9 @@ class PLIFActions:
         self.distribution_service = DistributionFitService(experiment_image_cache)
         self.noise_service = NoiseAnalysisService()
 
+    def close(self) -> None:
+        self.distribution_service.close()
+
     def run_average(self) -> AverageResult:
         result = self.average_service.run(deepcopy(self.state.settings.average))
         self.state.save()
