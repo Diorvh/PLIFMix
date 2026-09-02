@@ -241,9 +241,7 @@ class ViewerPanel(ttk.Frame):
             image[image < np.max(image) * denoise] = 0
             value_range = None
         if rotate:
-            height, width = image.shape
-            matrix = cv2.getRotationMatrix2D((width / 2, height / 2), -rotate, 1)
-            image = cv2.warpAffine(image, matrix, (width, height))
+            image = _rotate_quarter_turns(image, rotate)
             value_range = None
         if shift:
             image = shift_image(image, shift)
@@ -276,11 +274,9 @@ class ViewerPanel(ttk.Frame):
     ) -> None:
         """Render a computed scalar or BGR image with all legacy ImageDisplay features."""
         if rotate:
-            height, width = image.shape[:2]
-            center = rotation_center or (width / 2, height / 2)
-            matrix = cv2.getRotationMatrix2D(center, -rotate, 1)
-            image = cv2.warpAffine(image, matrix, (width, height))
-            special_points = _rotate_special_points(special_points, matrix, image.shape[:2])
+            original_shape = image.shape[:2]
+            image = _rotate_quarter_turns(image, rotate)
+            special_points = _rotate_special_points_quarter_turns(special_points, rotate, original_shape)
         self.image = image
         self.original = image
         self.save_name_suffix = save_name_suffix
@@ -454,23 +450,43 @@ def _to_16bit_single_channel(image: np.ndarray) -> np.ndarray:
     return to_16bit_plif_signal(image)
 
 
-def _rotate_special_points(special_points, matrix: np.ndarray, shape: tuple[int, int]):
+def _rotate_quarter_turns(image: np.ndarray, angle_degrees: float) -> np.ndarray:
+    angle = float(angle_degrees)
+    if not np.isfinite(angle):
+        raise ValueError("旋转角度必须是有限数值")
+    turns = int(round(angle / 90))
+    if not np.isclose(angle, turns * 90, atol=1e-9):
+        raise ValueError("目前只支持90°的整数倍旋转")
+    turns %= 4
+    if turns == 1:
+        return cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+    if turns == 2:
+        return cv2.rotate(image, cv2.ROTATE_180)
+    if turns == 3:
+        return cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    return image
+
+
+def _rotate_special_points_quarter_turns(special_points, angle_degrees: float, shape: tuple[int, int]):
     if special_points is None or len(special_points) != 2:
         return special_points
-    try:
-        y_points = np.asarray(special_points[0])
-        x_points = np.asarray(special_points[1])
-        if y_points.size != x_points.size:
-            return special_points
-        coordinates = np.column_stack((x_points, y_points, np.ones(x_points.size)))
-        rotated = coordinates @ matrix.T
-        x_rotated = np.rint(rotated[:, 0]).astype(np.int32)
-        y_rotated = np.rint(rotated[:, 1]).astype(np.int32)
-        height, width = shape
-        valid = (0 <= x_rotated) & (x_rotated < width) & (0 <= y_rotated) & (y_rotated < height)
-        return y_rotated[valid], x_rotated[valid]
-    except (TypeError, ValueError):
+    angle = float(angle_degrees)
+    turns = int(round(angle / 90)) % 4
+    y_points = np.asarray(special_points[0])
+    x_points = np.asarray(special_points[1])
+    height, width = shape
+    if turns == 1:
+        rotated_x = height - 1 - y_points
+        rotated_y = x_points
+    elif turns == 2:
+        rotated_x = width - 1 - x_points
+        rotated_y = height - 1 - y_points
+    elif turns == 3:
+        rotated_x = y_points
+        rotated_y = width - 1 - x_points
+    else:
         return special_points
+    return np.asarray(rotated_y), np.asarray(rotated_x)
 
 
 def _scale_gray_for_display(image: np.ndarray, gain: float, value_scale: float = 1.0) -> np.ndarray:
