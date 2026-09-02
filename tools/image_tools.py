@@ -6,8 +6,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from PLIFv2.algorithms.visualization import blacked_jet_colormap
-from PLIFv2.core.image_io import extract_plif_signal, list_image_files, read_image, write_tif
+from PLIFv2.core.image_io import list_image_files, read_image, write_tif
 from PLIFv2.core.safe_io import atomic_save_npy, atomic_write
 
 
@@ -25,12 +24,17 @@ def export_gif(
         raise ValueError("No frames selected for GIF export.")
     images: list[Image.Image] = []
     for path in files:
-        array = extract_plif_signal(read_image(path))
+        array = read_image(path)
         if array.dtype == np.uint16:
             array = array / 256
         array = np.clip(array * gain, 0, 255).astype(np.uint8)
-        color = cv2.applyColorMap(array, blacked_jet_colormap())
-        image = Image.fromarray(cv2.cvtColor(color, cv2.COLOR_BGR2RGB))
+        if array.ndim == 2:
+            rgb = cv2.cvtColor(array, cv2.COLOR_GRAY2RGB)
+        elif array.shape[2] == 4:
+            rgb = cv2.cvtColor(array, cv2.COLOR_BGRA2RGB)
+        else:
+            rgb = cv2.cvtColor(array, cv2.COLOR_BGR2RGB)
+        image = Image.fromarray(rgb, mode="RGB")
         if image.width > max_width:
             ratio = max_width / image.width
             image = image.resize((max_width, int(image.height * ratio)), Image.Resampling.LANCZOS)
