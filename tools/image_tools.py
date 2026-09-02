@@ -19,7 +19,7 @@ def export_gif(
     duration_ms: int = 50,
     max_width: int = 400,
 ) -> Path:
-    files = list_image_files(folder, (".png", ".tif", ".tiff", ".bmp", ".npy"))[start:end]
+    files = _select_gif_files(folder, start, end)
     if not files:
         raise ValueError("No frames selected for GIF export.")
     images: list[Image.Image] = []
@@ -51,6 +51,25 @@ def export_gif(
     finally:
         for image in images:
             image.close()
+
+
+def _select_gif_files(folder: Path, start: int, end: int | None) -> list[Path]:
+    files = list_image_files(folder, (".png", ".tif", ".tiff", ".bmp", ".npy"))
+    if not files:
+        return []
+    if start < 0 or (end is not None and end < start):
+        raise ValueError("GIF编号范围无效")
+
+    numbered: dict[int, Path] = {}
+    for path in files:
+        if path.stem.isdigit():
+            numbered.setdefault(int(path.stem), path)
+    if numbered:
+        last = max(numbered) if end is None else end
+        return [numbered[number] for number in sorted(numbered) if start <= number <= last]
+
+    # Keep positional slicing for legacy folders whose filenames are not numbers.
+    return files[start:] if end is None else files[start:end + 1]
 
 
 def create_colorbar(
