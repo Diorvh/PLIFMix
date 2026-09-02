@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, ttk
+from tkinter import filedialog, simpledialog, ttk
 
 from PLIFv2.application.actions import PLIFActions
 from PLIFv2.core.image_io import write_png
@@ -212,6 +212,7 @@ class DistributionPage(ttk.Frame):
         ttk.Label(title_row, text=label, font=("Microsoft YaHei UI", 10, "bold")).pack(side=tk.LEFT, padx=(4, 8))
         self._entry(title_row, f"center_x{name}", "十字线 X", 5)
         self._entry(title_row, f"center_y{name}", "Y", 5)
+        ttk.Button(title_row, text="保存", command=lambda: self.save_display(name)).pack(side=tk.LEFT, padx=(8, 0))
 
         fit_row = ttk.Frame(panel)
         fit_row.pack(anchor=tk.W)
@@ -223,6 +224,29 @@ class DistributionPage(ttk.Frame):
         display.pack(anchor=tk.W)
         self.displays[name] = display
         return panel
+
+    def save_display(self, name: str) -> None:
+        display = self.displays.get(name)
+        if display is None or display.display is None:
+            self.status.config(text=f"{name.upper()} 当前没有可保存的渲染图像")
+            return
+        folder_text = filedialog.askdirectory(title=f"选择 {name.upper()} 图像保存目录")
+        if not folder_text:
+            return
+        filename = simpledialog.askstring(
+            "输入保存名称",
+            f"请输入 {name.upper()} 图像名称（不含扩展名）",
+            initialvalue=name.upper(),
+            parent=self,
+        )
+        if not filename or not filename.strip():
+            return
+        filename = Path(filename.strip()).name
+        if not filename.lower().endswith(".png"):
+            filename += ".png"
+        output = Path(folder_text) / filename
+        write_png(output, display.display.copy())
+        self.status.config(text=f"已保存 {name.upper()} 图像：{output}")
 
     def _entry(self, row, name: str, label: str, width: int) -> None:
         ttk.Label(row, text=label).pack(side=tk.LEFT, padx=(4, 2))
