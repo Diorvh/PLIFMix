@@ -141,16 +141,102 @@ class ViewerPanel(ttk.Frame):
         quad,
         zero_threshold_8bit: float = 0,
     ) -> float | None:
-        image = self.raw_single
-        value_range = self._raw_value_range
+        image, display, computed_gain, value_range = self._build_display(
+            self.raw_single,
+            gain=gain,
+            auto_gain=auto_gain,
+            rotate=rotate,
+            shift=shift,
+            denoise=denoise,
+            pseudo=pseudo,
+            center=center,
+            ellipse=ellipse,
+            crosshair=crosshair,
+            line_width=line_width,
+            quad=quad,
+            zero_threshold_8bit=zero_threshold_8bit,
+            value_scale=self.value_scale,
+            value_range=self._raw_value_range,
+        )
+        self._set_value_image(image, self.value_scale, value_range)
+        self._refresh_info()
+        self.display = display
+        self.base_display = self.display.copy() if self.retain_base_display else None
+        self._set_zoom_and_render(zoom)
+        if self.show_histogram and self.axis is not None and self.hist_canvas is not None:
+            values = _quad_values(image, quad).astype(np.float32, copy=False) * self.value_scale
+            self.axis.clear()
+            self.axis.hist(values.ravel(), bins=100)
+            self.axis.set_title("灰度直方图")
+            if self.hist_toolbar is not None:
+                self.hist_toolbar.update()
+            self.hist_canvas.request_draw()
+        return computed_gain
+
+    def render_array_for_export(
+        self,
+        source: np.ndarray,
+        gain,
+        auto_gain,
+        rotate,
+        shift,
+        denoise,
+        pseudo,
+        center,
+        ellipse,
+        crosshair,
+        line_width,
+        quad,
+        zero_threshold_8bit: float = 0,
+    ) -> np.ndarray:
+        """Render one source image with the same parameters as the viewer."""
+        _, display, _, _ = self._build_display(
+            _to_16bit_single_channel(source),
+            gain=gain,
+            auto_gain=auto_gain,
+            rotate=rotate,
+            shift=shift,
+            denoise=denoise,
+            pseudo=pseudo,
+            center=center,
+            ellipse=ellipse,
+            crosshair=crosshair,
+            line_width=line_width,
+            quad=quad,
+            zero_threshold_8bit=zero_threshold_8bit,
+            value_scale=1.0,
+            value_range=None,
+        )
+        return display
+
+    def _build_display(
+        self,
+        source: np.ndarray,
+        *,
+        gain,
+        auto_gain,
+        rotate,
+        shift,
+        denoise,
+        pseudo,
+        center,
+        ellipse,
+        crosshair,
+        line_width,
+        quad,
+        zero_threshold_8bit: float,
+        value_scale: float,
+        value_range: tuple[float, float] | None,
+    ) -> tuple[np.ndarray, np.ndarray, float | None, tuple[float, float] | None]:
+        image = source
         if zero_threshold_8bit < 0:
             raise ValueError("去噪阈值不能小于0")
         if zero_threshold_8bit > 0:
             image = image.copy()
-            image[image <= zero_threshold_8bit * 256 / self.value_scale] = 0
+            image[image <= zero_threshold_8bit * 256 / value_scale] = 0
             value_range = None
         if denoise > 0:
-            if image is self.raw_single:
+            if image is source:
                 image = image.copy()
             image[image < np.max(image) * denoise] = 0
             value_range = None
@@ -162,27 +248,16 @@ class ViewerPanel(ttk.Frame):
         if shift:
             image = shift_image(image, shift)
             value_range = None
-        self._set_value_image(image, self.value_scale, value_range)
-        self._refresh_info()
+
         computed_gain = None
         if auto_gain:
-            maximum = self._value_max
-            computed_gain = 65535.0 / maximum if maximum > 0 else None
+            _, maximum = _finite_range(image)
+            computed_gain = 65535.0 / (maximum * value_scale) if maximum > 0 else None
             gain = computed_gain if computed_gain is not None else 0.0
-        scaled = _scale_gray_for_display(image, gain, self.value_scale)
-        self.display = cv2.applyColorMap(scaled, blacked_jet_colormap()) if pseudo else cv2.cvtColor(scaled, cv2.COLOR_GRAY2BGR)
-        self.base_display = self.display.copy() if self.retain_base_display else None
-        self._draw_overlays(center, ellipse, crosshair, line_width, quad, None)
-        self._set_zoom_and_render(zoom)
-        if self.show_histogram and self.axis is not None and self.hist_canvas is not None:
-            values = _quad_values(image, quad).astype(np.float32, copy=False) * self.value_scale
-            self.axis.clear()
-            self.axis.hist(values.ravel(), bins=100)
-            self.axis.set_title("灰度直方图")
-            if self.hist_toolbar is not None:
-                self.hist_toolbar.update()
-            self.hist_canvas.request_draw()
-        return computed_gain
+        scaled = _scale_gray_for_display(image, gain, value_scale)
+        display = cv2.applyColorMap(scaled, blacked_jet_colormap()) if pseudo else cv2.cvtColor(scaled, cv2.COLOR_GRAY2BGR)
+        self._draw_overlays_on(display, center, ellipse, crosshair, line_width, quad, None)
+        return image, display, computed_gain, value_range
 
     def update_image(
         self,

@@ -7,7 +7,7 @@ from tkinter import filedialog, ttk
 
 import numpy as np
 
-from PLIFv2.core.image_io import write_tif
+from PLIFv2.core.image_io import read_image, write_tif
 from PLIFv2.ui.components.viewer_panel import ViewerPanel
 
 class ImageViewerPage(ttk.Frame):
@@ -22,6 +22,7 @@ class ImageViewerPage(ttk.Frame):
             "quad_x3": "", "quad_y3": "", "quad_x4": "", "quad_y4": "",
         }.items()}
         self.input_mode = tk.StringVar(value="image")
+        self.batch_range = tk.StringVar(value="0800-0850")
         self.pseudo = tk.BooleanVar(value=False)
         self.auto_gain = tk.BooleanVar(value=False)
         self.auto_gain_text = tk.StringVar(value="（自动增益：-）")
@@ -66,6 +67,9 @@ class ImageViewerPage(ttk.Frame):
 
         row5 = ttk.Frame(self)
         row5.pack(anchor="w", padx=6, pady=(2, 3))
+        ttk.Label(row5, text="编号范围").pack(side="left", padx=(4, 1))
+        ttk.Entry(row5, textvariable=self.batch_range, width=12).pack(side="left")
+        ttk.Button(row5, text="批量导出TIF", command=self.batch_export).pack(side="left", padx=(6, 6))
         ttk.Button(row5, text="保存当前显示", command=self.save_current).pack(side="left")
 
         path_area = ttk.Frame(self)
@@ -168,23 +172,74 @@ class ImageViewerPage(ttk.Frame):
         if panel is None:
             return
         try:
-            auto_gain = self.auto_gain.get()
             computed_gain = panel.update_display(
-                gain=1.0 if auto_gain else float(self.vars["gain"].get()),
-                auto_gain=auto_gain,
                 zoom=float(self.vars["zoom"].get()),
-                rotate=float(self.vars["rotate"].get()), shift=int(self.vars["shift"].get()),
-                denoise=float(self.vars["denoise"].get()), pseudo=self.pseudo.get(),
-                center=(int(self.vars["center_x"].get()), int(self.vars["center_y"].get())),
-                ellipse=(int(self.vars["major"].get()), int(self.vars["minor"].get())) if self.ellipse.get() else None,
-                crosshair=self.crosshair.get(), line_width=int(self.vars["line_width"].get()),
-                quad=_parse_quad_entries(self.vars) if self.quad_visible.get() else None,
+                **self._display_parameters(),
             )
             self.auto_gain_text.set(
                 f"（自动增益：{computed_gain:.2f}）" if computed_gain is not None else "（自动增益：-）"
             )
         except Exception as exc:
             panel.info.config(text=f"错误: {exc}")
+
+    def _display_parameters(self) -> dict:
+        auto_gain = self.auto_gain.get()
+        return {
+            "gain": 1.0 if auto_gain else float(self.vars["gain"].get()),
+            "auto_gain": auto_gain,
+            "rotate": float(self.vars["rotate"].get()),
+            "shift": int(self.vars["shift"].get()),
+            "denoise": float(self.vars["denoise"].get()),
+            "pseudo": self.pseudo.get(),
+            "center": (int(self.vars["center_x"].get()), int(self.vars["center_y"].get())),
+            "ellipse": (int(self.vars["major"].get()), int(self.vars["minor"].get())) if self.ellipse.get() else None,
+            "crosshair": self.crosshair.get(),
+            "line_width": int(self.vars["line_width"].get()),
+            "quad": _parse_quad_entries(self.vars) if self.quad_visible.get() else None,
+        }
+
+    def batch_export(self) -> None:
+        panel = self.current_panel()
+        if panel is None or panel.path == Path() or not panel.path.parent.is_dir():
+            self.load_status.config(text="请先打开一张图像")
+            return
+        try:
+            start, end = _parse_image_range(self.batch_range.get())
+            output_text = filedialog.askdirectory(
+                initialdir=str(panel.path.parent),
+                title="选择批量导出 TIF 目录",
+            )
+            if not output_text:
+                return
+            source_paths = _numbered_image_paths(panel.path.parent, panel.path.suffix)
+            parameters = self._display_parameters()
+            output_folder = Path(output_text)
+            total = end - start + 1
+            exported = 0
+            missing: list[int] = []
+            failed: list[tuple[int, str]] = []
+            for index, number in enumerate(range(start, end + 1), start=1):
+                self.load_status.config(text=f"正在导出 {index}/{total}: {number:04d}")
+                self.update_idletasks()
+                source_path = source_paths.get(number)
+                if source_path is None:
+                    missing.append(number)
+                    continue
+                try:
+                    display = panel.render_array_for_export(read_image(source_path), **parameters)
+                    write_tif(output_folder / f"{number:04d}.tif", display)
+                    exported += 1
+                except Exception as exc:
+                    failed.append((number, str(exc)))
+
+            status = f"批量导出完成：{exported}/{total} 张；输出目录：{output_folder}"
+            if missing:
+                status += f"；缺少 {len(missing)} 张（例如 {', '.join(f'{number:04d}' for number in missing[:5])}）"
+            if failed:
+                status += f"；失败 {len(failed)} 张（例如 {failed[0][0]:04d}: {failed[0][1]}）"
+            self.load_status.config(text=status)
+        except Exception as exc:
+            self.load_status.config(text=f"批量导出失败: {exc}")
 
     def move_image(self, delta: int) -> None:
         panel = self.current_panel()
@@ -247,3 +302,26 @@ def _adjacent_image_path(path: Path, delta: int) -> Path | None:
         if candidate.is_file() and candidate.stem == target_stem and candidate.suffix.lower() == path.suffix.lower():
             return candidate
     return None
+
+
+def _parse_image_range(value: str) -> tuple[int, int]:
+    match = re.fullmatch(r"\s*(\d+)\s*(?:-|:|到)\s*(\d+)\s*", value)
+    if match is None:
+        raise ValueError("编号范围格式应为 0800-0850 或 0800到0850")
+    start, end = int(match.group(1)), int(match.group(2))
+    if start > end:
+        raise ValueError("编号范围的起始值不能大于结束值")
+    return start, end
+
+
+def _numbered_image_paths(folder: Path, preferred_suffix: str) -> dict[int, Path]:
+    suffixes = {".png", ".tif", ".tiff", ".bmp", ".npy"}
+    candidates = sorted(
+        (
+            path
+            for path in folder.iterdir()
+            if path.is_file() and path.suffix.lower() in suffixes and path.stem.isdigit()
+        ),
+        key=lambda path: (path.suffix.lower() != preferred_suffix.lower(), path.name.lower()),
+    )
+    return {int(path.stem): path for path in reversed(candidates)}
