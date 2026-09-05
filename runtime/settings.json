@@ -98,7 +98,7 @@
     "f_exp_no": "67",
     "o_exp_no": "45",
     "fo_exp_no": "57",
-    "preset_path": "E:\\Sci\\Codes\\ImpingingJet\\PLIF程序\\PLIFv2\\runtime\\presets\\20250820孔径比影响-正式-混合数据.json",
+    "preset_path": "D:\\工作文件同步\\Codes\\PLIFv2\\runtime\\presets\\20250820孔径比影响-正式-混合数据.json",
     "save_name": "DR1.3_U25",
     "zoom": 1.5,
     "gain": 0.0,
@@ -111,28 +111,29 @@
     "center_xfo": 663,
     "center_yfo": 419,
     "line_width": 2,
-    "denoise_ratio": 0.02,
+    "denoise_ratio": 0.01,
     "thres_contour": 0.9,
     "q_center_up": 0,
     "q_center_down": 0,
     "q_center_up_f": 200,
     "q_center_down_f": 700,
-    "q_center_up_o": 100,
-    "q_center_down_o": 800,
+    "q_center_up_o": 50,
+    "q_center_down_o": 700,
     "q_center_up_fo": 100,
     "q_center_down_fo": 800,
     "max_k": 30,
     "rotate_angle_f": 4,
     "rotate_angle_o": -1,
     "rotate_angle_fo": 6,
-    "output_folder": "."
+    "output_folder": ".",
+    "fit_result_path": "D:\\工作文件同步\\20250826孔径比影响\\20250820孔径比影响-正式-模型拟合.xlsx"
   },
   "ui": {
     "app": {
       "main_tab": 4,
       "active_page": "5 质量分布拟合",
       "last_tool_page": "图片播放器",
-      "last_secondary_page": "图像查看器"
+      "last_secondary_page": "GIF导出"
     },
     "pages": {
       "1 平均图": {
@@ -632,11 +633,11 @@
         },
         "!frame2.!entry": {
           "kind": "text",
-          "value": "0"
+          "value": "10"
         },
         "!frame2.!checkbutton2": {
           "kind": "variable",
-          "value": "1"
+          "value": "0"
         },
         "!frame2.!entry2": {
           "kind": "text",
@@ -648,7 +649,7 @@
         },
         "!frame2.!entry4": {
           "kind": "text",
-          "value": "0"
+          "value": "270"
         },
         "!frame2.!entry5": {
           "kind": "text",
@@ -660,7 +661,7 @@
         },
         "!frame3.!checkbutton": {
           "kind": "variable",
-          "value": "1"
+          "value": "0"
         },
         "!frame3.!entry2": {
           "kind": "text",
@@ -718,13 +719,17 @@
           "kind": "text",
           "value": ""
         },
+        "!frame5.!entry": {
+          "kind": "text",
+          "value": "0800-0850"
+        },
         "!frame6.!radiobutton": {
           "kind": "variable",
           "value": "image"
         },
         "!frame6.!entry": {
           "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/标定板-视场修正.tif"
+          "value": "E:\\实验数据\\20250820孔径比影响-正式\\原始图像\\实验编号180\\0837.PNG"
         },
         "!frame6.!radiobutton2": {
           "kind": "variable",
@@ -732,17 +737,17 @@
         },
         "!frame6.!entry2": {
           "kind": "text",
-          "value": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\1-平均图"
+          "value": "E:/实验数据/20250820孔径比影响-正式/原始图像/实验编号180"
         },
         "!frame6.!entry3": {
           "kind": "text",
           "value": "228"
         },
-        "!frame7.!viewerpanel.!frame.!horizontaldisplaypane.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-9": {
+        "!frame7.!viewerpanel.!frame.!horizontaldisplaypane.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-1": {
           "kind": "variable",
           "value": 0
         },
-        "!frame7.!viewerpanel.!frame.!horizontaldisplaypane.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-10": {
+        "!frame7.!viewerpanel.!frame.!horizontaldisplaypane.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-2": {
           "kind": "variable",
           "value": 0
         }
@@ -830,234 +835,6 @@
         }
       },
       "4 手动调参": {
-        "!frame.!frame.!frame.!entry": {
-          "kind": "text",
-          "value": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\4-最终图像"
-        },
-        "!frame.!frame.!frame.!entry2": {
-          "kind": "text",
-          "value": "4"
-        },
-        "!frame.!frame.!frame.!entry3": {
-          "kind": "text",
-          "value": "17"
-        },
-        "!frame.!frame.!frame.!entry4": {
-          "kind": "text",
-          "value": "31"
-        },
-        "!frame.!frame.!frame2.!entry": {
-          "kind": "text",
-          "value": "E:\\Sci\\Codes\\ImpingingJet\\PLIF程序\\PLIFv2\\runtime\\presets\\20250820孔径比影响-正式-混合数据.json"
-        },
-        "!frame.!frame.!frame2.!frame.!entry": {
-          "kind": "text",
-          "value": "2"
-        },
-        "!frame.!frame.!frame2.!entry2": {
-          "kind": "text",
-          "value": "1.0"
-        },
-        "!frame.!frame.!frame2.!entry3": {
-          "kind": "text",
-          "value": "30"
-        },
-        "!frame.!frame.!frame3.!checkbutton": {
-          "kind": "variable",
-          "value": 1
-        },
-        "!frame.!frame.!frame3.!entry": {
-          "kind": "text",
-          "value": "1"
-        },
-        "!frame.!frame.!frame3.!checkbutton2": {
-          "kind": "variable",
-          "value": 1
-        },
-        "!frame.!frame.!frame3.!entry2": {
-          "kind": "text",
-          "value": "2"
-        },
-        "!frame.!frame.!frame3.!entry3": {
-          "kind": "text",
-          "value": "0.01"
-        },
-        "!frame.!frame.!frame3.!entry4": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame.!frame.!frame3.!entry5": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame.!frame.!frame3.!entry6": {
-          "kind": "text",
-          "value": "1.0"
-        },
-        "!frame.!frame.!frame3.!checkbutton3": {
-          "kind": "variable",
-          "value": 1
-        },
-        "!frame.!frame.!frame4.!entry": {
-          "kind": "text",
-          "value": "2"
-        },
-        "!frame.!frame.!frame4.!checkbutton": {
-          "kind": "variable",
-          "value": 1
-        },
-        "!frame.!frame.!frame4.!entry2": {
-          "kind": "text",
-          "value": "642"
-        },
-        "!frame.!frame.!frame4.!entry3": {
-          "kind": "text",
-          "value": "430"
-        },
-        "!frame.!frame.!frame4.!entry4": {
-          "kind": "text",
-          "value": "642"
-        },
-        "!frame.!frame.!frame4.!entry5": {
-          "kind": "text",
-          "value": "430"
-        },
-        "!frame.!frame.!frame4.!entry6": {
-          "kind": "text",
-          "value": "642"
-        },
-        "!frame.!frame.!frame4.!entry7": {
-          "kind": "text",
-          "value": "430"
-        },
-        "!frame.!frame.!frame4.!checkbutton2": {
-          "kind": "variable",
-          "value": 1
-        },
-        "!frame.!frame.!frame4.!entry8": {
-          "kind": "text",
-          "value": "200"
-        },
-        "!frame.!frame.!frame4.!entry9": {
-          "kind": "text",
-          "value": "400"
-        },
-        "!frame.!frame.!frame4.!checkbutton3": {
-          "kind": "variable",
-          "value": "0"
-        },
-        "!frame.!labelframe.!frame.!checkbutton": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame.!labelframe.!frame.!checkbutton2": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame.!labelframe.!frame2.!checkbutton": {
-          "kind": "variable",
-          "value": 1
-        },
-        "!frame.!labelframe.!frame2.!checkbutton2": {
-          "kind": "variable",
-          "value": 1
-        },
-        "!frame.!labelframe.!frame2.!checkbutton3": {
-          "kind": "variable",
-          "value": 1
-        },
-        "!frame.!labelframe.!frame2.!checkbutton4": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame.!labelframe.!frame2.!checkbutton5": {
-          "kind": "variable",
-          "value": 1
-        },
-        "!frame.!labelframe.!frame2.!checkbutton6": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame.!labelframe.!frame2.!checkbutton7": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame.!labelframe.!frame2.!checkbutton8": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame.!labelframe.!frame2.!checkbutton9": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame.!labelframe.!frame2.!checkbutton10": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame.!labelframe.!frame2.!checkbutton11": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame.!labelframe.!frame2.!checkbutton12": {
-          "kind": "variable",
-          "value": 1
-        },
-        "!notebook": {
-          "kind": "notebook",
-          "value": 0
-        },
-        "!notebook.!frame.!frame2.!canvas.!frame.!mixcurvepanel.!frame2.!navigationtoolbar2tk.!checkbutton-1": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!notebook.!frame.!frame2.!canvas.!frame.!mixcurvepanel.!frame2.!navigationtoolbar2tk.!checkbutton-2": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry": {
-          "kind": "text",
-          "value": "-20"
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry2": {
-          "kind": "text",
-          "value": "20"
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry3": {
-          "kind": "text",
-          "value": "-20"
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry4": {
-          "kind": "text",
-          "value": "20"
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame.!entry5": {
-          "kind": "text",
-          "value": "4"
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame.!frame.!navigationtoolbar2tk.!checkbutton-3": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame.!frame.!navigationtoolbar2tk.!checkbutton-4": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-5": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-6": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-7": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!notebook.!frame2.!shiftsearchpanel.!frame2.!frame3.!frame.!navigationtoolbar2tk.!checkbutton-8": {
-          "kind": "variable",
-          "value": 0
-        },
         "__custom__": {
           "is_pseudo": true,
           "auto_gain": true,
@@ -1086,19 +863,49 @@
         "__custom__": {
           "is_pseudo": true,
           "auto_gain": true,
-          "show_crosshair": true,
+          "show_crosshair": false,
           "show_contour": false,
-          "show_center_line": true,
+          "show_center_line": false,
           "show_fitted_center_line": false,
-          "image_mode": "ori_img",
-          "show_bent": true,
-          "save_crosshair": true,
+          "image_mode": "fit_img",
+          "show_bent": false,
+          "save_crosshair": false,
           "save_targets": {
-            "f": true,
-            "o": true,
-            "fo": true,
+            "f": false,
+            "o": false,
+            "fo": false,
             "fit_data": true
           }
+        }
+      },
+      "GIF导出": {
+        "!frame.!entry": {
+          "kind": "text",
+          "value": "D:/工作文件同步/20250826孔径比影响/原始图像视频"
+        },
+        "!frame2.!entry": {
+          "kind": "text",
+          "value": "D:\\工作文件同步\\20250826孔径比影响\\spray.gif"
+        },
+        "!frame3.!entry": {
+          "kind": "text",
+          "value": "800"
+        },
+        "!frame3.!entry2": {
+          "kind": "text",
+          "value": "850"
+        },
+        "!frame4.!entry": {
+          "kind": "text",
+          "value": "1"
+        },
+        "!frame4.!entry2": {
+          "kind": "text",
+          "value": "100"
+        },
+        "!frame4.!entry3": {
+          "kind": "text",
+          "value": "400"
         }
       }
     }
