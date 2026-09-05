@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
+from copy import deepcopy
 from tkinter import ttk
 from typing import Callable
 
@@ -79,7 +80,9 @@ class ShiftSearchPanel(ttk.Frame):
         except Exception as exc:
             self.log.write(f"错误: {exc}")
             return
-        run_in_background(self, self.log, self.actions.run_manual_shift_search, self._show_result, "开始搜索平移量...")
+        manual = deepcopy(self.actions.state.settings.manual)
+        search = deepcopy(self.settings)
+        run_in_background(self, self.log, lambda: self.actions.run_manual_shift_search(manual, search), self._show_result, "开始搜索平移量...")
 
     def _show_result(self, result) -> None:
         best_abs = result.best_abs

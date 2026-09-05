@@ -9,12 +9,13 @@ import openpyxl
 from PLIFv2.algorithms.mixing import (
     ShiftSearchResult,
     calc_mixing_efficiency,
-    calc_result,
+    calculate_manual_shift_search,
     calculate_shift_search,
-    generate_mask_coords,
-    shift_image,
+    generate_mixing_roi_coords,
+    evaluate_mixing_shift,
 )
 from PLIFv2.core.experiment_images import ExperimentTripletCache
+from PLIFv2.core.result_snapshot import ResultSnapshot
 from PLIFv2.core.safe_io import atomic_save_workbook, excel_write_session
 from PLIFv2.domain.settings import ManualMixingSettings, ShiftSearchSettings
 from PLIFv2.services.display_types import DisplayImage
@@ -41,6 +42,7 @@ class ManualDisplayResult:
     mix_curve: tuple[np.ndarray, np.ndarray]
     raw_images: list[DisplayImage]
     raw_mix_curve: tuple[np.ndarray, np.ndarray]
+    snapshot: ResultSnapshot | None = None
 
 
 class MixingService:
@@ -64,6 +66,28 @@ class MixingService:
             process_count=settings.process_count,
         )
 
+    def run_manual_shift_search(
+        self,
+        manual: ManualMixingSettings,
+        search: ShiftSearchSettings,
+    ) -> ShiftSearchResult:
+        images = self.image_cache.load(
+            manual.image_folder,
+            manual.f_exp_no,
+            manual.o_exp_no,
+            manual.fo_exp_no,
+        ).as_tuple()
+        return calculate_manual_shift_search(
+            images=images,
+            f_range=(search.f_min, search.f_max + 1),
+            o_range=(search.o_min, search.o_max + 1),
+            roi=(manual.center_xfo, manual.center_yfo, manual.major_axis, manual.minor_axis),
+            use_ellipse_region=manual.use_ellipse_region,
+            denoise_ratio=manual.denoise_ratio,
+            global_of=manual.global_of,
+            process_count=search.process_count,
+        )
+
     def run_manual(self, settings: ManualMixingSettings) -> ManualMixingResult:
         return self.run_manual_display(settings).summary
 
@@ -74,56 +98,35 @@ class MixingService:
             settings.o_exp_no,
             settings.fo_exp_no,
         )
-        f_img, o_img, fo_img = triplet.as_tuple()
-        f_img = shift_image(f_img, settings.f_shift)
-        o_img = shift_image(o_img, settings.o_shift)
-        fo_img = fo_img.copy()
-
-        mask = (f_img < (np.max(f_img) * settings.denoise_ratio)) & (o_img < (np.max(o_img) * settings.denoise_ratio))
-        f_img[mask] = 0
-        o_img[mask] = 0
-        fo_img[mask] = 0
-
-        raw_f_img = f_img.copy()
-        raw_o_img = o_img.copy()
-        raw_fo_img = fo_img.copy()
-
-        if settings.use_ellipse_region:
-            coords = generate_mask_coords(
-                settings.center_xfo,
-                settings.center_yfo,
-                settings.major_axis,
-                settings.minor_axis,
-                f_img.shape,
-            )
-        else:
-            ys, xs = np.indices(f_img.shape)
-            coords = xs.ravel(), ys.ravel()
+        coords = generate_mixing_roi_coords(
+            settings.center_xfo,
+            settings.center_yfo,
+            settings.major_axis,
+            settings.minor_axis,
+            triplet.f.shape,
+            settings.use_ellipse_region,
+        )
         global_mix_ratio = settings.global_of / (1 + settings.global_of)
-        _, raw_me_o_fo, raw_me_f_fo, raw_me_o_f = calc_result(
-            raw_f_img,
-            raw_o_img,
-            raw_fo_img,
+        evaluation = evaluate_mixing_shift(
+            triplet.as_tuple(),
+            settings.f_shift,
+            settings.o_shift,
             coords,
+            settings.denoise_ratio,
+            settings.global_of,
             global_mix_ratio,
         )
-
-        record_of = float(np.sum(o_img) / np.sum(f_img)) if np.sum(f_img) else 0.0
-        if record_of:
-            o_img = o_img * settings.global_of / record_of
-        combined = f_img + o_img
-        fo_sum = np.sum(fo_img)
-        if fo_sum:
-            fo_img = fo_img / fo_sum * np.sum(combined)
-
-        abs_value, me_o_fo, me_f_fo, me_o_f = calc_result(f_img, o_img, fo_img, coords, global_mix_ratio)
+        f_img, o_img, fo_img = evaluation.calibrated_images
+        raw_f_img, raw_o_img, raw_fo_img = evaluation.raw_images
+        _, raw_me_o_fo, raw_me_f_fo, raw_me_o_f = evaluation.raw_result
+        abs_value, me_o_fo, me_f_fo, me_o_f = evaluation.calibrated_result
         summary = ManualMixingResult(
             abs_value=abs_value,
             me_o_fo=me_o_fo,
             me_f_fo=me_f_fo,
             me_o_f=me_o_f,
             average_me=(me_o_fo + me_f_fo + me_o_f) / 3,
-            record_of=record_of,
+            record_of=evaluation.record_of,
             raw_me_o_fo=raw_me_o_fo,
             raw_me_f_fo=raw_me_f_fo,
             raw_me_o_f=raw_me_o_f,

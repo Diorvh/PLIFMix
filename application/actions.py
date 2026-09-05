@@ -109,19 +109,10 @@ class PLIFActions:
         self.state.save()
         return result
 
-    def run_manual_shift_search(self) -> ShiftSearchResult:
-        manual = deepcopy(self.state.settings.manual)
-        search = deepcopy(self.state.settings.shift)
-        search.image_folder = manual.image_folder
-        search.f_exp_no = manual.f_exp_no
-        search.o_exp_no = manual.o_exp_no
-        search.fo_exp_no = manual.fo_exp_no
-        search.ellipse_x = manual.center_xfo
-        search.ellipse_y = manual.center_yfo
-        search.major_axis = manual.major_axis
-        search.minor_axis = manual.minor_axis
-        search.global_of = manual.global_of
-        result = self.mixing_service.run_shift_search(search)
+    def run_manual_shift_search(self, manual=None, search=None) -> ShiftSearchResult:
+        manual = deepcopy(manual if manual is not None else self.state.settings.manual)
+        search = deepcopy(search if search is not None else self.state.settings.shift)
+        result = self.mixing_service.run_manual_shift_search(manual, search)
         self.state.save()
         return result
 

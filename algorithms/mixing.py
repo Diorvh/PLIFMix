@@ -33,6 +33,15 @@ class ShiftSearchResult:
         return self.f_shifts[row], self.o_shifts[col], float(self.me_ptp_matrix[row, col])
 
 
+@dataclass
+class MixingShiftEvaluation:
+    calibrated_images: tuple[np.ndarray, np.ndarray, np.ndarray]
+    calibrated_result: tuple[float, float, float, float]
+    record_of: float
+    raw_images: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
+    raw_result: tuple[float, float, float, float] | None = None
+
+
 def shift_image(image: np.ndarray, shift: int) -> np.ndarray:
     shifted = np.zeros_like(image)
     if shift > 0:
@@ -49,6 +58,89 @@ def generate_mask_coords(cx: int, cy: int, major: int, minor: int, shape: tuple[
     cv2.ellipse(mask, (cx, cy), (major, minor), 0, 0, 360, (255,), -1)
     ys, xs = np.where(mask > 0)
     return xs, ys
+
+
+def generate_mixing_roi_coords(
+    center_x: int,
+    center_y: int,
+    major_axis: int,
+    minor_axis: int,
+    shape: tuple[int, ...],
+    use_ellipse_region: bool,
+) -> tuple[np.ndarray, np.ndarray]:
+    if use_ellipse_region:
+        return generate_mask_coords(center_x, center_y, major_axis, minor_axis, shape)
+    ys, xs = np.indices(shape)
+    return xs.ravel(), ys.ravel()
+
+
+def _preprocess_mixing_images(
+    f_img: np.ndarray,
+    o_img: np.ndarray,
+    fo_img: np.ndarray,
+    denoise_ratio: float,
+    global_of: float,
+    keep_raw: bool = True,
+) -> tuple[
+    tuple[np.ndarray, np.ndarray, np.ndarray],
+    tuple[np.ndarray, np.ndarray, np.ndarray] | None,
+    float,
+]:
+    """Process owned shifted F/O arrays in place and return calibrated images."""
+    fo_img = fo_img.copy()
+
+    mask = (f_img < (np.max(f_img) * denoise_ratio)) & (o_img < (np.max(o_img) * denoise_ratio))
+    f_img[mask] = 0
+    o_img[mask] = 0
+    fo_img[mask] = 0
+
+    raw_images = None
+    if keep_raw:
+        raw_images = f_img.copy(), o_img.copy(), fo_img.copy()
+
+    record_of = float(np.sum(o_img) / np.sum(f_img)) if np.sum(f_img) else 0.0
+    if record_of:
+        o_img = o_img * global_of / record_of
+    combined = f_img + o_img
+    fo_sum = np.sum(fo_img)
+    if fo_sum:
+        fo_img = fo_img / fo_sum * np.sum(combined)
+
+    return (f_img, o_img, fo_img), raw_images, record_of
+
+
+def evaluate_mixing_shift(
+    images: tuple[np.ndarray, np.ndarray, np.ndarray],
+    f_shift: int,
+    o_shift: int,
+    coords_me: tuple[np.ndarray, np.ndarray],
+    denoise_ratio: float,
+    global_of: float,
+    global_mix_ratio: float,
+    keep_raw: bool = True,
+) -> MixingShiftEvaluation:
+    f_img, o_img, fo_img = images
+    f_img = shift_image(f_img, f_shift)
+    o_img = shift_image(o_img, o_shift)
+    calibrated_images, raw_images, record_of = _preprocess_mixing_images(
+        f_img,
+        o_img,
+        fo_img,
+        denoise_ratio,
+        global_of,
+        keep_raw=keep_raw,
+    )
+    raw_result = None
+    if raw_images is not None:
+        raw_result = calc_result(*raw_images, coords_me, global_mix_ratio)
+    calibrated_result = calc_result(*calibrated_images, coords_me, global_mix_ratio)
+    return MixingShiftEvaluation(
+        calibrated_images=calibrated_images,
+        calibrated_result=calibrated_result,
+        record_of=record_of,
+        raw_images=raw_images,
+        raw_result=raw_result,
+    )
 
 
 def calc_flowrate_contour(image: np.ndarray, thres_contour: float) -> tuple[float, set[tuple[int, int]]]:
@@ -460,6 +552,46 @@ def calculate_shift_search(
         ) as pool:
             rows = pool.map(_process_cached_f_shift, [(f_shift, o_shifts) for f_shift in f_shifts])
 
+    return _assemble_shift_search_result(f_shifts, o_shifts, rows)
+
+
+def calculate_manual_shift_search(
+    images: tuple[np.ndarray, np.ndarray, np.ndarray],
+    f_range: tuple[int, int],
+    o_range: tuple[int, int],
+    roi: tuple[int, int, int, int],
+    use_ellipse_region: bool,
+    denoise_ratio: float,
+    global_of: float,
+    process_count: int | None = None,
+) -> ShiftSearchResult:
+    coords_me = generate_mixing_roi_coords(*roi, images[0].shape, use_ellipse_region)
+    f_shifts = list(range(*f_range))
+    o_shifts = list(range(*o_range))
+    global_mix_ratio = global_of / (1 + global_of)
+    workers = min(process_count or cpu_count(), max(1, len(f_shifts)))
+    if workers <= 1:
+        tasks = [
+            (f_shift, o_shifts, images, coords_me, denoise_ratio, global_of, global_mix_ratio)
+            for f_shift in f_shifts
+        ]
+        rows = [_process_manual_f_shift(task) for task in tasks]
+    else:
+        with Pool(
+            processes=workers,
+            initializer=_initialize_manual_shift_worker,
+            initargs=(images, coords_me, denoise_ratio, global_of, global_mix_ratio),
+        ) as pool:
+            rows = pool.map(_process_cached_manual_f_shift, [(f_shift, o_shifts) for f_shift in f_shifts])
+
+    return _assemble_shift_search_result(f_shifts, o_shifts, rows)
+
+
+def _assemble_shift_search_result(
+    f_shifts: list[int],
+    o_shifts: list[int],
+    rows: list[list[tuple[float, float, float, float]]],
+) -> ShiftSearchResult:
     abs_matrix = np.zeros((len(f_shifts), len(o_shifts)))
     me1_matrix = np.zeros_like(abs_matrix)
     me2_matrix = np.zeros_like(abs_matrix)
@@ -506,4 +638,74 @@ def _process_cached_f_shift(args: tuple[int, Iterable[int]]):
     f_shift, o_shifts = args
     return _process_f_shift(
         (f_shift, o_shifts, _SHIFT_WORKER_IMAGES, _SHIFT_WORKER_COORDS, _SHIFT_WORKER_RATIO)
+    )
+
+
+_MANUAL_SHIFT_WORKER_IMAGES: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
+_MANUAL_SHIFT_WORKER_COORDS: tuple[np.ndarray, np.ndarray] | None = None
+_MANUAL_SHIFT_WORKER_DENOISE_RATIO = 0.0
+_MANUAL_SHIFT_WORKER_GLOBAL_OF = 0.0
+_MANUAL_SHIFT_WORKER_RATIO = 0.0
+
+
+def _initialize_manual_shift_worker(
+    images: tuple[np.ndarray, np.ndarray, np.ndarray],
+    coords_me: tuple[np.ndarray, np.ndarray],
+    denoise_ratio: float,
+    global_of: float,
+    global_mix_ratio: float,
+) -> None:
+    global _MANUAL_SHIFT_WORKER_IMAGES
+    global _MANUAL_SHIFT_WORKER_COORDS
+    global _MANUAL_SHIFT_WORKER_DENOISE_RATIO
+    global _MANUAL_SHIFT_WORKER_GLOBAL_OF
+    global _MANUAL_SHIFT_WORKER_RATIO
+    _MANUAL_SHIFT_WORKER_IMAGES = images
+    _MANUAL_SHIFT_WORKER_COORDS = coords_me
+    _MANUAL_SHIFT_WORKER_DENOISE_RATIO = denoise_ratio
+    _MANUAL_SHIFT_WORKER_GLOBAL_OF = global_of
+    _MANUAL_SHIFT_WORKER_RATIO = global_mix_ratio
+
+
+def _process_manual_f_shift(
+    args: tuple[
+        int,
+        Iterable[int],
+        tuple[np.ndarray, np.ndarray, np.ndarray],
+        tuple[np.ndarray, np.ndarray],
+        float,
+        float,
+        float,
+    ]
+):
+    f_shift, o_shifts, images, coords_me, denoise_ratio, global_of, global_mix_ratio = args
+    return [
+        evaluate_mixing_shift(
+            images,
+            f_shift,
+            o_shift,
+            coords_me,
+            denoise_ratio,
+            global_of,
+            global_mix_ratio,
+            keep_raw=False,
+        ).calibrated_result
+        for o_shift in o_shifts
+    ]
+
+
+def _process_cached_manual_f_shift(args: tuple[int, Iterable[int]]):
+    if _MANUAL_SHIFT_WORKER_IMAGES is None or _MANUAL_SHIFT_WORKER_COORDS is None:
+        raise RuntimeError("手动混合平移搜索子进程尚未初始化。")
+    f_shift, o_shifts = args
+    return _process_manual_f_shift(
+        (
+            f_shift,
+            o_shifts,
+            _MANUAL_SHIFT_WORKER_IMAGES,
+            _MANUAL_SHIFT_WORKER_COORDS,
+            _MANUAL_SHIFT_WORKER_DENOISE_RATIO,
+            _MANUAL_SHIFT_WORKER_GLOBAL_OF,
+            _MANUAL_SHIFT_WORKER_RATIO,
+        )
     )
