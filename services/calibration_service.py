@@ -8,6 +8,7 @@ import numpy as np
 from PLIFv2.algorithms.intensifier import fit_linear_gain_matrix
 from PLIFv2.core.image_io import extract_plif_signal, list_image_files, read_image, save_float_image
 from PLIFv2.core.paths import path_is_set
+from PLIFv2.core.result_snapshot import ResultSnapshot
 from PLIFv2.domain.settings import CalibrationSettings
 
 
@@ -19,6 +20,7 @@ class CalibrationAnalysisResult:
     k_matrix: np.ndarray
     correction_matrix: np.ndarray
     error_map: np.ndarray
+    snapshot: ResultSnapshot | None = None
 
     def pixel_stats(self, x: int, y: int) -> dict[str, object]:
         values = self.image_stack[y, x, :].astype(np.float64)

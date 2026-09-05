@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
+from copy import deepcopy
 from pathlib import Path
 from tkinter import filedialog, ttk
 
@@ -9,6 +10,7 @@ from matplotlib.figure import Figure
 
 from PLIFv2.application.actions import PLIFActions
 from PLIFv2.core.image_io import write_png
+from PLIFv2.core.result_snapshot import require_current_result
 from PLIFv2.core.mixing_presets import (
     MixingPreset,
     create_mixing_presets_from_excel,
@@ -68,6 +70,7 @@ class ManualMixingPage(ttk.Frame):
         self.preset_group_var = tk.StringVar()
         self.latest_result = None
         self.request_id = 0
+        self.completed_request_id = -1
         self._setup_ui()
         self.live_task = LatestTaskRunner(self, LabelLog(self.status_label))
 
@@ -407,12 +410,14 @@ class ManualMixingPage(ttk.Frame):
             return
         self.request_id += 1
         request_id = self.request_id
+        settings = deepcopy(self.settings)
 
         def done(result) -> None:
             if request_id == self.request_id:
+                self.completed_request_id = request_id
                 self._show_result(result)
 
-        self.live_task.submit(self.actions.run_manual_display, done, "计算混合特性...")
+        self.live_task.submit(lambda: self.actions.run_manual_display(settings), done, "计算混合特性...")
 
     def _show_result(self, result) -> None:
         try:
@@ -468,8 +473,10 @@ class ManualMixingPage(ttk.Frame):
     def save_selected_outputs(self) -> None:
         try:
             self._save_vars()
-            if self.latest_result is None:
-                raise ValueError("请先完成当前参数计算")
+            if self.completed_request_id != self.request_id:
+                raise ValueError("请等待当前参数计算完成后再保存。")
+            require_current_result(self.latest_result, self.settings)
+            self._show_result(self.latest_result)
             if not self.vars["save_dr"].get().strip() or not self.vars["save_u"].get().strip():
                 raise ValueError("请填写 DR 和 U 保存名称")
 

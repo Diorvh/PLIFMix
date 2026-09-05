@@ -3,7 +3,9 @@ from __future__ import annotations
 from copy import deepcopy
 
 from PLIFv2.application.app_state import AppState
-from PLIFv2.core.experiment_images import ExperimentTripletCache
+from PLIFv2.core.experiment_images import ExperimentTripletCache, experiment_npy_path
+from PLIFv2.core.image_io import list_image_files
+from PLIFv2.core.result_snapshot import ResultSnapshot, require_current_result
 from PLIFv2.services.average_service import AverageImageService, AverageResult
 from PLIFv2.services.calibration_service import CalibrationService
 from PLIFv2.services.davis_service import DavisImportResult, DavisService
@@ -64,13 +66,18 @@ class PLIFActions:
         self.state.save()
         return result
 
-    def analyze_calibration(self):
-        result = self.calibration_service.analyze(deepcopy(self.state.settings.calibration))
+    def analyze_calibration(self, settings=None):
+        settings = deepcopy(settings if settings is not None else self.state.settings.calibration)
+        files = list_image_files(settings.source_folder, (".png", ".tif", ".tiff", ".bmp", ".npy"))
+        snapshot = ResultSnapshot.capture(settings, [settings.source_folder, *files])
+        result = self.calibration_service.analyze(settings)
+        result.snapshot = snapshot
         self.state.save()
         return result
 
     def save_calibration_matrix(self, result):
-        outputs = self.calibration_service.save_correction(self.state.settings.calibration, result)
+        settings = require_current_result(result, self.state.settings.calibration).export_settings(self.state.settings.calibration)
+        outputs = self.calibration_service.save_correction(settings, result)
         self.state.save()
         return outputs
 
@@ -128,8 +135,11 @@ class PLIFActions:
         self.state.save()
         return result
 
-    def run_manual_display(self) -> ManualDisplayResult:
-        result = self.mixing_service.run_manual_display(deepcopy(self.state.settings.manual))
+    def run_manual_display(self, settings=None) -> ManualDisplayResult:
+        settings = deepcopy(settings if settings is not None else self.state.settings.manual)
+        snapshot = self._triplet_snapshot(settings)
+        result = self.mixing_service.run_manual_display(settings)
+        result.snapshot = snapshot
         self.state.save()
         return result
 
@@ -140,7 +150,7 @@ class PLIFActions:
         output_name: str | None = None,
     ):
         output = self.mixing_service.export_mix_curve(
-            self.state.settings.manual,
+            require_current_result(result, self.state.settings.manual).export_settings(self.state.settings.manual),
             result,
             use_calibrated,
             output_name,
@@ -153,28 +163,41 @@ class PLIFActions:
         annotations: frozenset[str],
         image_mode: str,
         show_bent: bool | None = None,
+        settings=None,
     ) -> DistributionFitResult:
+        settings = deepcopy(settings if settings is not None else self.state.settings.distribution)
+        snapshot = self._triplet_snapshot(settings)
         result = self.distribution_service.run(
-            deepcopy(self.state.settings.distribution),
+            settings,
             annotations,
             image_mode,
             show_bent,
         )
+        result.snapshot = snapshot
         self.state.save()
         return result
 
-    def estimate_distribution_registration(self) -> DistributionRegistrationResult:
-        return self.distribution_service.estimate_registration(deepcopy(self.state.settings.distribution))
+    def estimate_distribution_registration(self, settings=None) -> DistributionRegistrationResult:
+        settings = deepcopy(settings if settings is not None else self.state.settings.distribution)
+        return self.distribution_service.estimate_registration(settings)
 
     def export_distribution_result(self, result: DistributionFitResult):
-        output = self.distribution_service.export(self.state.settings.distribution, result)
+        settings = require_current_result(result, self.state.settings.distribution).export_settings(self.state.settings.distribution)
+        output = self.distribution_service.export(settings, result)
         self.state.save()
         return output
 
     def write_distribution_fit_results(self, result: DistributionFitResult):
         output = self.distribution_service.write_fit_results_to_excel(
-            self.state.settings.distribution,
+            require_current_result(result, self.state.settings.distribution).export_settings(self.state.settings.distribution),
             result,
         )
         self.state.save()
         return output
+
+    @staticmethod
+    def _triplet_snapshot(settings) -> ResultSnapshot:
+        return ResultSnapshot.capture(settings, (
+            experiment_npy_path(settings.image_folder, number)
+            for number in (settings.f_exp_no, settings.o_exp_no, settings.fo_exp_no)
+        ))

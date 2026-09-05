@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import tkinter as tk
+from copy import deepcopy
 from pathlib import Path
 from tkinter import filedialog, simpledialog, ttk
 
 from PLIFv2.application.actions import PLIFActions
 from PLIFv2.core.image_io import write_png
+from PLIFv2.core.result_snapshot import require_current_result
 from PLIFv2.core.mixing_presets import (
     MixingPreset,
     create_mixing_presets_from_excel,
@@ -54,6 +56,7 @@ class DistributionPage(ttk.Frame):
         self.displays: dict[str, ImageDisplay] = {}
         self.latest_result = None
         self.request_id = 0
+        self.completed_request_id = -1
         self.pending_status_notice = ""
         self._setup_ui()
         self.live_task = LatestTaskRunner(self, LabelLog(self.status))
@@ -295,8 +298,7 @@ class DistributionPage(ttk.Frame):
     def write_fit_results(self) -> None:
         try:
             self._save_vars()
-            if self.latest_result is None:
-                raise ValueError("请先完成当前 F、O、FO 的拟合计算。")
+            self._require_current_result()
             output = self.actions.write_distribution_fit_results(self.latest_result)
             self.status.config(text=f"拟合结果已写入: {output}")
         except Exception as exc:
@@ -435,14 +437,16 @@ class DistributionPage(ttk.Frame):
             return
         self.request_id += 1
         request_id = self.request_id
+        settings = deepcopy(self.settings)
         annotations, image_mode, show_bent = self._annotations(), self._image_mode(), self.show_bent.get()
 
         def done(result) -> None:
             if request_id == self.request_id:
+                self.completed_request_id = request_id
                 self._show(result)
 
         self.live_task.submit(
-            lambda: self.actions.run_distribution_display(annotations, image_mode, show_bent),
+            lambda: self.actions.run_distribution_display(annotations, image_mode, show_bent, settings),
             done,
             "计算质量分布...",
         )
@@ -455,6 +459,7 @@ class DistributionPage(ttk.Frame):
             return
         self.request_id += 1
         request_id = self.request_id
+        settings = deepcopy(self.settings)
 
         def done(result) -> None:
             if request_id != self.request_id:
@@ -476,7 +481,7 @@ class DistributionPage(ttk.Frame):
             self.process()
 
         self.registration_task.submit(
-            self.actions.estimate_distribution_registration,
+            lambda: self.actions.estimate_distribution_registration(settings),
             done,
             "自动计算 F、O、FO 原点和偏转角...",
         )
@@ -512,8 +517,8 @@ class DistributionPage(ttk.Frame):
     def save_selected_outputs(self) -> None:
         try:
             self._save_vars()
-            if self.latest_result is None:
-                raise ValueError("请先完成当前参数计算")
+            self._require_current_result()
+            self._show(self.latest_result)
             output = self._output_folder()
             name = self.settings.save_name or f"F{self.settings.f_exp_no}_FO{self.settings.fo_exp_no}_O{self.settings.o_exp_no}"
             output_name = f"{name}-降噪{self.settings.denoise_ratio:g}"
@@ -533,6 +538,11 @@ class DistributionPage(ttk.Frame):
             self.status.config(text=f"已保存 {saved_count} 项结果到: {output}")
         except Exception as exc:
             self.status.config(text=f"保存错误: {exc}")
+
+    def _require_current_result(self) -> None:
+        if self.completed_request_id != self.request_id:
+            raise ValueError("请等待当前参数计算完成后再保存。")
+        require_current_result(self.latest_result, self.settings)
 
     def _crosshair_for(self, name: str) -> tuple[int, int, int]:
         center_x, center_y = self._center_for(name)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
+from copy import deepcopy
 from pathlib import Path
 from tkinter import filedialog, ttk
 
@@ -72,7 +73,8 @@ class MatrixFitWorkspace:
             return
         if self.owner is None:
             return
-        run_in_background(self.owner, self.log, self.actions.analyze_calibration, self._show_analysis, "开始拟合全部像素...")
+        settings = deepcopy(self.settings)
+        run_in_background(self.owner, self.log, lambda: self.actions.analyze_calibration(settings), self._show_analysis, "开始拟合全部像素...")
 
     def save_matrix(self) -> None:
         if self.analysis_result is None:
@@ -83,8 +85,11 @@ class MatrixFitWorkspace:
         except Exception as exc:
             self.log.write(f"错误: {exc}")
             return
-        outputs = self.actions.save_calibration_matrix(self.analysis_result)
-        self.log.write(f"修正矩阵已保存: {outputs}")
+        try:
+            outputs = self.actions.save_calibration_matrix(self.analysis_result)
+            self.log.write(f"修正矩阵已保存: {outputs}")
+        except Exception as exc:
+            self.log.write(f"错误: {exc}")
 
     def region_error(self) -> None:
         if self.analysis_result is None:

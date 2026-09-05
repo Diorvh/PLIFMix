@@ -35,6 +35,7 @@ from PLIFv2.core.experiment_images import (
     experiment_npy_path,
 )
 from PLIFv2.core.paths import path_is_set
+from PLIFv2.core.result_snapshot import ResultSnapshot
 from PLIFv2.core.safe_io import (
     atomic_save_workbook,
     atomic_write,
@@ -62,6 +63,7 @@ class DistributionFitResult:
     curve_data: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]]
     warnings: tuple[str, ...]
     summary_rows: tuple["DistributionSummaryRow", ...]
+    snapshot: ResultSnapshot | None = None
 
 
 @dataclass(frozen=True)
