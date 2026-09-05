@@ -10,6 +10,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--repo", type=Path, required=True)
 parser.add_argument("--settings", type=Path, required=True)
 parser.add_argument("--output", type=Path, required=True)
+parser.add_argument("--denoise", type=float)
+parser.add_argument("--annotations", default="")
 args = parser.parse_args()
 sys.path.insert(0, str(args.repo.parent))
 
@@ -21,6 +23,10 @@ from PLIFv2.services.mixing_service import MixingService
 
 def main() -> None:
     settings = load_settings(args.settings)
+    if args.denoise is not None:
+        settings.distribution.denoise_ratio = args.denoise
+        settings.manual.denoise_ratio = args.denoise
+    annotations = frozenset(filter(None, args.annotations.split(",")))
     arrays = {}
     metadata = {}
     service = DistributionFitService()
@@ -28,9 +34,12 @@ def main() -> None:
         for mode in ("ori_img", "fit_img", "delta_img"):
             for bent in (False, True):
                 key = f"distribution_{mode}_{bent}"
-                result = service.run(settings.distribution, frozenset(), mode, bent)
+                result = service.run(settings.distribution, annotations, mode, bent)
                 for item in result.images:
                     arrays[f"{key}_{item.name}"] = item.image
+                    if item.special_points is not None and len(item.special_points):
+                        for index, values in enumerate(item.special_points):
+                            arrays[f"{key}_{item.name}_points_{index}"] = values
                 for name, curve in result.curve_data.items():
                     for index, values in enumerate(curve):
                         arrays[f"{key}_curve_{name}_{index}"] = values

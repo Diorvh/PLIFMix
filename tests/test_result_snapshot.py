@@ -8,6 +8,7 @@ from unittest.mock import Mock
 from PLIFv2.application.actions import PLIFActions
 from PLIFv2.core.result_snapshot import ResultSnapshot, require_current_result
 from PLIFv2.domain.settings import AppSettings, DistributionSettings
+from PLIFv2.services.distribution_service import DistributionFitResult
 from PLIFv2.ui.pages.distribution_page import DistributionPage
 
 
@@ -50,12 +51,16 @@ class ResultSnapshotTests(unittest.TestCase):
         state = SimpleNamespace(settings=AppSettings(), save=Mock())
         actions = PLIFActions(state)
         self.addCleanup(actions.close)
-        actions.distribution_service.run = Mock(return_value=SimpleNamespace(snapshot=None))
+        cached_result = DistributionFitResult("", "", [], (), {}, (), ())
+        actions.distribution_service.run = Mock(return_value=cached_result)
         submitted = deepcopy(self.settings)
         state.settings.distribution.f_exp_no = "999"
         result = actions.run_distribution_display(frozenset(), "ori_img", False, submitted)
         self.assertEqual(actions.distribution_service.run.call_args.args[0].f_exp_no, "1")
         self.assertEqual(dict(result.snapshot.values)["f_exp_no"], "1")
+        self.assertIsNone(cached_result.snapshot)
+        self.assertIsNot(result, cached_result)
+        self.assertIs(result.images, cached_result.images)
         actions.distribution_service.write_fit_results_to_excel = Mock()
         with self.assertRaises(ValueError):
             actions.write_distribution_fit_results(result)

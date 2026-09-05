@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import replace
 from threading import current_thread, main_thread
 
 from PLIFv2.application.app_state import AppState
@@ -71,8 +72,7 @@ class PLIFActions:
         settings = deepcopy(settings if settings is not None else self.state.settings.calibration)
         files = list_image_files(settings.source_folder, (".png", ".tif", ".tiff", ".bmp", ".npy"))
         snapshot = ResultSnapshot.capture(settings, [settings.source_folder, *files])
-        result = self.calibration_service.analyze(settings)
-        result.snapshot = snapshot
+        result = replace(self.calibration_service.analyze(settings), snapshot=snapshot)
         self._save_on_main_thread()
         return result
 
@@ -130,8 +130,7 @@ class PLIFActions:
     def run_manual_display(self, settings=None) -> ManualDisplayResult:
         settings = deepcopy(settings if settings is not None else self.state.settings.manual)
         snapshot = self._triplet_snapshot(settings)
-        result = self.mixing_service.run_manual_display(settings)
-        result.snapshot = snapshot
+        result = replace(self.mixing_service.run_manual_display(settings), snapshot=snapshot)
         self._save_on_main_thread()
         return result
 
@@ -165,7 +164,7 @@ class PLIFActions:
             image_mode,
             show_bent,
         )
-        result.snapshot = snapshot
+        result = replace(result, snapshot=snapshot)
         self._save_on_main_thread()
         return result
 
