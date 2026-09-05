@@ -13,6 +13,7 @@ from PIL import Image, ImageTk
 from PLIFv2.algorithms.mixing import shift_image
 from PLIFv2.algorithms.visualization import blacked_jet_colormap, blue_white_red_colormap
 from PLIFv2.core.image_io import read_image, to_16bit_plif_signal, write_tif
+from PLIFv2.ui.coordinate_mapping import ImageCoordinateMapping, quarter_turns
 from PLIFv2.ui.components.display_pane import HorizontalDisplayPane
 from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
 
@@ -59,6 +60,7 @@ class ViewerPanel(ttk.Frame):
         self._last_crosshair: tuple[int, int, int] | None = None
         self._last_ellipse: tuple[int, int, int, int, int] | None = None
         self._last_special_points = None
+        self.coordinate_mapping: ImageCoordinateMapping | None = None
 
         if name is not None:
             header = ttk.Frame(self)
@@ -112,6 +114,7 @@ class ViewerPanel(ttk.Frame):
         raw_range: tuple[float, float] | None = None,
     ) -> None:
         self.path = path
+        self.coordinate_mapping = None
         source = read_image(path) if raw_single is None else raw_single
         self.original = source
         self.image = source
@@ -157,6 +160,9 @@ class ViewerPanel(ttk.Frame):
             zero_threshold_8bit=zero_threshold_8bit,
             value_scale=self.value_scale,
             value_range=self._raw_value_range,
+        )
+        self.coordinate_mapping = ImageCoordinateMapping.from_parameters(
+            self.raw_single.shape[:2], rotation_degrees=rotate, shift=shift
         )
         self._set_value_image(image, self.value_scale, value_range)
         self._refresh_info()
@@ -313,6 +319,11 @@ class ViewerPanel(ttk.Frame):
         self._refresh_info()
         self._set_zoom_and_render(zoom)
 
+    def display_to_source(self, x: int, y: int) -> tuple[int, int] | None:
+        if self.coordinate_mapping is None:
+            return None
+        return self.coordinate_mapping.display_to_source(x, y)
+
     def _draw_overlays(self, center, ellipse, crosshair, line_width, quad, special_points) -> None:
         if self.display is None:
             return
@@ -451,13 +462,7 @@ def _to_16bit_single_channel(image: np.ndarray) -> np.ndarray:
 
 
 def _rotate_quarter_turns(image: np.ndarray, angle_degrees: float) -> np.ndarray:
-    angle = float(angle_degrees)
-    if not np.isfinite(angle):
-        raise ValueError("旋转角度必须是有限数值")
-    turns = int(round(angle / 90))
-    if not np.isclose(angle, turns * 90, atol=1e-9):
-        raise ValueError("目前只支持90°的整数倍旋转")
-    turns %= 4
+    turns = quarter_turns(angle_degrees)
     if turns == 1:
         return cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
     if turns == 2:

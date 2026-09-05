@@ -12,6 +12,7 @@ from tkinter import filedialog, ttk
 import numpy as np
 
 from PLIFv2.core.image_io import extract_plif_signal, list_image_files, read_image
+from PLIFv2.ui.coordinate_mapping import ImageCoordinateMapping
 from PLIFv2.ui.components.display_pane import HorizontalDisplayPane
 from PLIFv2.ui.components.player_pixel_plot import PlayerPixelPlot
 from PLIFv2.ui.components.viewer_panel import ViewerPanel
@@ -399,6 +400,14 @@ class ImagePlayerPage(ttk.Frame):
         except ValueError:
             self.pixel_plot.set_error("X/Y must be non-negative integers; Top K must be at least 1.")
             return
+        mapping = self.panel.coordinate_mapping if self.panel is not None else None
+        if mapping is None:
+            self.pixel_plot.set_error("Image display is not ready.")
+            return
+        if not mapping.contains_display(x, y):
+            self.pixel_plot.set_error(f"Point ({x}, {y}) is outside the displayed image.")
+            return
+        source_point = mapping.display_to_source(x, y)
         self.pixel_plot.set_loading(x, y)
 
         values = np.zeros(len(self.files), dtype=np.float64)
@@ -408,11 +417,20 @@ class ImagePlayerPage(ttk.Frame):
             if raw_single is None:
                 self.pixel_plot.set_error(f"Image {frame_index} was not cached.")
                 return
-            if y >= raw_single.shape[0] or x >= raw_single.shape[1]:
+            frame_source_point = source_point
+            if raw_single.shape[:2] != mapping.source_shape:
+                frame_mapping = ImageCoordinateMapping(
+                    raw_single.shape[:2], mapping.quarter_turns, mapping.shift
+                )
+                frame_source_point = frame_mapping.display_to_source(x, y)
+            if frame_source_point is None:
+                continue
+            source_x, source_y = frame_source_point
+            if source_y >= raw_single.shape[0] or source_x >= raw_single.shape[1]:
                 self.pixel_plot.set_error(f"Point ({x}, {y}) is outside image {frame_index}.")
                 return
             value_scale = 256.0 if raw_single.dtype == np.uint8 else 1.0
-            pixel_value = float(raw_single[y, x]) * value_scale
+            pixel_value = float(raw_single[source_y, source_x]) * value_scale
             if pixel_value <= zero_threshold_8bit * 256:
                 continue
             value_range = self._cached_range(frame_index)
