@@ -292,7 +292,8 @@ class CalibrationDiagnosticsNotebook(ttk.Notebook):
         except Exception as exc:
             self.compare_log.write(f"错误: {exc}")
             return
-        run_in_background(self, self.compare_log, self.actions.compare_calibration_matrices, self._show_comparison, "开始比较矩阵...")
+        settings = deepcopy(self.actions.state.settings.calibration)
+        run_in_background(self, self.compare_log, lambda: self.actions.compare_calibration_matrices(settings), self._show_comparison, "开始比较矩阵...")
 
     def _show_comparison(self, result) -> None:
         self.compare_ax.clear()
@@ -312,10 +313,11 @@ class CalibrationDiagnosticsNotebook(ttk.Notebook):
         except Exception as exc:
             self.compare_log.write(f"错误: {exc}")
             return
+        settings = deepcopy(self.actions.state.settings.calibration)
         run_in_background(
             self,
             self.compare_log,
-            self.actions.create_single_image_matrix,
+            lambda: self.actions.create_single_image_matrix(settings),
             lambda outputs: self.compare_log.write(f"已保存: {outputs}"),
             "生成单张修正矩阵...",
         )

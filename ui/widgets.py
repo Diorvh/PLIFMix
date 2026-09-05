@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import tkinter as tk
-from queue import Empty, Queue
-from threading import Thread
 from dataclasses import dataclass
 from pathlib import Path
 from tkinter import filedialog, ttk
 from typing import Any, Callable
+from PLIFv2.ui.task_runner import LatestTaskRunner, TaskRunner
 
 
 @dataclass
@@ -42,10 +41,13 @@ class BoundForm(ttk.Frame):
                 )
 
     def save_to_model(self) -> None:
+        values = {}
         for field in self.fields:
             raw = self.vars[field.name].get()
             value = bool(raw) if field.kind is bool else _coerce(raw, field.kind)
-            setattr(self.model, field.name, value)
+            values[field.name] = value
+        for name, value in values.items():
+            setattr(self.model, name, value)
 
     def load_from_model(self) -> None:
         for field in self.fields:
@@ -93,84 +95,15 @@ def run_in_background(
     work: Callable[[], Any],
     on_success: Callable[[Any], None] | None = None,
     start_message: str = "处理中...",
-) -> None:
-    log.write(start_message)
-    results: Queue[tuple[str, Any]] = Queue()
-
-    def task() -> None:
-        try:
-            result = work()
-        except Exception as exc:
-            results.put(("error", exc))
-        else:
-            results.put(("success", result))
-
-    def poll() -> None:
-        try:
-            status, value = results.get_nowait()
-        except Empty:
-            owner.after(50, poll)
-            return
-        if status == "error":
-            log.write(f"错误: {value}")
-        elif on_success is not None:
-            on_success(value)
-
-    Thread(target=task, daemon=True).start()
-    owner.after(50, poll)
-
-
-class LatestTaskRunner:
-    """Run at most one calculation and retain only the newest pending request."""
-
-    def __init__(self, owner: tk.Misc, log, delay_ms: int = 80):
-        self.owner = owner
-        self.log = log
-        self.delay_ms = delay_ms
-        self._running = False
-        self._pending: tuple[Callable[[], Any], Callable[[Any], None], str] | None = None
-        self._delay_job: str | None = None
-
-    def submit(self, work: Callable[[], Any], on_success: Callable[[Any], None], start_message: str) -> None:
-        self._pending = (work, on_success, start_message)
-        if self._running:
-            return
-        if self._delay_job is not None:
-            self.owner.after_cancel(self._delay_job)
-        self._delay_job = self.owner.after(self.delay_ms, self._start_pending)
-
-    def _start_pending(self) -> None:
-        self._delay_job = None
-        if self._running or self._pending is None:
-            return
-        work, on_success, start_message = self._pending
-        self._pending = None
-        self._running = True
-        self.log.write(start_message)
-        results: Queue[tuple[str, Any]] = Queue()
-
-        def task() -> None:
-            try:
-                results.put(("success", work()))
-            except Exception as exc:
-                results.put(("error", exc))
-
-        def poll() -> None:
-            try:
-                status, value = results.get_nowait()
-            except Empty:
-                self.owner.after(50, poll)
-                return
-            self._running = False
-            if status == "error":
-                self.log.write(f"错误: {value}")
-            else:
-                on_success(value)
-            if self._pending is not None:
-                self._start_pending()
-
-        Thread(target=task, daemon=True).start()
-        self.owner.after(50, poll)
+) -> TaskRunner:
+    runner = getattr(owner, "_background_runner", None)
+    if runner is None:
+        runner = TaskRunner(owner, log, latest_only=False)
+        owner._background_runner = runner
+    if not runner.busy:
+        runner.log = log
+    runner.submit(work, on_success, start_message)
+    return runner
 
 
 def _stringify(value: Any) -> str:

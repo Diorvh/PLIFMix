@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from threading import current_thread, main_thread
 
 from PLIFv2.application.app_state import AppState
 from PLIFv2.core.experiment_images import ExperimentTripletCache, experiment_npy_path
@@ -35,35 +36,35 @@ class PLIFActions:
     def close(self) -> None:
         self.distribution_service.close()
 
-    def run_average(self) -> AverageResult:
-        result = self.average_service.run(deepcopy(self.state.settings.average))
-        self.state.save()
+    def run_average(self, settings=None) -> AverageResult:
+        result = self.average_service.run(deepcopy(settings if settings is not None else self.state.settings.average))
+        self._save_on_main_thread()
         return result
 
-    def run_intensifier_average(self) -> AverageResult:
-        result = self.average_service.run_intensifier_average(deepcopy(self.state.settings.intensifier_average))
-        self.state.save()
+    def run_intensifier_average(self, settings=None) -> AverageResult:
+        result = self.average_service.run_intensifier_average(deepcopy(settings if settings is not None else self.state.settings.intensifier_average))
+        self._save_on_main_thread()
         return result
 
     def apply_intensifier_correction(self) -> CorrectionResult:
         result = self.intensifier_service.apply_folder(deepcopy(self.state.settings.gain))
-        self.state.save()
+        self._save_on_main_thread()
         return result
 
-    def apply_selected_intensifier_correction(self, paths) -> CorrectionResult:
-        result = self.intensifier_service.apply_paths(deepcopy(self.state.settings.gain), paths)
-        self.state.save()
+    def apply_selected_intensifier_correction(self, paths, settings=None) -> CorrectionResult:
+        result = self.intensifier_service.apply_paths(deepcopy(settings if settings is not None else self.state.settings.gain), paths)
+        self._save_on_main_thread()
         return result
 
-    def apply_excel_intensifier_correction(self) -> CorrectionResult:
-        result = self.intensifier_service.apply_by_excel(deepcopy(self.state.settings.gain))
-        self.state.save()
+    def apply_excel_intensifier_correction(self, settings=None) -> CorrectionResult:
+        result = self.intensifier_service.apply_by_excel(deepcopy(settings if settings is not None else self.state.settings.gain))
+        self._save_on_main_thread()
         return result
 
     def fit_intensifier_matrix(self) -> MatrixFitResult:
         settings = deepcopy(self.state.settings.gain)
         result = self.intensifier_service.fit_matrix_from_folder(settings.image_folder, settings.output_folder)
-        self.state.save()
+        self._save_on_main_thread()
         return result
 
     def analyze_calibration(self, settings=None):
@@ -72,58 +73,58 @@ class PLIFActions:
         snapshot = ResultSnapshot.capture(settings, [settings.source_folder, *files])
         result = self.calibration_service.analyze(settings)
         result.snapshot = snapshot
-        self.state.save()
+        self._save_on_main_thread()
         return result
 
     def save_calibration_matrix(self, result):
         settings = require_current_result(result, self.state.settings.calibration).export_settings(self.state.settings.calibration)
         outputs = self.calibration_service.save_correction(settings, result)
-        self.state.save()
+        self._save_on_main_thread()
         return outputs
 
-    def compare_calibration_matrices(self):
-        result = self.calibration_service.compare_matrices(deepcopy(self.state.settings.calibration))
-        self.state.save()
+    def compare_calibration_matrices(self, settings=None):
+        result = self.calibration_service.compare_matrices(deepcopy(settings if settings is not None else self.state.settings.calibration))
+        self._save_on_main_thread()
         return result
 
-    def create_single_image_matrix(self):
-        outputs = self.calibration_service.single_image_matrix(deepcopy(self.state.settings.calibration))
-        self.state.save()
+    def create_single_image_matrix(self, settings=None):
+        outputs = self.calibration_service.single_image_matrix(deepcopy(settings if settings is not None else self.state.settings.calibration))
+        self._save_on_main_thread()
         return outputs
 
     def calibration_pixel_stability(self, folder, x: int, y: int, start: int, end: int):
         return self.calibration_service.pixel_stability(folder, x, y, start, end)
 
-    def import_davis(self) -> DavisImportResult:
-        result = self.davis_service.import_export_folder(deepcopy(self.state.settings.davis))
-        self.state.save()
+    def import_davis(self, settings=None) -> DavisImportResult:
+        result = self.davis_service.import_export_folder(deepcopy(settings if settings is not None else self.state.settings.davis))
+        self._save_on_main_thread()
         return result
 
-    def prepare_davis_input(self):
-        result = self.davis_service.prepare_input_folder(deepcopy(self.state.settings.davis))
-        self.state.save()
+    def prepare_davis_input(self, settings=None):
+        result = self.davis_service.prepare_input_folder(deepcopy(settings if settings is not None else self.state.settings.davis))
+        self._save_on_main_thread()
         return result
 
     def run_shift_search(self) -> ShiftSearchResult:
         result = self.mixing_service.run_shift_search(deepcopy(self.state.settings.shift))
-        self.state.save()
+        self._save_on_main_thread()
         return result
 
     def run_manual_shift_search(self, manual=None, search=None) -> ShiftSearchResult:
         manual = deepcopy(manual if manual is not None else self.state.settings.manual)
         search = deepcopy(search if search is not None else self.state.settings.shift)
         result = self.mixing_service.run_manual_shift_search(manual, search)
-        self.state.save()
+        self._save_on_main_thread()
         return result
 
-    def run_noise_analysis(self):
-        result = self.noise_service.run(deepcopy(self.state.settings.noise))
-        self.state.save()
+    def run_noise_analysis(self, settings=None):
+        result = self.noise_service.run(deepcopy(settings if settings is not None else self.state.settings.noise))
+        self._save_on_main_thread()
         return result
 
     def run_manual_mixing(self) -> ManualMixingResult:
         result = self.mixing_service.run_manual(deepcopy(self.state.settings.manual))
-        self.state.save()
+        self._save_on_main_thread()
         return result
 
     def run_manual_display(self, settings=None) -> ManualDisplayResult:
@@ -131,7 +132,7 @@ class PLIFActions:
         snapshot = self._triplet_snapshot(settings)
         result = self.mixing_service.run_manual_display(settings)
         result.snapshot = snapshot
-        self.state.save()
+        self._save_on_main_thread()
         return result
 
     def export_mix_curve_data(
@@ -146,7 +147,7 @@ class PLIFActions:
             use_calibrated,
             output_name,
         )
-        self.state.save()
+        self._save_on_main_thread()
         return output
 
     def run_distribution_display(
@@ -165,7 +166,7 @@ class PLIFActions:
             show_bent,
         )
         result.snapshot = snapshot
-        self.state.save()
+        self._save_on_main_thread()
         return result
 
     def estimate_distribution_registration(self, settings=None) -> DistributionRegistrationResult:
@@ -175,7 +176,7 @@ class PLIFActions:
     def export_distribution_result(self, result: DistributionFitResult):
         settings = require_current_result(result, self.state.settings.distribution).export_settings(self.state.settings.distribution)
         output = self.distribution_service.export(settings, result)
-        self.state.save()
+        self._save_on_main_thread()
         return output
 
     def write_distribution_fit_results(self, result: DistributionFitResult):
@@ -183,7 +184,7 @@ class PLIFActions:
             require_current_result(result, self.state.settings.distribution).export_settings(self.state.settings.distribution),
             result,
         )
-        self.state.save()
+        self._save_on_main_thread()
         return output
 
     @staticmethod
@@ -192,3 +193,8 @@ class PLIFActions:
             experiment_npy_path(settings.image_folder, number)
             for number in (settings.f_exp_no, settings.o_exp_no, settings.fo_exp_no)
         ))
+
+    def _save_on_main_thread(self) -> None:
+        # Background tasks persist through their UI completion handler.
+        if current_thread() is main_thread():
+            self.state.save()

@@ -9,6 +9,7 @@ from PLIFv2.application.app_state import AppState
 from PLIFv2.core.plot_style import configure_matplotlib
 from PLIFv2.core.ui_state_io import UIStateStore
 from PLIFv2.ui.mpl_canvas import set_canvas_tree_active
+from PLIFv2.ui.task_runner import close_task_runners
 from PLIFv2.ui.pages.average_page import AveragePage
 from PLIFv2.ui.pages.davis_page import DavisPage
 from PLIFv2.ui.pages.distribution_page import DistributionPage
@@ -201,6 +202,19 @@ class PLIFAppWindow(tk.Tk):
             set_canvas_tree_active(page, page_key == key)
 
     def _on_close(self) -> None:
+        if getattr(self, "_closing", False):
+            return
+        self._closing = True
+        self._closing_runners = close_task_runners(self)
+        for page in self.pages.values():
+            page.notify_hidden()
+        self.title("PLIFv2 - 正在等待当前任务结束并关闭")
+        self._finish_close()
+
+    def _finish_close(self) -> None:
+        if any(runner.worker_running for runner in self._closing_runners):
+            self.after(50, self._finish_close)
+            return
         self.ui_state.set_app_value("active_page", self.active_page_key)
         self.ui_state.set_app_value("last_secondary_page", self.last_secondary_key)
         if self.active_page_key in {key for key, _factory in self.workflow_specs}:

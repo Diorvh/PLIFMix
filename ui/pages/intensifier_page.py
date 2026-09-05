@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
+from copy import deepcopy
 from pathlib import Path
 from tkinter import filedialog, ttk
 
@@ -124,10 +125,11 @@ class IntensifierPage(ttk.Frame):
                 source_name = f"{item.source_folder.parent.name}/{item.source_folder.name}"
                 self.log.write(f"{source_name}: {item.selected_count} 张 -> {item.outputs.get('npy')}")
 
+        settings = deepcopy(self.average_settings)
         run_in_background(
             self,
             self.log,
-            self.actions.run_intensifier_average,
+            lambda: self.actions.run_intensifier_average(settings),
             done,
             "开始计算像增强器标定平均图...",
         )
@@ -138,7 +140,8 @@ class IntensifierPage(ttk.Frame):
         except Exception as exc:
             self.log.write(f"错误: {exc}")
             return
-        self._run(self.actions.apply_excel_intensifier_correction, "开始读取 Excel 并匹配 Gain 矩阵...")
+        settings = deepcopy(self.gain_settings)
+        self._run(lambda: self.actions.apply_excel_intensifier_correction(settings), "开始读取 Excel 并匹配 Gain 矩阵...")
 
     def apply_single(self) -> None:
         try:
@@ -146,7 +149,8 @@ class IntensifierPage(ttk.Frame):
         except Exception as exc:
             self.log.write(f"错误: {exc}")
             return
-        self._run(lambda: self.actions.apply_selected_intensifier_correction([image_path]), "开始修正所选图像...")
+        settings = deepcopy(self.gain_settings)
+        self._run(lambda: self.actions.apply_selected_intensifier_correction([image_path], settings), "开始修正所选图像...")
 
     def _save_average_settings(self) -> None:
         self.average_settings.source_folder = _to_path(self.average_vars["source_folder"].get())

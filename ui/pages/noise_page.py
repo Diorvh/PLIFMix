@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from copy import deepcopy
 from tkinter import ttk
 
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
@@ -46,7 +47,8 @@ class NoisePage(ttk.Frame):
         except Exception as exc:
             self.log.write(f"错误: {exc}")
             return
-        run_in_background(self, self.log, self.actions.run_noise_analysis, self._show, "开始分析底噪...")
+        settings = deepcopy(self.actions.state.settings.noise)
+        run_in_background(self, self.log, lambda: self.actions.run_noise_analysis(settings), self._show, "开始分析底噪...")
 
     def _show(self, result) -> None:
         self.axis.clear()

@@ -43,6 +43,7 @@ class ImagePlayerPage(ttk.Frame):
         self.files: list[Path] = []
         self.index = 0
         self.play_delta = 0
+        self._tick_after_id: str | None = None
         self._frame_cache: list[np.ndarray | None] = []
         self._cache_ranges: list[tuple[float, float] | None] = []
         self._cache_loaded = 0
@@ -166,6 +167,7 @@ class ImagePlayerPage(ttk.Frame):
         if not folder.is_dir():
             self.info.config(text=f"文件夹不存在: {folder}")
             return
+        self._cancel_tick()
         self.play_delta = 0
         self.pixel_plot.reset()
         self._frame_cache = []
@@ -335,11 +337,23 @@ class ImagePlayerPage(ttk.Frame):
         self.info.config(text="")
 
     def start(self, delta: int) -> None:
+        self._cancel_tick()
         self.play_delta = delta
         if delta:
             self._tick()
 
+    def _cancel_tick(self) -> None:
+        after_id = self._tick_after_id
+        self._tick_after_id = None
+        if after_id is None:
+            return
+        try:
+            self.after_cancel(after_id)
+        except (tk.TclError, ValueError):
+            pass
+
     def _tick(self) -> None:
+        self._tick_after_id = None
         if not self.play_delta or not self.files:
             return
         try:
@@ -361,11 +375,12 @@ class ImagePlayerPage(ttk.Frame):
         self.update_idletasks()
         remaining_seconds = (1 / frame_rate) - (time.perf_counter() - frame_started)
         if remaining_seconds > 0:
-            self.after(ceil(remaining_seconds * 1000), self._tick)
+            self._tick_after_id = self.after(ceil(remaining_seconds * 1000), self._tick)
         else:
-            self.after_idle(self._tick)
+            self._tick_after_id = self.after_idle(self._tick)
 
     def step(self, delta: int) -> None:
+        self._cancel_tick()
         if not self.files:
             return
         self.play_delta = 0
@@ -459,7 +474,10 @@ class ImagePlayerPage(ttk.Frame):
         self.pixel_plot.update_top_k(top_k)
 
     def destroy(self) -> None:
+        self._cancel_tick()
+        self.play_delta = 0
         super().destroy()
 
     def on_page_hidden(self) -> None:
+        self._cancel_tick()
         self.play_delta = 0

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from copy import deepcopy
 from tkinter import ttk
 
 from PLIFv2.application.actions import PLIFActions
@@ -47,10 +48,11 @@ class DavisPage(ttk.Frame):
         except Exception as exc:
             self.log.write(f"错误: {exc}")
             return
+        settings = deepcopy(self.actions.state.settings.davis)
         run_in_background(
             self,
             self.log,
-            self.actions.import_davis,
+            lambda: self.actions.import_davis(settings),
             lambda result: self.log.write(f"完成 Davis 整理: tif={result.tif_count}, npy={result.npy_count}, 输出 {result.output_folder}"),
             "开始整理 Davis 输出...",
         )
@@ -61,10 +63,11 @@ class DavisPage(ttk.Frame):
         except Exception as exc:
             self.log.write(f"错误: {exc}")
             return
+        settings = deepcopy(self.actions.state.settings.davis)
         run_in_background(
             self,
             self.log,
-            self.actions.prepare_davis_input,
+            lambda: self.actions.prepare_davis_input(settings),
             lambda result: self.log.write(f"已复制 {result.copied_count} 个 GAIN tif 到 {result.output_folder}"),
             "开始准备 Davis 输入目录...",
         )

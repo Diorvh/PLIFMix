@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
+from copy import deepcopy
 from pathlib import Path
 from tkinter import filedialog, ttk
 
@@ -102,7 +103,8 @@ class AveragePage(ttk.Frame):
             for item in result.items:
                 self.log.write(f"{item.source_folder.name}: {item.selected_count} 张 -> {item.outputs.get('npy')}")
 
-        run_in_background(self, self.log, self.actions.run_average, done, "开始计算平均图...")
+        settings = deepcopy(self.settings)
+        run_in_background(self, self.log, lambda: self.actions.run_average(settings), done, "开始计算平均图...")
 
     def _save_to_settings(self) -> None:
         self.settings.source_folder = _to_path(self.vars["source_folder"].get())
