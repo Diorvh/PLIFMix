@@ -3,16 +3,17 @@ from __future__ import annotations
 from multiprocessing import freeze_support
 from pathlib import Path
 import sys
-import tkinter as tk
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from PLIFv2.ui.app_window import PLIFAppWindow
-
 
 def main() -> None:
     freeze_support()
+    import tkinter as tk
+
+    from PLIFv2.ui.app_window import PLIFAppWindow
+
     try:
         app = PLIFAppWindow()
     except tk.TclError as exc:

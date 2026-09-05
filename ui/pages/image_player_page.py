@@ -4,38 +4,18 @@ import os
 import re
 import time
 import tkinter as tk
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from math import ceil
 from pathlib import Path
 from tkinter import filedialog, ttk
 
 import numpy as np
 
-from PLIFv2.core.image_io import extract_plif_signal, list_image_files, read_image
+from PLIFv2.core.image_io import list_image_files
+from PLIFv2.services.frame_cache_service import load_frame_cache
 from PLIFv2.ui.coordinate_mapping import ImageCoordinateMapping
 from PLIFv2.ui.components.display_pane import HorizontalDisplayPane
 from PLIFv2.ui.components.player_pixel_plot import PlayerPixelPlot
 from PLIFv2.ui.components.viewer_panel import ViewerPanel
-
-def _read_player_raw_frame(path: Path) -> np.ndarray:
-    image = extract_plif_signal(read_image(path))
-    # Make the cached green channel own its compact 8-bit buffer instead of
-    # retaining the three-channel source image through a NumPy view.
-    return np.ascontiguousarray(image)
-
-def _read_player_raw_batch(
-    indexed_paths: tuple[tuple[int, Path], ...],
-) -> tuple[list[tuple[int, np.ndarray | None, tuple[float, float] | None]], int]:
-    frames: list[tuple[int, np.ndarray | None, tuple[float, float] | None]] = []
-    failed = 0
-    for frame_index, path in indexed_paths:
-        try:
-            frame = _read_player_raw_frame(path)
-            frames.append((frame_index, frame, (float(np.min(frame)), float(np.max(frame)))))
-        except Exception:
-            frames.append((frame_index, None, None))
-            failed += 1
-    return frames, failed
 
 class ImagePlayerPage(ttk.Frame):
     def __init__(self, master):
@@ -46,9 +26,6 @@ class ImagePlayerPage(ttk.Frame):
         self._tick_after_id: str | None = None
         self._frame_cache: list[np.ndarray | None] = []
         self._cache_ranges: list[tuple[float, float] | None] = []
-        self._cache_loaded = 0
-        self._cache_failed = 0
-        self._cache_bytes = 0
         self.folder = tk.StringVar()
         self.frame_rate = tk.StringVar(value="20")
         self.current_frame = tk.StringVar(value="0")
@@ -210,7 +187,6 @@ class ImagePlayerPage(ttk.Frame):
             self._request_pixel_series(*self.pixel_plot.point)
 
     def _cache_frames(self) -> bool:
-        cache_started = time.perf_counter()
         try:
             requested_processes = int(self.cache_processes.get())
             if requested_processes < 1:
@@ -221,52 +197,19 @@ class ImagePlayerPage(ttk.Frame):
 
         total = len(self.files)
         worker_count = min(requested_processes, total)
-        batch_size, remainder = divmod(total, worker_count)
-        indexed_files = tuple(enumerate(self.files))
-        batches: list[tuple[tuple[int, Path], ...]] = []
-        start_index = 0
-        for batch_index in range(worker_count):
-            stop_index = start_index + batch_size + (1 if batch_index < remainder else 0)
-            batches.append(indexed_files[start_index:stop_index])
-            start_index = stop_index
 
         self._frame_cache = [None] * total
         self._cache_ranges = [None] * total
-        self._cache_loaded = 0
-        self._cache_failed = 0
-        self._cache_bytes = 0
         self.cache_status.set(f"正在用 {worker_count} 个进程缓存：0/{total} 张")
         self.update_idletasks()
 
-        if worker_count == 1:
-            results = [_read_player_raw_batch(batches[0])]
-        else:
-            results = []
-            with ProcessPoolExecutor(max_workers=worker_count) as executor:
-                future_batches = {
-                    executor.submit(_read_player_raw_batch, indexed_paths): indexed_paths
-                    for indexed_paths in batches
-                }
-                for future in as_completed(future_batches):
-                    indexed_paths = future_batches[future]
-                    try:
-                        results.append(future.result())
-                    except Exception:
-                        results.append(([(index, None, None) for index, _path in indexed_paths], len(indexed_paths)))
-
-        for frames, failed in results:
-            self._cache_failed += failed
-            for frame_index, frame, value_range in frames:
-                self._frame_cache[frame_index] = frame
-                self._cache_ranges[frame_index] = value_range
-                if frame is not None:
-                    self._cache_loaded += 1
-                    self._cache_bytes += frame.nbytes
-        memory_gib = self._cache_bytes / (1024 ** 3)
-        elapsed_seconds = time.perf_counter() - cache_started
-        text = f"已缓存：{self._cache_loaded}/{total} 张，{memory_gib:.2f} GiB，耗时：{elapsed_seconds:.2f} s"
-        if self._cache_failed:
-            text += f"，失败：{self._cache_failed}"
+        result = load_frame_cache(self.files, requested_processes)
+        self._frame_cache = result.cache
+        self._cache_ranges = result.ranges
+        memory_gib = result.cache_bytes / (1024 ** 3)
+        text = f"已缓存：{result.loaded_count}/{total} 张，{memory_gib:.2f} GiB，耗时：{result.elapsed_seconds:.2f} s"
+        if result.failed_count:
+            text += f"，失败：{result.failed_count}"
         self.cache_status.set(text)
         return True
 
