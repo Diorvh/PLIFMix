@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
@@ -28,7 +29,11 @@ from PLIFv2.algorithms.mixing import (
     straighten_center_line_image,
     unstraighten_center_line_image,
 )
-from PLIFv2.core.experiment_images import ExperimentImageTriplet, ExperimentTripletCache
+from PLIFv2.core.experiment_images import (
+    ExperimentImageTriplet,
+    ExperimentTripletCache,
+    experiment_npy_path,
+)
 from PLIFv2.core.paths import path_is_set
 from PLIFv2.core.safe_io import (
     atomic_save_workbook,
@@ -114,6 +119,12 @@ class _SurfaceModelFits:
     warnings: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class _SurfaceFitCacheEntry:
+    key: tuple
+    fits: _SurfaceModelFits
+
+
 @dataclass
 class _PreparedDistributionImage:
     source: DistributionImageData
@@ -167,8 +178,7 @@ class DistributionFitService:
         self._processed_cache: tuple[DistributionImageData, ...] | None = None
         self._result_cache_key: tuple | None = None
         self._result_cache: DistributionFitResult | None = None
-        self._surface_fit_cache_key: tuple | None = None
-        self._surface_fit_cache: tuple[_SurfaceModelFits, ...] | None = None
+        self._surface_fit_cache: dict[str, _SurfaceFitCacheEntry] = {}
         self._surface_process_pool: ProcessPoolExecutor | None = None
         self._cache_lock = RLock()
 
@@ -197,14 +207,23 @@ class DistributionFitService:
             raise ValueError(f"不支持的图像数据类型: {image_mode}")
         source_images = self._distribution_images(settings)
         result_cache_key = self._result_cache_signature(settings, annotations, image_mode, show_bent)
-        surface_fit_cache_key = self._surface_fit_cache_signature(settings)
         with self._cache_lock:
             if result_cache_key == self._result_cache_key and self._result_cache is not None:
                 return self._result_cache
-            cached_surface_fits = (
-                self._surface_fit_cache
-                if surface_fit_cache_key == self._surface_fit_cache_key
+        surface_fit_cache_keys = tuple(
+            self._surface_fit_cache_signature(settings, source, index)
+            for index, source in enumerate(source_images)
+        )
+        with self._cache_lock:
+            cached_surface_fits = tuple(
+                self._surface_fit_cache[image_name].fits
+                if image_name in self._surface_fit_cache
+                and self._surface_fit_cache[image_name].key == cache_key
                 else None
+                for image_name, cache_key in zip(
+                    ("f_img", "o_img", "fo_img"),
+                    surface_fit_cache_keys,
+                )
             )
 
         fit_text = ""
@@ -420,25 +439,29 @@ class DistributionFitService:
                 )
             )
 
+        surface_fits = list(cached_surface_fits)
         if need_surface_fit:
-            if cached_surface_fits is not None and len(cached_surface_fits) == len(prepared_images):
-                surface_fits = list(cached_surface_fits)
-            else:
-                surface_fits = self._fit_surface_models_batch(
-                    [prepared.surface_task for prepared in prepared_images if prepared.surface_task is not None]
+            miss_indices = [
+                index
+                for index, surface_fit in enumerate(surface_fits)
+                if surface_fit is None
+            ]
+            miss_tasks = [prepared_images[index].surface_task for index in miss_indices]
+            if any(task is None for task in miss_tasks):
+                raise FitConvergenceError("存在无法生成二维拟合任务的图像。")
+            if miss_indices:
+                fitted_misses = self._fit_surface_models_batch(
+                    [task for task in miss_tasks if task is not None]
                 )
+                if len(fitted_misses) != len(miss_indices):
+                    raise RuntimeError("二维拟合任务返回数量与缓存 miss 数量不一致。")
                 with self._cache_lock:
-                    self._surface_fit_cache_key = surface_fit_cache_key
-                    self._surface_fit_cache = tuple(surface_fits)
-        elif cached_surface_fits is not None and len(cached_surface_fits) == len(prepared_images):
-            # Keep the already computed fit values visible while viewing the original image.
-            surface_fits = list(cached_surface_fits)
-        else:
-            surface_fits = [None] * len(prepared_images)
-        surface_results_available = (
-            len(surface_fits) == len(prepared_images)
-            and all(surface_fit is not None for surface_fit in surface_fits)
-        )
+                    for index, fits in zip(miss_indices, fitted_misses):
+                        surface_fits[index] = fits
+                        self._surface_fit_cache[("f_img", "o_img", "fo_img")[index]] = _SurfaceFitCacheEntry(
+                            surface_fit_cache_keys[index],
+                            fits,
+                        )
 
         for prepared, surface_fit_result in zip(prepared_images, surface_fits):
             image_name = prepared.image_name
@@ -452,8 +475,7 @@ class DistributionFitService:
             symmetric_fitted_point = prepared.symmetric_fitted_point
             bent_img = prepared.bent_image
 
-            if surface_results_available:
-                assert surface_fit_result is not None
+            if surface_fit_result is not None:
                 student_fit = surface_fit_result.student_fit
                 compact_fit = surface_fit_result.compact_fit
                 surface_prediction = surface_fit_result.selected_prediction
@@ -683,26 +705,40 @@ class DistributionFitService:
             settings.rotate_angle_fo,
         )
 
-    def _surface_fit_cache_signature(self, settings: DistributionSettings) -> tuple:
-        """Identify inputs that change the expensive two-dimensional fits."""
+    def _surface_fit_cache_signature(
+        self,
+        settings: DistributionSettings,
+        source: DistributionImageData,
+        index: int,
+    ) -> tuple:
+        """Identify inputs that change one image's expensive two-dimensional fit."""
+        image_names = ("f_img", "o_img", "fo_img")
+        experiment_numbers = (settings.f_exp_no, settings.o_exp_no, settings.fo_exp_no)
+        shifts = (settings.f_shift, settings.o_shift, 0)
+        centers = (
+            (settings.center_xf, settings.center_yf),
+            (settings.center_xo, settings.center_yo),
+            (settings.center_xfo, settings.center_yfo),
+        )
+        center_line_bounds = (
+            (settings.q_center_up_f, settings.q_center_down_f),
+            (settings.q_center_up_o, settings.q_center_down_o),
+            (settings.q_center_up_fo, settings.q_center_down_fo),
+        )
+        center_x, center_y = centers[index]
+        q_center_up, q_center_down = center_line_bounds[index]
         return (
-            self._processed_cache_key,
-            settings.center_xf,
-            settings.center_yf,
-            settings.center_xo,
-            settings.center_yo,
-            settings.center_xfo,
-            settings.center_yfo,
-            settings.q_center_up_f,
-            settings.q_center_down_f,
-            settings.q_center_up_o,
-            settings.q_center_down_o,
-            settings.q_center_up_fo,
-            settings.q_center_down_fo,
+            image_names[index],
+            experiment_npy_path(settings.image_folder, experiment_numbers[index]).resolve(),
+            _array_content_signature(source.denoised),
+            shifts[index],
+            settings.denoise_ratio,
             settings.max_k,
-            settings.rotate_angle_f,
-            settings.rotate_angle_o,
-            settings.rotate_angle_fo,
+            center_x,
+            center_y,
+            q_center_up,
+            q_center_down,
+            (settings.rotate_angle_f, settings.rotate_angle_o, settings.rotate_angle_fo)[index],
         )
 
     def _fit_surface_models_batch(self, tasks: list[SurfaceFitTask]) -> list[_SurfaceModelFits]:
@@ -781,8 +817,6 @@ class DistributionFitService:
             if key != self._processed_cache_key or self._processed_cache is None:
                 self._processed_cache = _prepare_distribution_images(triplet, settings)
                 self._processed_cache_key = key
-                self._surface_fit_cache_key = None
-                self._surface_fit_cache = None
             return self._processed_cache
 
     def export(self, settings: DistributionSettings, result: DistributionFitResult) -> Path:
@@ -973,6 +1007,12 @@ def _denoise_and_normalize_distribution(
         normalized=denoised / total,
         total=total,
     )
+
+
+def _array_content_signature(array: np.ndarray) -> tuple[tuple[int, ...], str, str]:
+    contiguous = np.ascontiguousarray(array)
+    digest = hashlib.sha256(memoryview(contiguous).cast("B")).hexdigest()
+    return tuple(int(size) for size in contiguous.shape), contiguous.dtype.str, digest
 
 
 def _merge_special_points(point_sets: list[tuple[np.ndarray, np.ndarray]]) -> tuple[np.ndarray, np.ndarray] | list:

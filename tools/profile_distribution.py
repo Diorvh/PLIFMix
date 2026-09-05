@@ -642,8 +642,7 @@ def _clear_surface_result_caches(service: TimedDistributionFitService) -> None:
     with service._cache_lock:
         service._result_cache_key = None
         service._result_cache = None
-        service._surface_fit_cache_key = None
-        service._surface_fit_cache = None
+        service._surface_fit_cache.clear()
 
 
 def _package_versions() -> dict[str, str | None]:
