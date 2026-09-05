@@ -83,15 +83,25 @@ def fit_elliptical_student_prepared(fit_data: _SurfaceFitData) -> EllipticalStud
         ),
     )
 
+    scaled_x = fit_data.pixel_x_squared / (
+        fit_data.initial_scale_x * fit_data.initial_scale_x
+    )
+    scaled_y = fit_data.pixel_y_squared / (
+        fit_data.initial_scale_y * fit_data.initial_scale_y
+    )
+    radius_squared = scaled_x + scaled_y
+    weights = np.empty_like(radius_squared, dtype=np.float64)
+    prediction_buffer = np.empty_like(radius_squared, dtype=np.float64)
+
     def predict(parameters: np.ndarray) -> np.ndarray | None:
         scale_x, scale_y, exponent_minus_one = np.exp(parameters)
         exponent = 1.0 + exponent_minus_one
-        radius_squared = (
-            fit_data.pixel_x_squared / (scale_x * scale_x)
-            + fit_data.pixel_y_squared / (scale_y * scale_y)
-        )
-        weights = np.power(1.0 + radius_squared, -exponent)
-        return _normalize_prediction(weights)
+        np.divide(fit_data.pixel_x_squared, scale_x * scale_x, out=scaled_x)
+        np.divide(fit_data.pixel_y_squared, scale_y * scale_y, out=scaled_y)
+        np.add(scaled_x, scaled_y, out=radius_squared)
+        np.add(1.0, radius_squared, out=weights)
+        np.power(weights, -exponent, out=weights)
+        return _normalize_prediction(weights, prediction_buffer)
 
     result, prediction = _optimize_surface(initial, bounds, predict, fit_data)
     scale_x, scale_y, exponent_minus_one = np.exp(result.x)
@@ -178,21 +188,37 @@ def fit_compact_elliptical_student_prepared(
         (np.log(0.25), np.log(maximum_cutoff)),
     )
 
+    scaled_x = fit_data.pixel_x_squared / (compact_scale_x**2)
+    scaled_y = fit_data.pixel_y_squared / (compact_scale_y**2)
+    radius_squared = initial_radius_squared
+    cutoff = np.empty_like(radius_squared, dtype=np.float64)
+    prediction_buffer = np.empty_like(radius_squared, dtype=np.float64)
+    valid = np.empty_like(radius_squared, dtype=bool)
+
     def predict(parameters: np.ndarray) -> np.ndarray | None:
         scale_x, scale_y, exponent_minus_one, cutoff_radius = np.exp(parameters)
         exponent = 1.0 + exponent_minus_one
-        radius_squared = (
-            fit_data.pixel_x_squared / (scale_x * scale_x)
-            + fit_data.pixel_y_squared / (scale_y * scale_y)
+        np.divide(fit_data.pixel_x_squared, scale_x * scale_x, out=scaled_x)
+        np.divide(fit_data.pixel_y_squared, scale_y * scale_y, out=scaled_y)
+        np.add(scaled_x, scaled_y, out=radius_squared)
+        np.divide(
+            radius_squared,
+            cutoff_radius * cutoff_radius,
+            out=cutoff,
         )
-        cutoff = 1.0 - radius_squared / (cutoff_radius * cutoff_radius)
-        valid = cutoff > 0
-        weights = np.zeros_like(radius_squared)
-        weights[valid] = (
-            np.power(1.0 + radius_squared[valid], -exponent)
-            * np.power(cutoff[valid], _COMPACT_CUTOFF_POWER)
-        )
-        return _normalize_prediction(weights)
+        np.subtract(1.0, cutoff, out=cutoff)
+        np.greater(cutoff, 0.0, out=valid)
+
+        np.logical_not(valid, out=valid)
+        np.copyto(radius_squared, 0.0, where=valid)
+        np.copyto(cutoff, 0.0, where=valid)
+        np.logical_not(valid, out=valid)
+
+        np.add(1.0, radius_squared, out=radius_squared, where=valid)
+        np.power(radius_squared, -exponent, out=radius_squared, where=valid)
+        np.power(cutoff, _COMPACT_CUTOFF_POWER, out=cutoff, where=valid)
+        np.multiply(radius_squared, cutoff, out=radius_squared)
+        return _normalize_prediction(radius_squared, prediction_buffer)
 
     result, prediction = _optimize_surface(initial, bounds, predict, fit_data)
     scale_x, scale_y, exponent_minus_one, cutoff_radius = np.exp(result.x)
@@ -280,12 +306,19 @@ def _optimize_surface(
     predict,
     fit_data: _SurfaceFitData,
 ) -> tuple[optimize.OptimizeResult, np.ndarray]:
+    residual: np.ndarray | None = None
+
     def objective(parameters: np.ndarray) -> float:
+        nonlocal residual
         prediction = predict(parameters)
         if prediction is None:
             return np.inf
-        residual = fit_data.target - prediction
-        return float(np.sum(residual * residual) / fit_data.ss_total)
+        if residual is None:
+            residual = fit_data.target - prediction
+        else:
+            np.subtract(fit_data.target, prediction, out=residual)
+        np.multiply(residual, residual, out=residual)
+        return float(np.sum(residual) / fit_data.ss_total)
 
     result = optimize.minimize(
         objective,
@@ -297,14 +330,20 @@ def _optimize_surface(
     prediction = predict(result.x)
     if not result.success or not np.isfinite(result.fun) or prediction is None:
         raise DistributionModelFitError(f"二维 Student 拟合未收敛：{result.message}")
-    return result, prediction
+    return result, prediction.copy(order="K")
 
 
-def _normalize_prediction(weights: np.ndarray) -> np.ndarray | None:
+def _normalize_prediction(
+    weights: np.ndarray,
+    prediction: np.ndarray | None = None,
+) -> np.ndarray | None:
     total = float(np.sum(weights))
     if not np.isfinite(total) or total <= 0:
         return None
-    prediction = weights / total
+    if prediction is None:
+        prediction = weights / total
+    else:
+        np.divide(weights, total, out=prediction)
     return prediction if np.all(np.isfinite(prediction)) else None
 
 
