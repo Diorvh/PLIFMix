@@ -5,16 +5,19 @@ import tempfile
 import tkinter as tk
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import cv2
 import numpy as np
 import openpyxl
 
 from PLIFv2.algorithms.average import average_image_sets, average_images, split_average_tasks
+from PLIFv2.application.app_state import AppState
 from PLIFv2.core.config_io import load_settings, save_settings
 from PLIFv2.core.experiment_images import load_experiment_triplet
 from PLIFv2.core.image_io import write_tif
 from PLIFv2.domain.settings import (
+    AppSettings,
     AverageSettings,
     CalibrationSettings,
     DavisSettings,
@@ -350,12 +353,18 @@ class WorkflowSmokeTests(unittest.TestCase):
             root.destroy()
 
     def test_manual_and_distribution_pages_load(self) -> None:
+        state = AppState(settings=AppSettings())
+        state.settings.ui.app["active_page"] = DISTRIBUTION_PAGE_KEY
+        state.save = lambda: save_settings(state.settings, self.root / "settings.json")
         try:
-            app = PLIFAppWindow()
+            with patch("PLIFv2.ui.app_window.AppState", return_value=state):
+                app = PLIFAppWindow()
         except tk.TclError:
             self.skipTest("Tk is unavailable")
         try:
             app.withdraw()
+            app.update_idletasks()
+            self.assertEqual(app.active_page_key, DISTRIBUTION_PAGE_KEY)
             app._show_page(MANUAL_MIXING_PAGE_KEY)
             app.update_idletasks()
             manual_page = app.pages[MANUAL_MIXING_PAGE_KEY].ensure_loaded()
@@ -370,6 +379,7 @@ class WorkflowSmokeTests(unittest.TestCase):
             self.assertEqual(app.active_page_key, DISTRIBUTION_PAGE_KEY)
             self.assertIsNotNone(app.pages[DISTRIBUTION_PAGE_KEY].content)
         finally:
+            app.actions.close()
             app.destroy()
 
     def test_shift_manual_and_distribution(self) -> None:

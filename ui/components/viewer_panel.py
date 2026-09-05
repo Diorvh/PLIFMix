@@ -10,10 +10,22 @@ from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.figure import Figure
 from PIL import Image, ImageTk
 
-from PLIFv2.algorithms.mixing import shift_image
-from PLIFv2.algorithms.visualization import blacked_jet_colormap, blue_white_red_colormap
 from PLIFv2.core.image_io import read_image, to_16bit_plif_signal, write_tif
-from PLIFv2.ui.coordinate_mapping import ImageCoordinateMapping, quarter_turns
+from PLIFv2.core.image_rendering import (
+    ComputedRenderOptions,
+    OverlayOptions,
+    RawRenderOptions,
+    copy_display_for_save as _copy_display_for_save,
+    draw_overlays_on as _draw_overlays_impl,
+    finite_range as _finite_range,
+    quad_values as _quad_values,
+    render_computed_image,
+    render_raw_image,
+    rotate_quarter_turns as _rotate_quarter_turns,
+    rotate_special_points_quarter_turns as _rotate_special_points_quarter_turns,
+    scale_gray_for_display as _scale_gray_for_display,
+)
+from PLIFv2.ui.coordinate_mapping import ImageCoordinateMapping
 from PLIFv2.ui.components.display_pane import HorizontalDisplayPane
 from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
 
@@ -234,34 +246,28 @@ class ViewerPanel(ttk.Frame):
         value_scale: float,
         value_range: tuple[float, float] | None,
     ) -> tuple[np.ndarray, np.ndarray, float | None, tuple[float, float] | None]:
-        image = source
-        if zero_threshold_8bit < 0:
-            raise ValueError("去噪阈值不能小于0")
-        if zero_threshold_8bit > 0:
-            image = image.copy()
-            image[image <= zero_threshold_8bit * 256 / value_scale] = 0
-            value_range = None
-        if denoise > 0:
-            if image is source:
-                image = image.copy()
-            image[image < np.max(image) * denoise] = 0
-            value_range = None
-        if rotate:
-            image = _rotate_quarter_turns(image, rotate)
-            value_range = None
-        if shift:
-            image = shift_image(image, shift)
-            value_range = None
-
-        computed_gain = None
-        if auto_gain:
-            _, maximum = _finite_range(image)
-            computed_gain = 65535.0 / (maximum * value_scale) if maximum > 0 else None
-            gain = computed_gain if computed_gain is not None else 0.0
-        scaled = _scale_gray_for_display(image, gain, value_scale)
-        display = cv2.applyColorMap(scaled, blacked_jet_colormap()) if pseudo else cv2.cvtColor(scaled, cv2.COLOR_GRAY2BGR)
-        self._draw_overlays_on(display, center, ellipse, crosshair, line_width, quad, None)
-        return image, display, computed_gain, value_range
+        result = render_raw_image(
+            source,
+            RawRenderOptions(
+                gain=gain,
+                auto_gain=auto_gain,
+                rotate=rotate,
+                shift=shift,
+                denoise=denoise,
+                pseudo=pseudo,
+                value_scale=value_scale,
+                value_range=value_range,
+                zero_threshold_8bit=zero_threshold_8bit,
+                overlays=OverlayOptions(
+                    center=center,
+                    ellipse=ellipse,
+                    crosshair=crosshair,
+                    line_width=line_width,
+                    quad=quad,
+                ),
+            ),
+        )
+        return result.image, result.display, result.computed_gain, result.value_range
 
     def update_image(
         self,
@@ -279,43 +285,35 @@ class ViewerPanel(ttk.Frame):
         save_folder: str | Path | None = None,
     ) -> None:
         """Render a computed scalar or BGR image with all legacy ImageDisplay features."""
-        if rotate:
-            original_shape = image.shape[:2]
-            image = _rotate_quarter_turns(image, rotate)
-            special_points = _rotate_special_points_quarter_turns(special_points, rotate, original_shape)
-        self.image = image
-        self.original = image
+        result = render_computed_image(
+            image,
+            ComputedRenderOptions(
+                gain=gain,
+                colormap=colormap,
+                rotate=rotate,
+                denoise=denoise,
+                rotation_center=rotation_center,
+                overlays=OverlayOptions(
+                    center=(crosshair[0], crosshair[1]) if crosshair else (0, 0),
+                    ellipse=ellipse,
+                    crosshair=crosshair is not None,
+                    line_width=crosshair[2] if crosshair else 1,
+                    special_points=special_points,
+                ),
+                retain_base_display=self.retain_base_display,
+            ),
+        )
+        self.image = result.image
+        self.original = result.image
         self.save_name_suffix = save_name_suffix
         if save_folder is not None:
             self.save_folder = Path(save_folder)
-        if image.ndim == 2:
-            self._set_value_image(image, 1.0)
-            shown = image.copy()
-            if denoise > 0:
-                shown[shown < np.max(shown) * denoise] = 0
-            if gain == 0:
-                maximum = float(np.nanmax(shown)) if shown.size else 0
-                gain = 65535 / maximum if maximum else 1
-            shown = shown * gain
-            if shown.dtype != np.uint8:
-                shown = shown / 256
-            shown = np.clip(shown, 0, 255).astype(np.uint8)
-            if colormap == "bwr":
-                self.display = cv2.applyColorMap(shown, blue_white_red_colormap())
-            elif colormap == "none":
-                self.display = cv2.cvtColor(shown, cv2.COLOR_GRAY2BGR)
-            else:
-                self.display = cv2.applyColorMap(shown, blacked_jet_colormap())
-        else:
-            self._set_value_image(image, 1.0)
-            self.display = np.clip(image, 0, 255).astype(np.uint8)
-        self.base_display = self.display.copy() if self.retain_base_display else None
+        self._set_value_image(result.image, 1.0)
+        self.display = result.display
+        self.base_display = result.base_display
         self._last_crosshair = crosshair
         self._last_ellipse = ellipse
-        self._last_special_points = special_points
-        center = (crosshair[0], crosshair[1]) if crosshair else (0, 0)
-        line_width = crosshair[2] if crosshair else 1
-        self._draw_overlays(center, ellipse, crosshair is not None, line_width, None, special_points)
+        self._last_special_points = result.special_points
         self._refresh_info()
         self._set_zoom_and_render(zoom)
 
@@ -331,23 +329,7 @@ class ViewerPanel(ttk.Frame):
 
     @staticmethod
     def _draw_overlays_on(display, center, ellipse, crosshair, line_width, quad, special_points) -> None:
-        if special_points is not None and len(special_points):
-            try:
-                y, x = special_points
-                display[y, x] = [255, 255, 255]
-            except (IndexError, TypeError, ValueError):
-                pass
-        if crosshair:
-            cv2.line(display, (center[0], 0), (center[0], display.shape[0]), (0, 0, 255), line_width)
-            cv2.line(display, (0, center[1]), (display.shape[1], center[1]), (0, 0, 255), line_width)
-        if ellipse:
-            if len(ellipse) == 2:
-                cv2.ellipse(display, center, ellipse, 0, 0, 360, (0, 0, 255), line_width)
-            else:
-                x, y, major, minor, ellipse_width = ellipse
-                cv2.ellipse(display, (x, y), (major, minor), 0, 0, 360, (0, 0, 255), ellipse_width)
-        if quad is not None:
-            cv2.polylines(display, [quad], True, (0, 0, 255), line_width)
+        _draw_overlays_on(display, center, ellipse, crosshair, line_width, quad, special_points)
 
     def copy_for_save(
         self,
@@ -356,27 +338,16 @@ class ViewerPanel(ttk.Frame):
         crosshair: tuple[int, int, int] | None = None,
         ellipse: tuple[int, int, int, int, int] | None = None,
     ) -> np.ndarray | None:
-        if self.base_display is None:
-            return None
-        image = self.base_display.copy()
-        selected_crosshair = crosshair if include_crosshair else None
-        selected_ellipse = ellipse if include_ellipse else None
-        if selected_crosshair is None and include_crosshair:
-            selected_crosshair = self._last_crosshair
-        if selected_ellipse is None and include_ellipse:
-            selected_ellipse = self._last_ellipse
-        center = (selected_crosshair[0], selected_crosshair[1]) if selected_crosshair else (0, 0)
-        line_width = selected_crosshair[2] if selected_crosshair else 1
-        self._draw_overlays_on(
-            image,
-            center,
-            selected_ellipse,
-            selected_crosshair is not None,
-            line_width,
-            None,
-            self._last_special_points,
+        return _copy_display_for_save(
+            self.base_display,
+            include_crosshair,
+            include_ellipse,
+            crosshair,
+            ellipse,
+            last_crosshair=self._last_crosshair,
+            last_ellipse=self._last_ellipse,
+            last_special_points=self._last_special_points,
         )
-        return image
 
     def _set_zoom_and_render(self, zoom: float) -> None:
         if zoom <= 0:
@@ -461,53 +432,15 @@ def _to_16bit_single_channel(image: np.ndarray) -> np.ndarray:
     return to_16bit_plif_signal(image)
 
 
-def _rotate_quarter_turns(image: np.ndarray, angle_degrees: float) -> np.ndarray:
-    turns = quarter_turns(angle_degrees)
-    if turns == 1:
-        return cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
-    if turns == 2:
-        return cv2.rotate(image, cv2.ROTATE_180)
-    if turns == 3:
-        return cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
-    return image
-
-
-def _rotate_special_points_quarter_turns(special_points, angle_degrees: float, shape: tuple[int, int]):
-    if special_points is None or len(special_points) != 2:
-        return special_points
-    angle = float(angle_degrees)
-    turns = int(round(angle / 90)) % 4
-    y_points = np.asarray(special_points[0])
-    x_points = np.asarray(special_points[1])
-    height, width = shape
-    if turns == 1:
-        rotated_x = height - 1 - y_points
-        rotated_y = x_points
-    elif turns == 2:
-        rotated_x = width - 1 - x_points
-        rotated_y = height - 1 - y_points
-    elif turns == 3:
-        rotated_x = y_points
-        rotated_y = width - 1 - x_points
-    else:
-        return special_points
-    return np.asarray(rotated_y), np.asarray(rotated_x)
-
-
-def _scale_gray_for_display(image: np.ndarray, gain: float, value_scale: float = 1.0) -> np.ndarray:
-    scaled = image.astype(np.float32, copy=False) * np.float32(value_scale * gain / 256)
-    return np.clip(scaled, 0, 255).astype(np.uint8)
-
-
-def _finite_range(image: np.ndarray) -> tuple[float, float]:
-    if image.size == 0:
-        return 0.0, 0.0
-    return float(np.nanmin(image)), float(np.nanmax(image))
-
-
-def _quad_values(image: np.ndarray, quad):
-    if quad is None:
-        return image
-    mask = np.zeros(image.shape[:2], dtype=np.uint8)
-    cv2.fillPoly(mask, [quad], 255)
-    return image[mask > 0]
+def _draw_overlays_on(display, center, ellipse, crosshair, line_width, quad, special_points) -> None:
+    _draw_overlays_impl(
+        display,
+        OverlayOptions(
+            center=center,
+            ellipse=ellipse,
+            crosshair=crosshair,
+            line_width=line_width,
+            quad=quad,
+            special_points=special_points,
+        ),
+    )
