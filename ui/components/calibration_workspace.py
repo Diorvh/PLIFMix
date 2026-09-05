@@ -164,10 +164,12 @@ class MatrixFitWorkspace:
         self.canvas.request_draw()
 
     def _save_settings(self) -> None:
-        self.settings.source_folder = _to_path(self.source_var.get())
-        self.settings.output_folder = _to_path(self.output_var.get())
-        self.settings.display_vmax = float(self.vmax_var.get())
-        self.settings.analysis_radius = int(self.radius_var.get())
+        candidate = deepcopy(self.settings)
+        candidate.source_folder = _to_path(self.source_var.get())
+        candidate.output_folder = _to_path(self.output_var.get())
+        candidate.display_vmax = float(self.vmax_var.get())
+        candidate.analysis_radius = int(self.radius_var.get())
+        self.settings.__dict__.update(vars(candidate))
 
     def _choose_source(self) -> None:
         path = filedialog.askdirectory(initialdir=self.source_var.get() or None)

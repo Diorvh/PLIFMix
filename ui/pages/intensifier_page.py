@@ -153,25 +153,31 @@ class IntensifierPage(ttk.Frame):
         self._run(lambda: self.actions.apply_selected_intensifier_correction([image_path], settings), "开始修正所选图像...")
 
     def _save_average_settings(self) -> None:
-        self.average_settings.source_folder = _to_path(self.average_vars["source_folder"].get())
-        self.average_settings.output_folder = _to_path(self.average_vars["output_folder"].get())
-        self.average_settings.best_process_count = int(self.average_vars["best_process_count"].get())
-        self.average_settings.denoise_threshold = float(self.average_vars["denoise_threshold"].get())
+        candidate = deepcopy(self.average_settings)
+        candidate.source_folder = _to_path(self.average_vars["source_folder"].get())
+        candidate.output_folder = _to_path(self.average_vars["output_folder"].get())
+        candidate.best_process_count = int(self.average_vars["best_process_count"].get())
+        candidate.denoise_threshold = float(self.average_vars["denoise_threshold"].get())
+        self.average_settings.__dict__.update(vars(candidate))
 
     def _save_batch_settings(self) -> None:
-        self.gain_settings.image_folder = _required_path(self.batch_vars["image_folder"].get(), "待修正平均图目录")
-        self.gain_settings.matrix_folder = _required_path(self.batch_vars["matrix_folder"].get(), "修正矩阵目录")
-        self.gain_settings.excel_path = _required_path(self.batch_vars["excel_path"].get(), "实验增益 Excel")
-        self.gain_settings.output_folder = _required_path(self.batch_vars["output_folder"].get(), "修正结果输出目录")
-        self.gain_settings.experiment_column = _positive_int(
+        candidate = deepcopy(self.gain_settings)
+        candidate.image_folder = _required_path(self.batch_vars["image_folder"].get(), "待修正平均图目录")
+        candidate.matrix_folder = _required_path(self.batch_vars["matrix_folder"].get(), "修正矩阵目录")
+        candidate.excel_path = _required_path(self.batch_vars["excel_path"].get(), "实验增益 Excel")
+        candidate.output_folder = _required_path(self.batch_vars["output_folder"].get(), "修正结果输出目录")
+        candidate.experiment_column = _positive_int(
             self.batch_vars["experiment_column"].get(), "实验编号列"
         )
-        self.gain_settings.gain_column = _positive_int(self.batch_vars["gain_column"].get(), "Gain列")
+        candidate.gain_column = _positive_int(self.batch_vars["gain_column"].get(), "Gain列")
+        self.gain_settings.__dict__.update(vars(candidate))
 
     def _save_single_settings(self) -> Path:
         image_path = _required_path(self.single_image_var.get(), "待修正图像")
-        self.gain_settings.matrix_path = _required_path(self.single_matrix_var.get(), "修正矩阵")
-        self.gain_settings.output_folder = _required_path(self.single_output_var.get(), "修正结果输出目录")
+        matrix_path = _required_path(self.single_matrix_var.get(), "修正矩阵")
+        output_folder = _required_path(self.single_output_var.get(), "修正结果输出目录")
+        self.gain_settings.matrix_path = matrix_path
+        self.gain_settings.output_folder = output_folder
         return image_path
 
     def _choose_average_source(self) -> None:

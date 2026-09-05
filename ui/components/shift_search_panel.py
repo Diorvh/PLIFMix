@@ -70,8 +70,8 @@ class ShiftSearchPanel(ttk.Frame):
         plot_frame.rowconfigure(0, weight=1)
 
     def _save(self) -> None:
-        for attr, var in self.vars.items():
-            setattr(self.settings, attr, int(var.get()))
+        values = {attr: int(var.get()) for attr, var in self.vars.items()}
+        self.settings.__dict__.update(values)
 
     def run(self, event=None) -> None:
         try:

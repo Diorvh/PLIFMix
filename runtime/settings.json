@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "average": {
     "source_folder": "E:\\实验数据\\20250820孔径比影响-正式\\标定板",
     "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪",

@@ -6,6 +6,7 @@ from pathlib import Path
 from tkinter import filedialog, ttk
 
 from PLIFv2.application.actions import PLIFActions
+from PLIFv2.ui.settings_binding import set_dataclass_text_fields
 from PLIFv2.ui.widgets import LogBox, run_in_background
 
 
@@ -107,17 +108,14 @@ class AveragePage(ttk.Frame):
         run_in_background(self, self.log, lambda: self.actions.run_average(settings), done, "开始计算平均图...")
 
     def _save_to_settings(self) -> None:
-        self.settings.source_folder = _to_path(self.vars["source_folder"].get())
-        self.settings.output_folder = _to_path(self.vars["output_folder"].get())
-        self.settings.experiment_numbers = self.vars["experiment_numbers"].get().strip()
-        self.settings.use_experiment_numbers = self.use_experiment_numbers.get()
-        self.settings.best_process_count = int(self.vars["best_process_count"].get())
-        self.settings.denoise_threshold = float(self.vars["denoise_threshold"].get())
-        self.settings.time_start = float(self.vars["time_start"].get())
-        self.settings.time_end = float(self.vars["time_end"].get())
-        self.settings.sample_frequency = float(self.vars["sample_frequency"].get())
-        self.settings.use_frame_segments = self.use_frame_segments.get()
-        self.settings.frame_segments = self.vars["frame_segments"].get().strip()
+        candidate = deepcopy(self.settings)
+        set_dataclass_text_fields(candidate, {name: var.get().strip() for name, var in self.vars.items()})
+        candidate.use_experiment_numbers = self.use_experiment_numbers.get()
+        candidate.use_frame_segments = self.use_frame_segments.get()
+        self.settings.__dict__.update(vars(candidate))
+
+    def restore_ui_state(self, state) -> None:
+        self._sync_experiment_state()
 
     def _choose_directory(self, name: str) -> None:
         path = filedialog.askdirectory(initialdir=self.vars[name].get() or None)

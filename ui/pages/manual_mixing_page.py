@@ -25,7 +25,7 @@ from PLIFv2.ui.components.experiment_group_controls import (
 from PLIFv2.ui.components.shift_search_panel import ShiftSearchPanel
 from PLIFv2.ui.image_display import ImageDisplay
 from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
-from PLIFv2.ui.settings_binding import set_dataclass_text_field
+from PLIFv2.ui.settings_binding import set_dataclass_text_fields
 from PLIFv2.ui.widgets import LatestTaskRunner
 
 
@@ -366,15 +366,17 @@ class ManualMixingPage(ttk.Frame):
         self.process()
 
     def _save_vars(self) -> None:
-        for attr, var in self.vars.items():
-            if attr in {"save_dr", "save_u"}:
-                continue
-            set_dataclass_text_field(self.settings, attr, var.get())
+        candidate = deepcopy(self.settings)
+        set_dataclass_text_fields(candidate, {
+            name: variable.get() for name, variable in self.vars.items()
+            if name not in {"save_dr", "save_u"}
+        })
         dr_value = self.vars["save_dr"].get().strip()
         u_value = self.vars["save_u"].get().strip()
-        self.settings.save_name = f"DR{dr_value}_U{u_value}" if dr_value or u_value else ""
-        self.settings.use_ellipse_region = self.use_ellipse_region.get()
-        self.settings.auto_gain = self.auto_gain.get()
+        candidate.save_name = f"DR{dr_value}_U{u_value}" if dr_value or u_value else ""
+        candidate.use_ellipse_region = self.use_ellipse_region.get()
+        candidate.auto_gain = self.auto_gain.get()
+        self.settings.__dict__.update(vars(candidate))
 
     def _fill_centers_from_f(self) -> None:
         x_value = self.vars["center_xf"].get()

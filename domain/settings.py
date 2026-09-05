@@ -5,6 +5,9 @@ from pathlib import Path
 from typing import Any
 
 
+SETTINGS_SCHEMA_VERSION = 1
+
+
 @dataclass
 class AverageSettings:
     source_folder: Path = Path()
@@ -162,6 +165,7 @@ class UiStateSettings:
 
 @dataclass
 class AppSettings:
+    schema_version: int = SETTINGS_SCHEMA_VERSION
     average: AverageSettings = field(default_factory=AverageSettings)
     intensifier_average: IntensifierAverageSettings = field(default_factory=IntensifierAverageSettings)
     gain: GainCorrectionSettings = field(default_factory=GainCorrectionSettings)

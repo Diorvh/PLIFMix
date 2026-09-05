@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, TypeVar, get_args, get_origin, get_type_hints
 
 from PLIFv2.core.safe_io import atomic_write_text
-from PLIFv2.domain.settings import AppSettings, dataclass_to_jsonable
+from PLIFv2.domain.settings import SETTINGS_SCHEMA_VERSION, AppSettings, dataclass_to_jsonable
 
 T = TypeVar("T")
 
@@ -17,9 +17,12 @@ def default_config_path() -> Path:
 
 def save_settings(settings: AppSettings, path: Path | None = None) -> Path:
     config_path = path or default_config_path()
+    settings.schema_version = SETTINGS_SCHEMA_VERSION
+    payload = dataclass_to_jsonable(settings)
+    payload["schema_version"] = SETTINGS_SCHEMA_VERSION
     return atomic_write_text(
         config_path,
-        json.dumps(dataclass_to_jsonable(settings), ensure_ascii=False, indent=2),
+        json.dumps(payload, ensure_ascii=False, indent=2),
     )
 
 
@@ -28,10 +31,34 @@ def load_settings(path: Path | None = None) -> AppSettings:
     if not config_path.exists():
         return AppSettings()
     data = json.loads(config_path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("设置文件必须是 JSON 对象")
+    schema_version = _read_schema_version(data)
+    if schema_version > SETTINGS_SCHEMA_VERSION:
+        raise ValueError(
+            f"设置文件版本 {schema_version} 高于当前支持版本 {SETTINGS_SCHEMA_VERSION}"
+        )
+    if schema_version < SETTINGS_SCHEMA_VERSION:
+        _migrate_legacy_settings(data, config_path)
+    elif isinstance(data.get("ui"), dict):
+        data["ui"] = _normalise_ui_state(data["ui"])
+    data["schema_version"] = SETTINGS_SCHEMA_VERSION
+    return _from_dict(AppSettings, data)
+
+
+def _read_schema_version(data: dict[str, Any]) -> int:
+    value = data.get("schema_version", 0)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError("设置文件 schema_version 必须是整数")
+    if value < 0:
+        raise ValueError("设置文件 schema_version 不能为负数")
+    return value
+
+
+def _migrate_legacy_settings(data: dict[str, Any], config_path: Path) -> None:
     _migrate_average_settings(data)
     _migrate_distribution_settings(data)
     _migrate_ui_state(data, config_path)
-    return _from_dict(AppSettings, data)
 
 
 def _migrate_average_settings(data: dict[str, Any]) -> None:
@@ -44,10 +71,23 @@ def _migrate_average_settings(data: dict[str, Any]) -> None:
         average["best_process_count"] = average["process_count"]
     average.setdefault("experiment_numbers", "")
     average.setdefault("use_frame_segments", bool(str(average.get("frame_segments", "")).strip()))
-    if average.get("selection_mode", "frame").lower() == "frame":
+    selection_mode = str(average.get("selection_mode", "frame") or "frame").lower()
+    if selection_mode != "frame":
+        return
+    try:
         frequency = float(average.get("sample_frequency", 400) or 400)
-        average["time_start"] = float(average.get("frame_start", 0)) / frequency
-        average["time_end"] = float(average.get("frame_end", 0)) / frequency
+    except (TypeError, ValueError):
+        return
+    if frequency == 0:
+        return
+    for time_name, frame_name in (("time_start", "frame_start"), ("time_end", "frame_end")):
+        if time_name in average:
+            continue
+        try:
+            frame = float(average.get(frame_name, 0))
+        except (TypeError, ValueError):
+            continue
+        average[time_name] = frame / frequency
 
 
 def _migrate_distribution_settings(data: dict[str, Any]) -> None:
@@ -61,16 +101,32 @@ def _migrate_distribution_settings(data: dict[str, Any]) -> None:
 
 def _migrate_ui_state(data: dict[str, Any], config_path: Path) -> None:
     if isinstance(data.get("ui"), dict):
+        data["ui"] = _normalise_ui_state(data["ui"])
         return
     legacy_path = config_path.with_name("ui_state.json")
     if not legacy_path.exists():
-        data["ui"] = {"app": {}, "pages": {}}
+        data["ui"] = _empty_ui_state()
         return
     try:
         legacy = json.loads(legacy_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         legacy = {}
-    data["ui"] = legacy if isinstance(legacy, dict) else {"app": {}, "pages": {}}
+    data["ui"] = _normalise_ui_state(legacy)
+
+
+def _empty_ui_state() -> dict[str, Any]:
+    return {"app": {}, "pages": {}}
+
+
+def _normalise_ui_state(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return _empty_ui_state()
+    app = value.get("app")
+    pages = value.get("pages")
+    return {
+        "app": app if isinstance(app, dict) else {},
+        "pages": pages if isinstance(pages, dict) else {},
+    }
 
 
 def _from_dict(cls: type[T], data: dict[str, Any]) -> T:

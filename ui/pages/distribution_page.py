@@ -20,7 +20,7 @@ from PLIFv2.ui.components.experiment_group_controls import (
     split_save_name,
 )
 from PLIFv2.ui.image_display import ImageDisplay
-from PLIFv2.ui.settings_binding import set_dataclass_text_field
+from PLIFv2.ui.settings_binding import set_dataclass_text_fields
 from PLIFv2.ui.widgets import LatestTaskRunner
 
 
@@ -273,13 +273,15 @@ class DistributionPage(ttk.Frame):
         entry.bind("<Return>", command or self.process)
 
     def _save_vars(self) -> None:
-        for name, variable in self.vars.items():
-            if name in {"save_dr", "save_u"}:
-                continue
-            set_dataclass_text_field(self.settings, name, variable.get())
+        candidate = deepcopy(self.settings)
+        set_dataclass_text_fields(candidate, {
+            name: variable.get() for name, variable in self.vars.items()
+            if name not in {"save_dr", "save_u"}
+        })
         dr_value = self.vars["save_dr"].get().strip()
         u_value = self.vars["save_u"].get().strip()
-        self.settings.save_name = f"DR{dr_value}_U{u_value}" if dr_value or u_value else ""
+        candidate.save_name = f"DR{dr_value}_U{u_value}" if dr_value or u_value else ""
+        self.settings.__dict__.update(vars(candidate))
 
     def _choose_folder(self) -> None:
         path = filedialog.askdirectory()
