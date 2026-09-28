@@ -866,7 +866,7 @@
           "auto_gain": true,
           "show_crosshair": false,
           "show_contour": false,
-          "show_center_line": false,
+          "show_center_line": true,
           "show_fitted_center_line": false,
           "image_mode": "fit_img",
           "show_bent": false,
