@@ -82,6 +82,12 @@ python main.py
 
 启动时若提示缺少模块，请使用启动程序的同一解释器安装依赖。若出现 Tcl/Tk 错误，需要修复或安装带 Tk 组件的 Python。尚未确认 Windows 以外系统的完整 GUI 兼容性。
 
+## 5. 许可证
+
+- **代码和使用文档：**[MIT License](LICENSE)，版权署名为 Lihan Fei。
+- **样例数据：**`样例数据` 中的图像和配套参数采用 [CC BY 4.0](样例数据/LICENSE.txt)，不适用代码的 MIT 许可证。复用时请署名 Lihan Fei，注明 PLIFMix 仓库和许可链接，并说明是否修改。
+- 第三方依赖保留各自的许可证。
+
 ## 详细使用文档
 
 完整操作说明见 **[详细使用文档](docs/USER_GUIDE.md)**，文件位置为 **`docs/USER_GUIDE.md`**，包含各页面控件、输入组织方式、区间格式、Excel 列要求、输出命名及常见问题。

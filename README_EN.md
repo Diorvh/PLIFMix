@@ -82,6 +82,12 @@ The additional tools provide an image viewer and histogram, a cached image playe
 
 If startup reports a missing module, install requirements using the same interpreter used to launch the application. A Tcl/Tk error requires a Python installation with Tk support. Full GUI operation outside Windows has not been established.
 
+## 5. Licenses
+
+- **Code and user documentation:** [MIT License](LICENSE), copyright Lihan Fei.
+- **Sample data:** the images and accompanying parameters in `样例数据` are licensed under [CC BY 4.0](样例数据/LICENSE.txt), not the code's MIT License. When reusing them, credit Lihan Fei, link to the PLIFMix repository and the license, and indicate any modifications.
+- Third-party dependencies retain their respective licenses.
+
 ## Detailed Documentation
 
 See **[the detailed user guide](docs/USER_GUIDE_EN.md)** at **`docs/USER_GUIDE_EN.md`** for page-by-page controls, input organization, interval formats, Excel column requirements, output naming, and troubleshooting.
