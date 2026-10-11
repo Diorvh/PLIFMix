@@ -90,7 +90,7 @@ def _with_sample_defaults(settings: AppSettings, *, fill_missing: bool) -> AppSe
             if not path_is_set(value) or value == relative_path:
                 setattr(current, name, sample_folder.parent / relative_path)
     if using_sample and fill_missing:
-        settings.ui.app.setdefault("active_page", "4 手动调参")
+        settings.ui.app.setdefault("active_page", "5 质量分布拟合")
     return settings
 
 

@@ -51,8 +51,8 @@
     "q_center_down_fo": 800,
     "max_k": 30,
     "rotate_angle_f": 4,
-    "rotate_angle_o": 0,
-    "rotate_angle_fo": 5,
+    "rotate_angle_o": -1,
+    "rotate_angle_fo": 6,
     "output_folder": "outputs/sample/distribution",
     "image_save_folder": "outputs/sample/images"
   }

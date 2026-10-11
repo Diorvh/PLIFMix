@@ -36,9 +36,9 @@ python -m venv .venv
 
 The batch files use `py`, or fall back to `python`; they do not automatically select this `.venv`.
 
-The window opens maximized. Switch English/Chinese at the upper right. Both rows of page buttons remain available; the second row contains tools, not subordinate processing steps.
+The window opens maximized. A fresh download opens **5 Distribution / 5 质量分布拟合** and automatically displays the bundled F67 / FO57 / O45 images. No folder selection is needed for this first view. Switch English/Chinese at the upper right. Both rows of page buttons remain available; the second row contains tools, not subordinate processing steps.
 
-On normal exit, parameters and page state are saved in `runtime/settings.json`. Keep that file to retain your configuration. External paths may need to be selected again after moving computers; bundled sample paths resolve relative to the application.
+On normal exit, parameters and page state are saved in `runtime/settings.json`; language changes are saved immediately. Subsequent launches restore the saved page and language instead of forcing the sample page. Keep that file to retain your configuration. External paths may need to be selected again after moving computers; bundled sample paths resolve relative to the application.
 
 ## 2. Prepare Inputs
 
@@ -223,7 +223,7 @@ Headers are unchanged in English mode. Without this layout, use Save selected wi
 
 `样例数据` contains final **F67 / FO57 / O45** images for **DR1.3_U25**, global O/F **1.2786069651741294**. No raw sequences, calibration images, or DaVis inputs are supplied.
 
-Unconfigured Mixing/Distribution pages select the sample automatically. If settings point elsewhere, select `样例数据` and the IDs manually. Changing folders does not discard your other parameters.
+With the supplied settings, startup opens Distribution and displays the sample originals automatically. If the settings file is absent, the same page and sample processing inputs are used. Unconfigured Mixing/Distribution pages select the sample automatically. If settings point elsewhere, select `样例数据` and the IDs manually. Changing folders does not discard your other parameters.
 
 1. On Mixing, set DR = 1.3, U = 25, relative threshold = 0.01, F/O shifts = 0, and the global O/F above. Inspect both result rows.
 2. On Distribution, use the same IDs, threshold = 0.01, shifts = 0, and Top K = 30. The supplied per-image inputs are:
@@ -231,8 +231,8 @@ Unconfigured Mixing/Distribution pages select the sample automatically. If setti
 | Image | X | Y | Upper row | Lower row | Angle (degrees) |
 | --- | --- | --- | --- | --- | --- |
 | F67 | 664 | 426 | 200 | 700 | 4 |
-| O45 | 655 | 426 | 150 | 700 | 0 |
-| FO57 | 663 | 419 | 100 | 800 | 5 |
+| O45 | 655 | 426 | 150 | 700 | -1 |
+| FO57 | 663 | 419 | 100 | 800 | 6 |
 
 3. Select Fit. Inspect Fit and |Fit - original| with Straighten enabled, then compare the curved views.
 4. Save only the needed items. Sample distribution exports use `outputs/sample/distribution`, and individual image saves use `outputs/sample/images`. Mixing follows the sibling-folder convention in step 6, even though its settings also contain an output-folder field.

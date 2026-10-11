@@ -1,76 +1,83 @@
 # PLIFMix
 
-PLIFMix is a desktop application for processing planar laser-induced fluorescence (PLIF) images of impinging jets. It provides image averaging, image-intensifier correction, file preparation for external DaVis processing, mixing analysis, and spatial intensity-distribution fitting.
+PLIFMix is a Windows desktop application for processing planar laser-induced fluorescence (PLIF) images of impinging jets. It supports image averaging, image-intensifier correction, external DaVis processing, mixing analysis, and spatial intensity-distribution fitting.
 
-The interface supports **English and Chinese**. Use the language button in the upper-right corner; file names, experiment IDs, and numerical inputs remain unchanged.
+**Start with the included example:** a fresh download opens the **5 Distribution / 5 质量分布拟合** page and displays three processed sample images automatically. No raw image sequence, Excel workbook, or DaVis installation is needed to try the fitting workflow.
 
-## Install and Run
+## 1. Install and Start
 
-Use **64-bit Python 3.11 or later with Tcl/Tk** on Windows. Download or clone the repository, extract it to a writable folder, and open a terminal in that folder:
+Use **64-bit Python 3.11 or later with Tcl/Tk** on Windows. Download the repository ZIP and extract the complete folder to a writable location, or clone the repository. Do not run it from inside the ZIP.
+
+Open a terminal in the extracted project folder:
 
 ```powershell
 python -m pip install -r requirements.txt
 python main.py
 ```
 
-The folder may keep its downloaded name, such as `PLIFMix-main`. Alternatively, double-click `安装依赖.bat` to install dependencies and `启动PLIFMix.bat` to start the application. Dependency installation and startup must use the same Python interpreter.
+Alternatively, double-click `安装依赖.bat` to install dependencies, then `启动PLIFMix.bat` to launch. Installation and startup must use the same Python interpreter. In VS Code, open the project folder, select that interpreter, and run `main.py`.
 
-DaVis is a separate application and is not included. It is not needed for the bundled final-image example. Full GUI operation on other operating systems has not been established.
+Keep the full folder together, including `样例数据`. A downloaded folder name such as `PLIFMix-main` is supported.
 
-## Processing Workflow
+## 2. Fit the Included Images
 
-| Step | Page | What to do |
+On first launch, the distribution-fitting page (**5 Distribution**) loads these files from `样例数据`:
+
+| Input | Experiment ID | File |
 | --- | --- | --- |
-| 1 | **Average** | Select raw frame folders, specify the frame range and noise threshold, and calculate an average for each experiment. |
-| 2 | **Intensifier** | Average calibration frames, fit and save a matrix for each gain, then correct the experimental averages. |
-| 3 | **Davis I/O** | Prepare gain-scaled TIFFs, perform the geometric correction in external DaVis, and import its exported images. |
-| 4 | **Mixing** | Select F/FO/O images, adjust alignment and analysis parameters, inspect mixing results, and export images or curve data. |
-| 5 | **Distribution** | Select the final images, inspect origins and centerlines, fit the distributions, and export images and fitted parameters. |
+| F-only | 67 | `样例数据/实验编号67.npy` |
+| Combined FO | 57 | `样例数据/实验编号57.npy` |
+| O-only | 45 | `样例数据/实验编号45.npy` |
 
-Steps 4 and 5 both read the final processed images. Step 5 does not require the display images exported from step 4.
+The example is **DR = 1.3, U = 25**. The supplied image files total approximately 26 MiB; processing parameters are recorded in `样例数据/parameters.json`.
 
-**[Read the user guide](docs/USER_GUIDE.md)** for page-by-page instructions, input formats, save locations, and troubleshooting. Chinese control names are included alongside English labels.
+1. Wait for the three original images to appear. Their IDs, origins, angles, and fitting bounds are already populated.
+2. Use the button at the upper right to switch between **English and Chinese**. The selection is saved immediately and restored next time.
+3. Select **Fit / 拟合** in the image-data row. Wait for the fit to finish; the result table contains transverse, axial, pure elliptical Student, and compact-support fits.
+4. Enable **Straighten / 掰直** to view the fitted distribution in straightened coordinates. Select **Original / 原图** or **|Fit - original| / 拟合-原图绝对值** to compare the source and fitted images. The fit view uses the compact-support model when available.
+5. Adjust gain or enable Auto for display brightness. Press Enter after editing numerical fields. Changes to processing inputs may require a new fit; returning to Original alone retains the fitted-result cache.
 
-## Included Example
+This page normalizes each thresholded image independently. It does **not** apply global O/F total calibration or calculate mixing efficiency.
 
-The `样例数据` folder contains three final processed NPY images, approximately 26 MiB in total:
+### Save results
 
-| Role | ID | File |
-| --- | --- | --- |
-| F | 67 | `样例数据/实验编号67.npy` |
-| FO | 57 | `样例数据/实验编号57.npy` |
-| O | 45 | `样例数据/实验编号45.npy` |
+- **One image:** choose **Image output folder / 图像保存目录**, then use **Save / 保存** above the F, O, or FO image. This saves the rendered PNG, including the current view and overlays.
+- **Images and fitting data:** select F/O/FO and/or **Fit data / 拟合数据** in **Save selected / 一键保存**, then click its button. Fit data creates a standalone Excel workbook and fit-curve images.
+- **An existing experiment table:** select it in **Results workbook / 拟合结果写入文件**, then click **Write fit results / 写入拟合结果**. This requires the column layout described in the detailed guide; no such workbook is needed for the sample.
 
-The example is labeled **DR = 1.3**, **U = 25**, with **global O/F = 1.2786069651741294**. Its processing inputs are stored in `样例数据/parameters.json`.
+Default sample output locations are `outputs/sample/images` for individual images and `outputs/sample/distribution` for fitted-result exports. Use distinct output names to avoid replacing previous results.
 
-The bundled group preset contains only this example. To process other experiment groups, select your own preset file or enter the IDs and conditions manually.
+## 3. Inspect Mixing or Use Your Own Data
 
-1. Start the application and switch to English if needed.
-2. Open **4 Mixing**. Unconfigured image folders default to the example; previously selected user folders are preserved. Check F = 67, FO = 57, and O = 45.
-3. Inspect the mixing maps and calibrated/uncalibrated efficiency rows. Press Enter after changing an input.
-4. Open **5 Distribution**, check the same IDs, and select **Fit**. Wait for the fitted parameters and images.
-5. Select the export items and use **Save selected**, or save an individual image from its panel.
+Open **4 Mixing / 4 手动调参** to inspect the same sample's mixing-fraction maps and efficiencies. The supplied global O/F is **1.2786069651741294**. This value is used by mixing analysis, not by the Distribution page.
 
-No raw acquisition sequences, calibration sequences, or DaVis input files are included. The example covers downstream mixing and distribution fitting, not reconstruction of the entire experiment from raw frames.
+For your own final processed images, select their folder and enter the F, FO, and O IDs. Files must follow the `实验编号<ID>.npy` naming convention and contain same-sized, finite, two-dimensional arrays. Review the threshold, origins, shifts, angles, and fitting bounds for each new condition; sample parameters are not universal defaults.
 
-## Other Tools
+For processing from raw frames, follow the full workflow:
 
-| Tool | Purpose |
+| Page | Action |
 | --- | --- |
-| Image viewer | Inspect pixels and a histogram; adjust the display and export an image or numbered TIFF sequence. |
-| Image player | Cache and inspect frames; plot the intensity history at a selected pixel. |
-| Noise analysis | Inspect frame-maximum trends to help choose an absolute threshold. |
-| NPY tools | Inspect arrays, list their largest values, and save simple transformations. |
-| GIF export | Export a numbered frame range as a color GIF using source color channels. |
-| Colorbar | Generate a labeled colorbar image. |
-| Distributions | Compare standard symmetric distribution shapes. |
+| **1 Average / 平均图** | Select raw frame folders, a range, and a noise threshold; calculate averaged images. |
+| **2 Intensifier / 像增强器** | Average calibration frames, fit correction matrices, and apply them to experimental averages. |
+| **3 Davis I/O / Davis 整理** | Prepare TIFF inputs for external DaVis geometric correction, then import its exported images. |
+| **4 Mixing / 手动调参** | Adjust alignment, inspect mixing maps and efficiencies, and export selected results. |
+| **5 Distribution / 质量分布拟合** | Set image origins and centerlines, fit intensity distributions, and export results. |
 
-## Before Processing Your Own Data
+Mixing and Distribution both read final processed images; fitting does not require PNGs exported from Mixing. All normal pages remain available. The included example contains only final images, not raw acquisition or calibration sequences, and cannot reproduce the upstream workflow by itself. DaVis is separate software and is not included.
 
-- **Use working copies of raw images.** Averaging checks the sequence and may rename source files to `0000`, `0001`, and so on.
-- Retain floating-point **NPY files** as processing inputs. Rendered PNGs, GIFs, and gain-scaled TIFFs are not substitutes for these arrays.
-- Use separate output directories and distinct names for results you need to retain. Repeated exports can replace same-named files.
-- Save and close an Excel workbook before writing results into it. PLIFMix reports access errors; it does not close Excel or discard unsaved edits.
-- Parameters and the last page are remembered in `runtime/settings.json`. Supplied values are example settings, not universal processing defaults.
+The additional tools provide an image viewer and histogram, a cached image player with pixel-history plots, noise analysis, NPY operations, color GIF export, colorbar generation, and comparison of standard distributions.
 
-Retain the software version or commit ID, input files, parameter settings, and numerical exports together. To report a problem, include the page, error message, operating system, Python version, and relevant parameters; do not attach private datasets by default.
+## 4. Settings and Precautions
+
+- After normal exit, the next launch restores your last page, paths, and parameters from `runtime/settings.json`. Language changes are saved immediately. User-selected folders are not replaced by the sample on every launch.
+- The bundled sample paths are portable with the project. External data paths may need to be selected again on another computer.
+- Work on copies of raw images: averaging can rename source frames into a numbered sequence.
+- Keep floating-point NPY arrays for quantitative processing. Rendered PNGs and GIFs are display exports, not replacements for the input arrays.
+- Save and close Excel workbooks before writing to them. The application reports access errors rather than closing Excel or discarding edits.
+- Retain the software release or commit ID, source files, settings, and numerical exports together when reporting results in a paper.
+
+If startup reports a missing module, install requirements using the same interpreter used to launch the application. A Tcl/Tk error requires a Python installation with Tk support. Full GUI operation outside Windows has not been established.
+
+## Detailed Documentation
+
+See **[the detailed user guide](docs/USER_GUIDE.md)** at **`docs/USER_GUIDE.md`** for page-by-page controls, input organization, interval formats, Excel column requirements, output naming, and troubleshooting.
