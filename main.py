@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from multiprocessing import freeze_support
-from pathlib import Path
-import sys
+
 
 if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from bootstrap import load_local_package
+
+    # Spawned workers execute this entry point before importing their tasks.
+    load_local_package()
 
 
 def main() -> None:

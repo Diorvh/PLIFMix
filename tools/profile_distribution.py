@@ -21,11 +21,13 @@ import tempfile
 import time
 from typing import Any
 
-# Direct execution puts tools/ on sys.path, while the package lives one level
-# below the repository parent.
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-if str(_REPO_ROOT.parent) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT.parent))
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from bootstrap import load_local_package
+
+load_local_package(_REPO_ROOT)
 
 import numpy as np
 from concurrent.futures.process import BrokenProcessPool

@@ -13,7 +13,11 @@ parser.add_argument("--output", type=Path, required=True)
 parser.add_argument("--denoise", type=float)
 parser.add_argument("--annotations", default="")
 args = parser.parse_args()
-sys.path.insert(0, str(args.repo.parent))
+sys.path.insert(0, str(args.repo.resolve()))
+
+from bootstrap import load_local_package
+
+load_local_package(args.repo)
 
 import numpy as np
 from PLIFMix.core.config_io import load_settings
