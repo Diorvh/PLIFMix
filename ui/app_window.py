@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import messagebox
 from PLIFMix.ui import localized_widgets as ttk
 
+from PLIFMix import __version__
 from PLIFMix.application.actions import PLIFActions
 from PLIFMix.application.app_state import AppState
 from PLIFMix.core.plot_style import configure_matplotlib
@@ -110,7 +111,7 @@ class PLIFAppWindow(tk.Tk):
         header.pack(fill="x", padx=10, pady=(10, 4))
         self._language_button = ttk.Button(header, command=self._toggle_language, width=10)
         self._language_button.pack(side="right", padx=(12, 0))
-        ttk.Label(header, text="PLIFMix", font=("Microsoft YaHei UI", 16, "bold")).pack(side="left")
+        ttk.Label(header, text=f"PLIFMix v{__version__}", font=("Microsoft YaHei UI", 16, "bold")).pack(side="left")
         ttk.Label(header, text="平均图 -> 像增强器修正 -> Davis -> 手动调参 -> 质量分布拟合").pack(side="left", padx=16)
 
         self.workflow_specs = [
@@ -177,7 +178,7 @@ class PLIFAppWindow(tk.Tk):
             if getattr(self, "_closing", False)
             else "PLIFMix - 互击式喷嘴混合特性处理"
         )
-        self.title(self._ui_language.text(title))
+        self.title(f"{self._ui_language.text(title)} | v{__version__}")
         self._language_button.configure(text="English" if self._ui_language.language == "zh" else "中文")
 
     def _migrate_saved_page_keys(self) -> None:

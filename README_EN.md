@@ -2,6 +2,8 @@
 
 [中文说明](README.md)
 
+**Current version: v0.1 demo release (pre-publication).**
+
 PLIFMix is a Windows desktop application for processing planar laser-induced fluorescence (PLIF) images of impinging jets. It supports image averaging, image-intensifier correction, external DaVis processing, mixing analysis, and spatial intensity-distribution fitting.
 
 **Start with the included example:** a fresh download opens the **5 Distribution / 5 质量分布拟合** page and displays three processed sample images automatically. No raw image sequence, Excel workbook, or DaVis installation is needed to try the fitting workflow.
