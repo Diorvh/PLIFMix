@@ -84,8 +84,8 @@ If startup reports a missing module, install requirements using the same interpr
 
 ## 5. Licenses
 
-- **Code and user documentation:** [MIT License](LICENSE), copyright Lihan Fei.
-- **Sample data:** the images and accompanying parameters in `样例数据` are licensed under [CC BY 4.0](样例数据/LICENSE.txt), not the code's MIT License. When reusing them, credit Lihan Fei, link to the PLIFMix repository and the license, and indicate any modifications.
+- **Code and user documentation:** [MIT License](LICENSE), copyright Lihan Fei and Chenglong Tang.
+- **Sample data:** the images and accompanying parameters in `样例数据` are licensed under [CC BY 4.0](样例数据/LICENSE.txt), not the code's MIT License. When reusing them, credit Lihan Fei and Chenglong Tang, link to the PLIFMix repository and the license, and indicate any modifications.
 - Third-party dependencies retain their respective licenses.
 
 ## Detailed Documentation

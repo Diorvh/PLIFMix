@@ -1,6 +1,6 @@
 PLIFMix sample data
 
-Copyright (c) 2026 Lihan Fei
+Copyright (c) 2026 Lihan Fei and Chenglong Tang
 
 The sample image arrays and accompanying parameters in this directory are
 licensed under the Creative Commons Attribution 4.0 International License
@@ -10,7 +10,7 @@ License: https://creativecommons.org/licenses/by/4.0/
 Legal terms: https://creativecommons.org/licenses/by/4.0/legalcode
 
 Attribution information:
-  Creator: Lihan Fei
+  Creators: Lihan Fei and Chenglong Tang
   Dataset: PLIFMix example, F67 / FO57 / O45 (DR1.3_U25)
   Source: https://github.com/Diorvh/PLIFMix
   License: CC BY 4.0

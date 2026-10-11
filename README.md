@@ -84,8 +84,8 @@ python main.py
 
 ## 5. 许可证
 
-- **代码和使用文档：**[MIT License](LICENSE)，版权署名为 Lihan Fei。
-- **样例数据：**`样例数据` 中的图像和配套参数采用 [CC BY 4.0](样例数据/LICENSE.txt)，不适用代码的 MIT 许可证。复用时请署名 Lihan Fei，注明 PLIFMix 仓库和许可链接，并说明是否修改。
+- **代码和使用文档：**[MIT License](LICENSE)，版权署名为 Lihan Fei 和 Chenglong Tang。
+- **样例数据：**`样例数据` 中的图像和配套参数采用 [CC BY 4.0](样例数据/LICENSE.txt)，不适用代码的 MIT 许可证。复用时请署名 Lihan Fei 和 Chenglong Tang，注明 PLIFMix 仓库和许可链接，并说明是否修改。
 - 第三方依赖保留各自的许可证。
 
 ## 详细使用文档
