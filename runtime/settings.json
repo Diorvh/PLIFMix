@@ -124,8 +124,8 @@
     "q_center_down_fo": 800,
     "max_k": 30,
     "rotate_angle_f": 4,
-    "rotate_angle_o": 0,
-    "rotate_angle_fo": 5,
+    "rotate_angle_o": -1,
+    "rotate_angle_fo": 6,
     "output_folder": "outputs/sample/distribution",
     "image_save_folder": "outputs/sample/images",
     "fit_result_path": "."
@@ -133,10 +133,10 @@
   "ui": {
     "app": {
       "language": "zh",
-      "main_tab": 3,
-      "active_page": "4 手动调参",
+      "main_tab": 4,
+      "active_page": "5 质量分布拟合",
       "last_tool_page": "图片播放器",
-      "last_secondary_page": "图片播放器"
+      "last_secondary_page": "分布对比"
     },
     "pages": {
       "1 平均图": {
@@ -618,129 +618,121 @@
         }
       },
       "图像查看器": {
-        "!frame2.!checkbutton": {
+        "auto_gain": {
           "kind": "variable",
-          "value": "1"
+          "value": false
         },
-        "!frame2.!entry": {
-          "kind": "text",
-          "value": "10"
-        },
-        "!frame2.!checkbutton2": {
+        "auto_gain_text": {
           "kind": "variable",
-          "value": "0"
+          "value": "（自动增益：-）"
         },
-        "!frame2.!entry2": {
-          "kind": "text",
-          "value": "1"
-        },
-        "!frame2.!entry3": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame2.!entry4": {
-          "kind": "text",
-          "value": "270"
-        },
-        "!frame2.!entry5": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame3.!entry": {
-          "kind": "text",
-          "value": "1"
-        },
-        "!frame3.!checkbutton": {
+        "batch_range": {
           "kind": "variable",
-          "value": "0"
-        },
-        "!frame3.!entry2": {
-          "kind": "text",
-          "value": "642"
-        },
-        "!frame3.!entry3": {
-          "kind": "text",
-          "value": "442"
-        },
-        "!frame3.!checkbutton2": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame3.!entry4": {
-          "kind": "text",
-          "value": "100"
-        },
-        "!frame3.!entry5": {
-          "kind": "text",
-          "value": "100"
-        },
-        "!frame4.!checkbutton": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame4.!entry": {
-          "kind": "text",
-          "value": ""
-        },
-        "!frame4.!entry2": {
-          "kind": "text",
-          "value": ""
-        },
-        "!frame4.!entry3": {
-          "kind": "text",
-          "value": ""
-        },
-        "!frame4.!entry4": {
-          "kind": "text",
-          "value": ""
-        },
-        "!frame4.!entry5": {
-          "kind": "text",
-          "value": ""
-        },
-        "!frame4.!entry6": {
-          "kind": "text",
-          "value": ""
-        },
-        "!frame4.!entry7": {
-          "kind": "text",
-          "value": ""
-        },
-        "!frame4.!entry8": {
-          "kind": "text",
-          "value": ""
-        },
-        "!frame5.!entry": {
-          "kind": "text",
           "value": "0800-0850"
         },
-        "!frame6.!radiobutton": {
+        "crosshair": {
+          "kind": "variable",
+          "value": false
+        },
+        "ellipse": {
+          "kind": "variable",
+          "value": false
+        },
+        "input_mode": {
           "kind": "variable",
           "value": "image"
         },
-        "!frame6.!entry": {
-          "kind": "text",
-          "value": "."
-        },
-        "!frame6.!radiobutton2": {
+        "pseudo": {
           "kind": "variable",
-          "value": "image"
+          "value": true
         },
-        "!frame6.!entry2": {
-          "kind": "text",
-          "value": "."
+        "quad_visible": {
+          "kind": "variable",
+          "value": false
         },
-        "!frame6.!entry3": {
-          "kind": "text",
+        "vars.center_x": {
+          "kind": "variable",
+          "value": "642"
+        },
+        "vars.center_y": {
+          "kind": "variable",
+          "value": "442"
+        },
+        "vars.denoise": {
+          "kind": "variable",
+          "value": "0"
+        },
+        "vars.experiment_number": {
+          "kind": "variable",
           "value": "228"
         },
-        "!frame7.!viewerpanel.!frame.!horizontaldisplaypane.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-1": {
+        "vars.folder_path": {
           "kind": "variable",
-          "value": 0
+          "value": "."
         },
-        "!frame7.!viewerpanel.!frame.!horizontaldisplaypane.!frame2.!frame.!navigationtoolbar2tk.!checkbutton-2": {
+        "vars.gain": {
           "kind": "variable",
-          "value": 0
+          "value": "10"
+        },
+        "vars.image_path": {
+          "kind": "variable",
+          "value": "."
+        },
+        "vars.line_width": {
+          "kind": "variable",
+          "value": "1"
+        },
+        "vars.major": {
+          "kind": "variable",
+          "value": "100"
+        },
+        "vars.minor": {
+          "kind": "variable",
+          "value": "100"
+        },
+        "vars.quad_x1": {
+          "kind": "variable",
+          "value": ""
+        },
+        "vars.quad_x2": {
+          "kind": "variable",
+          "value": ""
+        },
+        "vars.quad_x3": {
+          "kind": "variable",
+          "value": ""
+        },
+        "vars.quad_x4": {
+          "kind": "variable",
+          "value": ""
+        },
+        "vars.quad_y1": {
+          "kind": "variable",
+          "value": ""
+        },
+        "vars.quad_y2": {
+          "kind": "variable",
+          "value": ""
+        },
+        "vars.quad_y3": {
+          "kind": "variable",
+          "value": ""
+        },
+        "vars.quad_y4": {
+          "kind": "variable",
+          "value": ""
+        },
+        "vars.rotate": {
+          "kind": "variable",
+          "value": "270"
+        },
+        "vars.shift": {
+          "kind": "variable",
+          "value": "0"
+        },
+        "vars.zoom": {
+          "kind": "variable",
+          "value": "1"
         }
       },
       "图片播放器": {
@@ -874,32 +866,32 @@
         }
       },
       "GIF导出": {
-        "!frame.!entry": {
-          "kind": "text",
-          "value": "."
-        },
-        "!frame2.!entry": {
-          "kind": "text",
-          "value": "."
-        },
-        "!frame3.!entry": {
-          "kind": "text",
-          "value": "800"
-        },
-        "!frame3.!entry2": {
-          "kind": "text",
-          "value": "850"
-        },
-        "!frame4.!entry": {
-          "kind": "text",
-          "value": "1"
-        },
-        "!frame4.!entry2": {
-          "kind": "text",
+        "vars.duration": {
+          "kind": "variable",
           "value": "100"
         },
-        "!frame4.!entry3": {
-          "kind": "text",
+        "vars.end": {
+          "kind": "variable",
+          "value": "850"
+        },
+        "vars.folder": {
+          "kind": "variable",
+          "value": "."
+        },
+        "vars.gain": {
+          "kind": "variable",
+          "value": "1"
+        },
+        "vars.output": {
+          "kind": "variable",
+          "value": "."
+        },
+        "vars.start": {
+          "kind": "variable",
+          "value": "800"
+        },
+        "vars.width": {
+          "kind": "variable",
           "value": "400"
         }
       },
@@ -919,6 +911,38 @@
         "value": {
           "kind": "variable",
           "value": "1"
+        }
+      },
+      "Colorbar": {
+        "vars.bottom": {
+          "kind": "variable",
+          "value": "20"
+        },
+        "vars.height": {
+          "kind": "variable",
+          "value": "800"
+        },
+        "vars.maximum": {
+          "kind": "variable",
+          "value": "1"
+        },
+        "vars.minimum": {
+          "kind": "variable",
+          "value": "0"
+        },
+        "vars.top": {
+          "kind": "variable",
+          "value": "20"
+        },
+        "vars.width": {
+          "kind": "variable",
+          "value": "50"
+        }
+      },
+      "分布对比": {
+        "canvas.toolbar.message": {
+          "kind": "variable",
+          "value": ""
         }
       }
     }

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import tkinter as tk
+from tkinter import messagebox
 from PLIFMix.ui import localized_widgets as ttk
 
 from PLIFMix.application.actions import PLIFActions
@@ -161,6 +162,14 @@ class PLIFAppWindow(tk.Tk):
         language = "en" if self._ui_language.language == "zh" else "zh"
         self._ui_language.set_language(language)
         self.ui_state.set_app_value("language", language)
+        try:
+            self.state_model.save()
+        except OSError as exc:
+            messagebox.showerror(
+                self._ui_language.text("设置保存失败"),
+                self._ui_language.text("语言已切换，但未能保存。下次启动可能恢复为之前的语言。") + f"\n\n{exc}",
+                parent=self,
+            )
 
     def refresh_language(self) -> None:
         title = (

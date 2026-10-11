@@ -12,6 +12,8 @@
   "分布对比": "Distributions",
   "PLIFMix - 互击式喷嘴混合特性处理": "PLIFMix - Impinging-Jet Mixing Analysis",
   "PLIFMix - 正在等待当前任务结束并关闭": "PLIFMix - Waiting for active tasks to finish",
+  "设置保存失败": "Could not save settings",
+  "语言已切换，但未能保存。下次启动可能恢复为之前的语言。": "The language was changed but could not be saved. The previous language may be restored on the next launch.",
   "平均图 -> 像增强器修正 -> Davis -> 手动调参 -> 质量分布拟合": "Average -> Intensifier -> Davis -> Mixing -> Distribution",
   "一键保存": "Save selected",
   "一键填充": "Copy F center",
