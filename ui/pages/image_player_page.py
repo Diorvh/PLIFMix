@@ -6,16 +6,16 @@ import time
 import tkinter as tk
 from math import ceil
 from pathlib import Path
-from tkinter import filedialog, ttk
+from PLIFMix.ui import localized_dialogs as filedialog, localized_widgets as ttk
 
 import numpy as np
 
-from PLIFv2.core.image_io import list_image_files
-from PLIFv2.services.frame_cache_service import load_frame_cache
-from PLIFv2.ui.coordinate_mapping import ImageCoordinateMapping
-from PLIFv2.ui.components.display_pane import HorizontalDisplayPane
-from PLIFv2.ui.components.player_pixel_plot import PlayerPixelPlot
-from PLIFv2.ui.components.viewer_panel import ViewerPanel
+from PLIFMix.core.image_io import list_image_files
+from PLIFMix.services.frame_cache_service import load_frame_cache
+from PLIFMix.ui.coordinate_mapping import ImageCoordinateMapping
+from PLIFMix.ui.components.display_pane import HorizontalDisplayPane
+from PLIFMix.ui.components.player_pixel_plot import PlayerPixelPlot
+from PLIFMix.ui.components.viewer_panel import ViewerPanel
 
 class ImagePlayerPage(ttk.Frame):
     def __init__(self, master):

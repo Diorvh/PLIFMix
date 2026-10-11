@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from weakref import WeakKeyDictionary
 import tkinter as tk
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.text import Text
+
+from PLIFMix.ui.localization import language_for
 
 
 class DebouncedFigureCanvasTkAgg(FigureCanvasTkAgg):
@@ -15,8 +19,11 @@ class DebouncedFigureCanvasTkAgg(FigureCanvasTkAgg):
         self._pending_size: tuple[int, int] | None = None
         self._draw_pending = True
         self._active = True
+        self._text_sources = WeakKeyDictionary()
         super().__init__(figure, master)
         widget = self.get_tk_widget()
+        self._language = language_for(widget)
+        self._language.register(self)
         widget._plif_mpl_canvas = self  # type: ignore[attr-defined]
         widget.bind("<Map>", self._handle_map, add="+")
 
@@ -29,6 +36,25 @@ class DebouncedFigureCanvasTkAgg(FigureCanvasTkAgg):
         self._resize_job = self.get_tk_widget().after(self.resize_delay_ms, self._apply_pending_resize)
 
     def draw_idle(self) -> None:
+        self.request_draw()
+
+    def draw(self) -> None:
+        self._translate_figure_text()
+        super().draw()
+
+    def _translate_figure_text(self) -> None:
+        for artist in self.figure.findobj(match=Text):
+            current = artist.get_text()
+            source, displayed = self._text_sources.get(artist, (current, current))
+            if current != displayed:
+                source = current
+            translated = self._language.text(source)
+            if current != translated:
+                artist.set_text(translated)
+            self._text_sources[artist] = (source, translated)
+
+    def refresh_language(self) -> None:
+        self._translate_figure_text()
         self.request_draw()
 
     def request_draw(self) -> None:

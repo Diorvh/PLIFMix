@@ -10,7 +10,7 @@ import unittest
 import cv2
 import numpy as np
 
-from PLIFv2.services.frame_cache_service import load_frame_cache, split_frame_cache_tasks
+from PLIFMix.services.frame_cache_service import load_frame_cache, split_frame_cache_tasks
 
 
 class FrameCacheServiceTests(unittest.TestCase):
@@ -53,8 +53,8 @@ class FrameCacheServiceTests(unittest.TestCase):
         probe = (
             "import sys\n"
             "import main\n"
-            "assert 'PLIFv2.ui.app_window' not in sys.modules\n"
-            "assert 'PLIFv2.ui.pages.image_player_page' not in sys.modules\n"
+            "assert 'PLIFMix.ui.app_window' not in sys.modules\n"
+            "assert 'PLIFMix.ui.pages.image_player_page' not in sys.modules\n"
             "assert 'tkinter' not in sys.modules\n"
         )
 
@@ -78,11 +78,11 @@ class FrameCacheServiceTests(unittest.TestCase):
                 "import sys\n"
                 f"sys.path.insert(0, {str(repo)!r})\n"
                 "import main\n"
-                "from PLIFv2.services.frame_cache_service import read_frame_batch\n"
+                "from PLIFMix.services.frame_cache_service import read_frame_batch\n"
                 "from concurrent.futures import ProcessPoolExecutor\n"
                 "\n"
                 "def report_modules():\n"
-                "    names = ('tkinter', 'PLIFv2.ui.app_window', 'PLIFv2.ui.pages.image_player_page')\n"
+                "    names = ('tkinter', 'PLIFMix.ui.app_window', 'PLIFMix.ui.pages.image_player_page')\n"
                 "    return {name: name in sys.modules for name in names}\n"
                 "\n"
                 "if __name__ == '__main__':\n"
@@ -102,8 +102,8 @@ class FrameCacheServiceTests(unittest.TestCase):
         self.assertEqual(
             json.loads(completed.stdout),
             {
-                "PLIFv2.ui.app_window": False,
-                "PLIFv2.ui.pages.image_player_page": False,
+                "PLIFMix.ui.app_window": False,
+                "PLIFMix.ui.pages.image_player_page": False,
                 "tkinter": False,
             },
         )

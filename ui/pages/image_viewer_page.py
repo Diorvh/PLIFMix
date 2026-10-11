@@ -3,12 +3,12 @@ from __future__ import annotations
 import re
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, ttk
+from PLIFMix.ui import localized_dialogs as filedialog, localized_widgets as ttk
 
 import numpy as np
 
-from PLIFv2.core.image_io import read_image, write_tif
-from PLIFv2.ui.components.viewer_panel import ViewerPanel
+from PLIFMix.core.image_io import read_image, write_tif
+from PLIFMix.ui.components.viewer_panel import ViewerPanel
 
 class ImageViewerPage(ttk.Frame):
     def __init__(self, master):

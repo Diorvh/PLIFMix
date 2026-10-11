@@ -3,25 +3,25 @@ from __future__ import annotations
 import tkinter as tk
 from copy import deepcopy
 from pathlib import Path
-from tkinter import filedialog, simpledialog, ttk
+from PLIFMix.ui import localized_dialogs as filedialog, localized_widgets as ttk
 
-from PLIFv2.application.actions import PLIFActions
-from PLIFv2.core.image_io import write_png
-from PLIFv2.core.result_snapshot import require_current_result
-from PLIFv2.core.mixing_presets import (
+from PLIFMix.application.actions import PLIFActions
+from PLIFMix.core.image_io import write_png
+from PLIFMix.core.result_snapshot import require_current_result
+from PLIFMix.core.mixing_presets import (
     MixingPreset,
     create_mixing_presets_from_excel,
     load_mixing_presets,
     save_mixing_presets,
 )
-from PLIFv2.ui.components.experiment_group_controls import (
+from PLIFMix.ui.components.experiment_group_controls import (
     ExperimentTripletControls,
     MixingPresetControls,
     split_save_name,
 )
-from PLIFv2.ui.image_display import ImageDisplay
-from PLIFv2.ui.settings_binding import set_dataclass_text_fields
-from PLIFv2.ui.widgets import LatestTaskRunner
+from PLIFMix.ui.image_display import ImageDisplay
+from PLIFMix.ui.settings_binding import set_dataclass_text_fields
+from PLIFMix.ui.widgets import LatestTaskRunner
 
 
 DISTRIBUTION_SAVE_LAYOUT = (
@@ -30,6 +30,31 @@ DISTRIBUTION_SAVE_LAYOUT = (
     ("fo", (0, 2)),
     ("fit_data", (1, 0)),
 )
+
+
+def display_name_suffix(
+    *,
+    image_mode: str,
+    rotate_angle: int,
+    show_contour: bool,
+    show_center_line: bool,
+    show_fitted_center_line: bool,
+) -> str:
+    """Describe the shown view and overlays, joined the way the other pages do."""
+    parts: list[str] = []
+    if image_mode == "rot_img":
+        parts.append(f"旋转{rotate_angle:g}")
+    elif image_mode == "fit_img":
+        parts.append("拟合")
+    elif image_mode == "delta_img":
+        parts.append("差值")
+    if show_contour:
+        parts.append("轮廓")
+    if show_center_line:
+        parts.append("中心线")
+    if show_fitted_center_line:
+        parts.append("拟合中心线")
+    return "".join(f"-{part}" for part in parts)
 
 
 class DistributionPage(ttk.Frame):
@@ -77,8 +102,23 @@ class DistributionPage(ttk.Frame):
 
         self.summary = DistributionSummaryPanel(self)
         self.summary.pack(fill=tk.X, padx=8)
-        self.status = ttk.Label(self, text="")
-        self.status.pack(anchor=tk.W, padx=8)
+
+        status_row = ttk.Frame(self)
+        status_row.pack(fill=tk.X, padx=8)
+        ttk.Label(status_row, text="图像保存目录").pack(side=tk.LEFT, padx=(4, 2))
+        self._text_entry(
+            status_row,
+            "image_save_folder",
+            self._value_to_str(self.settings.image_save_folder),
+            52,
+            lambda event=None: self._save_vars(),
+        )
+        ttk.Button(status_row, text="...", width=3, command=self._choose_save_folder).pack(
+            side=tk.LEFT,
+            padx=(3, 8),
+        )
+        self.status = ttk.Label(status_row, text="")
+        self.status.pack(side=tk.LEFT)
 
         displays = ttk.Frame(self)
         displays.pack(fill=tk.BOTH, expand=True, padx=8, pady=6)
@@ -176,15 +216,18 @@ class DistributionPage(ttk.Frame):
         data_row = ttk.Frame(panel)
         data_row.pack(anchor=tk.W)
         ttk.Label(data_row, text="图像数据").pack(side=tk.LEFT, padx=(3, 6))
-        for label, mode in (("原图", "ori_img"), ("拟合", "fit_img"), ("拟合-原图绝对值", "delta_img")):
+        for label, mode in (
+            ("原图", "ori_img"),
+            ("旋转", "rot_img"),
+            ("拟合", "fit_img"),
+            ("拟合-原图绝对值", "delta_img"),
+        ):
             ttk.Radiobutton(data_row, text=label, variable=self.image_mode, value=mode, command=self.process).pack(
                 side=tk.LEFT,
                 padx=(0, 5),
             )
-        ttk.Checkbutton(data_row, text="掰直", variable=self.show_bent, command=self.process).pack(
-            side=tk.LEFT,
-            padx=(2, 0),
-        )
+        self.bent_check = ttk.Checkbutton(data_row, text="掰直", variable=self.show_bent, command=self.process)
+        self.bent_check.pack(side=tk.LEFT, padx=(2, 0))
         return panel
 
     def _row_fit_parameters(self, parent) -> ttk.Frame:
@@ -233,23 +276,28 @@ class DistributionPage(ttk.Frame):
         if display is None or display.display is None:
             self.status.config(text=f"{name.upper()} 当前没有可保存的渲染图像")
             return
-        folder_text = filedialog.askdirectory(title=f"选择 {name.upper()} 图像保存目录")
+        try:
+            self._save_vars()
+        except Exception as exc:
+            self.status.config(text=f"错误: {exc}")
+            return
+        folder_text = self.vars["image_save_folder"].get().strip()
         if not folder_text:
+            self.status.config(text="请先选择图像保存目录")
             return
-        filename = simpledialog.askstring(
-            "输入保存名称",
-            f"请输入 {name.upper()} 图像名称（不含扩展名）",
-            initialvalue=name.upper(),
-            parent=self,
-        )
-        if not filename or not filename.strip():
+        filename = self._save_filename(name)
+        try:
+            output = write_png(Path(folder_text) / filename, display.display.copy())
+        except Exception as exc:
+            self.status.config(text=f"保存 {name.upper()} 图像失败: {exc}")
             return
-        filename = Path(filename.strip()).name
-        if not filename.lower().endswith(".png"):
-            filename += ".png"
-        output = Path(folder_text) / filename
-        write_png(output, display.display.copy())
         self.status.config(text=f"已保存 {name.upper()} 图像：{output}")
+
+    def _choose_save_folder(self) -> None:
+        path = filedialog.askdirectory(title="选择图像保存目录")
+        if path:
+            self.vars["image_save_folder"].set(path)
+            self._save_vars()
 
     def _entry(self, row, name: str, label: str, width: int) -> None:
         ttk.Label(row, text=label).pack(side=tk.LEFT, padx=(4, 2))
@@ -418,6 +466,13 @@ class DistributionPage(ttk.Frame):
         self.show_bent.set(False)
         self.process()
 
+    def _sync_bent_availability(self) -> None:
+        """Straightening would tilt the ridge again, so the rotation view disables it."""
+        if self.image_mode.get() == "rot_img":
+            self.bent_check.state(["disabled"])
+        else:
+            self.bent_check.state(["!disabled"])
+
     def _annotations(self) -> frozenset[str]:
         annotations = set()
         if self.show_contour.get():
@@ -432,6 +487,7 @@ class DistributionPage(ttk.Frame):
         return self.image_mode.get()
 
     def process(self, event=None) -> None:
+        self._sync_bent_availability()
         try:
             self._save_vars()
         except Exception as exc:
@@ -534,7 +590,12 @@ class DistributionPage(ttk.Frame):
                     crosshair=self._crosshair_for(image_name),
                 )
                 if image is not None:
-                    image_outputs.append(write_png(output / image_name / f"{output_name}.png", image))
+                    image_outputs.append(
+                        write_png(
+                            output / image_name / f"{output_name}{self._display_suffix(image_name)}.png",
+                            image,
+                        )
+                    )
             fit_output = self.actions.export_distribution_result(self.latest_result) if self.save_targets["fit_data"].get() else None
             saved_count = len(image_outputs) + int(fit_output is not None)
             self.status.config(text=f"已保存 {saved_count} 项结果到: {output}")
@@ -556,6 +617,32 @@ class DistributionPage(ttk.Frame):
         if name == "o":
             return self.settings.center_xo, self.settings.center_yo
         return self.settings.center_xfo, self.settings.center_yfo
+
+    def _rotation_angle_for(self, name: str) -> int:
+        if name == "f":
+            return self.settings.rotate_angle_f
+        if name == "o":
+            return self.settings.rotate_angle_o
+        return self.settings.rotate_angle_fo
+
+    def _display_suffix(self, name: str) -> str:
+        """Keep exports of different views and overlays from overwriting each other."""
+        return display_name_suffix(
+            image_mode=self.image_mode.get(),
+            rotate_angle=self._rotation_angle_for(name),
+            show_contour=self.show_contour.get(),
+            show_center_line=self.show_center_line.get(),
+            show_fitted_center_line=self.show_fitted_center_line.get(),
+        )
+
+    def _save_basename(self) -> str:
+        """Share the one-click export base name so both land side by side."""
+        return self.settings.save_name or (
+            f"F{self.settings.f_exp_no}_FO{self.settings.fo_exp_no}_O{self.settings.o_exp_no}"
+        )
+
+    def _save_filename(self, name: str) -> str:
+        return f"{self._save_basename()}_{name.upper()}{self._display_suffix(name)}.png"
 
     def _output_folder(self) -> Path:
         if str(self.settings.output_folder) not in {"", "."}:
@@ -598,13 +685,16 @@ class DistributionPage(ttk.Frame):
         if image_mode == "bent_img":
             image_mode = "ori_img"
             legacy_bent = True
-        self.image_mode.set(image_mode if image_mode in {"ori_img", "fit_img", "delta_img"} else "ori_img")
+        self.image_mode.set(
+            image_mode if image_mode in {"ori_img", "rot_img", "fit_img", "delta_img"} else "ori_img"
+        )
         self.show_bent.set(legacy_bent)
         self.save_crosshair.set(bool(state.get("save_crosshair", self.save_crosshair.get())))
         targets = state.get("save_targets", {})
         if isinstance(targets, dict):
             for name, target in self.save_targets.items():
                 target.set(bool(targets.get(name, target.get())))
+        self._sync_bent_availability()
 
     def _sync_input_vars_from_settings(self) -> None:
         for name, variable in self.vars.items():

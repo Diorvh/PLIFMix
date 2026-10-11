@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, ttk
+from PLIFMix.ui import localized_dialogs as filedialog, localized_widgets as ttk
 
 import numpy as np
 from matplotlib.figure import Figure
 
-from PLIFv2.tools.image_tools import top_k_values, transform_npy
-from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
+from PLIFMix.tools.image_tools import top_k_values, transform_npy
+from PLIFMix.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
 
 class NpyPage(ttk.Frame):
     def __init__(self, master):
@@ -29,7 +29,7 @@ class NpyPage(ttk.Frame):
         ttk.Combobox(row, textvariable=self.operation, values=["multiply", "add", "normalize", "reciprocal"], width=12, state="readonly").pack(side="left")
         ttk.Entry(row, textvariable=self.value, width=7).pack(side="left")
         ttk.Button(row, text="另存运算结果", command=self.transform).pack(side="left", padx=3)
-        self.info = tk.Text(self, height=8, wrap="word")
+        self.info = ttk.MessageText(self, height=8, wrap="word")
         self.info.pack(fill="x", padx=8)
         self.figure = Figure(figsize=(8, 5), dpi=100)
         self.axis = self.figure.add_subplot(111)
@@ -43,8 +43,8 @@ class NpyPage(ttk.Frame):
             return
         self.path.set(path)
         self.array = np.load(path)
-        self.info.delete("1.0", tk.END)
-        self.info.insert(tk.END, f"shape={self.array.shape}\ndtype={self.array.dtype}\nmin={np.min(self.array)}\nmax={np.max(self.array)}\nmean={np.mean(self.array)}\nstd={np.std(self.array)}")
+        self.info.clear_messages()
+        self.info.append_message(f"shape={self.array.shape}\ndtype={self.array.dtype}\nmin={np.min(self.array)}\nmax={np.max(self.array)}\nmean={np.mean(self.array)}\nstd={np.std(self.array)}")
         if self.colorbar is not None:
             self.colorbar.remove()
             self.colorbar = None
@@ -60,7 +60,7 @@ class NpyPage(ttk.Frame):
         if self.array is None:
             return
         result = top_k_values(self.array, int(self.k.get()))
-        self.info.insert(tk.END, "\n\nTop K:\n" + "\n".join(f"{value}: {index}" for value, index in result))
+        self.info.append_message("\n\nTop K:\n" + "\n".join(f"{value}: {index}" for value, index in result))
 
     def transform(self) -> None:
         if not self.path.get():
@@ -68,4 +68,4 @@ class NpyPage(ttk.Frame):
         output = filedialog.asksaveasfilename(defaultextension=".npy", filetypes=[("NPY", "*.npy")])
         if output:
             transform_npy(Path(self.path.get()), Path(output), self.operation.get(), float(self.value.get()))
-            self.info.insert(tk.END, f"\n已保存 {output}")
+            self.info.append_message(f"\n已保存 {output}")

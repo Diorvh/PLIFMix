@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import tkinter as tk
 from copy import deepcopy
-from tkinter import ttk
+from PLIFMix.ui import localized_widgets as ttk
 from typing import Callable
 
 import numpy as np
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.figure import Figure
 
-from PLIFv2.application.actions import PLIFActions
-from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
-from PLIFv2.ui.widgets import LogBox, run_in_background
+from PLIFMix.application.actions import PLIFActions
+from PLIFMix.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
+from PLIFMix.ui.widgets import LogBox, run_in_background
 
 
 class ShiftSearchPanel(ttk.Frame):

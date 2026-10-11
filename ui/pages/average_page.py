@@ -3,11 +3,11 @@ from __future__ import annotations
 import tkinter as tk
 from copy import deepcopy
 from pathlib import Path
-from tkinter import filedialog, ttk
+from PLIFMix.ui import localized_dialogs as filedialog, localized_widgets as ttk
 
-from PLIFv2.application.actions import PLIFActions
-from PLIFv2.ui.settings_binding import set_dataclass_text_fields
-from PLIFv2.ui.widgets import LogBox, run_in_background
+from PLIFMix.application.actions import PLIFActions
+from PLIFMix.ui.settings_binding import set_dataclass_text_fields
+from PLIFMix.ui.widgets import LogBox, run_in_background
 
 
 class AveragePage(ttk.Frame):

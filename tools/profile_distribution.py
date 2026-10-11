@@ -30,14 +30,14 @@ if str(_REPO_ROOT.parent) not in sys.path:
 import numpy as np
 from concurrent.futures.process import BrokenProcessPool
 
-from PLIFv2.algorithms import distribution as distribution_algorithms
-from PLIFv2.core.config_io import default_config_path, load_settings
-from PLIFv2.core.experiment_images import experiment_npy_path
-from PLIFv2.domain.settings import DistributionSettings, dataclass_to_jsonable
-from PLIFv2.services import distribution_service as distribution_service_module
-from PLIFv2.services import distribution_workers as distribution_workers_module
-from PLIFv2.services.distribution_service import DistributionFitResult, DistributionFitService
-from PLIFv2.services.distribution_workers import (
+from PLIFMix.algorithms import distribution as distribution_algorithms
+from PLIFMix.core.config_io import default_config_path, load_settings
+from PLIFMix.core.experiment_images import experiment_npy_path
+from PLIFMix.domain.settings import DistributionSettings, dataclass_to_jsonable
+from PLIFMix.services import distribution_service as distribution_service_module
+from PLIFMix.services import distribution_workers as distribution_workers_module
+from PLIFMix.services.distribution_service import DistributionFitResult, DistributionFitService
+from PLIFMix.services.distribution_workers import (
     SurfaceFitTask,
     SurfaceFitWorkerResult,
 )

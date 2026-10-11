@@ -7,10 +7,10 @@ import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
-from PLIFv2.core.paths import path_is_set
-from PLIFv2.core.safe_io import atomic_save_workbook, atomic_write, excel_write_session
-from PLIFv2.domain.settings import DistributionSettings
-from PLIFv2.services.distribution_results import DistributionFitParameters, DistributionFitResult
+from PLIFMix.core.paths import path_is_set
+from PLIFMix.core.safe_io import atomic_save_workbook, atomic_write, excel_write_session
+from PLIFMix.domain.settings import DistributionSettings
+from PLIFMix.services.distribution_results import DistributionFitParameters, DistributionFitResult
 
 
 def export_distribution_result(settings: DistributionSettings, result: DistributionFitResult) -> Path:

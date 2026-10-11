@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk
+from PLIFMix.ui import localized_widgets as ttk
 
 
 class HorizontalDisplayPane(ttk.PanedWindow):

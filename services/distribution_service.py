@@ -10,11 +10,11 @@ from threading import RLock
 
 import numpy as np
 
-from PLIFv2.algorithms.distribution import (
+from PLIFMix.algorithms.distribution import (
     DistributionRegistrationEstimate,
     estimate_distribution_registration,
 )
-from PLIFv2.algorithms.mixing import (
+from PLIFMix.algorithms.mixing import (
     FitConvergenceError,
     calc_flowrate_contour,
     extrapolate_fitted_center_line,
@@ -26,17 +26,17 @@ from PLIFv2.algorithms.mixing import (
     straighten_center_line_image,
     unstraighten_center_line_image,
 )
-from PLIFv2.core.experiment_images import (
+from PLIFMix.core.experiment_images import (
     ExperimentImageTriplet,
     ExperimentTripletCache,
     experiment_npy_path,
 )
-from PLIFv2.domain.settings import DistributionSettings
-from PLIFv2.services.distribution_export import (
+from PLIFMix.domain.settings import DistributionSettings
+from PLIFMix.services.distribution_export import (
     export_distribution_result,
     write_fit_results_to_excel,
 )
-from PLIFv2.services.distribution_presentation import (
+from PLIFMix.services.distribution_presentation import (
     CenterLinePresentation,
     ProfilePresentation,
     build_summary_row,
@@ -48,14 +48,14 @@ from PLIFv2.services.distribution_presentation import (
     format_surface_fits,
     synthesize_distribution_image,
 )
-from PLIFv2.services.distribution_results import (
+from PLIFMix.services.distribution_results import (
     DistributionFitParameters,
     DistributionFitResult,
     DistributionImageData,
     DistributionRegistrationResult,
     DistributionSummaryRow,
 )
-from PLIFv2.services.distribution_workers import (
+from PLIFMix.services.distribution_workers import (
     SurfaceFitParameters,
     SurfaceFitTask,
     SurfaceFitWorkerResult,
@@ -149,7 +149,11 @@ class DistributionFitService:
         elif show_bent is None:
             # Preserve the old API behavior for callers that did not pass the new flag.
             show_bent = image_mode in {"fit_img", "delta_img"}
-        if image_mode not in {"ori_img", "fit_img", "delta_img"}:
+        if image_mode == "rot_img":
+            # The rotation view already straightens the jet, so straightening on top
+            # of it would tilt the ridge again. Ignore the flag instead of combining.
+            show_bent = False
+        if image_mode not in {"ori_img", "rot_img", "fit_img", "delta_img"}:
             raise ValueError(f"不支持的图像数据类型: {image_mode}")
         source_images = self._distribution_images(settings)
         result_cache_key = self._result_cache_signature(settings, annotations, image_mode, show_bent)
@@ -479,6 +483,8 @@ class DistributionFitService:
                     source_total=source.total,
                     image_shape=image.shape,
                     center_x=cx,
+                    center_y=cy,
+                    rotate_angle=prepared.rotate_angle,
                     fitted_point=fitted_point,
                     symmetric_fitted_point=symmetric_fitted_point,
                     bent_img=bent_img,

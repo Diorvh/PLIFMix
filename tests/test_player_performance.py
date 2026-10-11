@@ -11,9 +11,9 @@ import cv2
 import numpy as np
 from PIL import Image, ImageTk
 
-from PLIFv2.algorithms.visualization import blacked_jet_colormap
-from PLIFv2.core.image_io import extract_plif_signal, read_image
-from PLIFv2.ui.components.viewer_panel import _scale_gray_for_display
+from PLIFMix.algorithms.visualization import blacked_jet_colormap
+from PLIFMix.core.image_io import extract_plif_signal, read_image
+from PLIFMix.ui.components.viewer_panel import _scale_gray_for_display
 
 
 class PlayerPerformanceTests(unittest.TestCase):

@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from threading import RLock
 
-from PLIFv2.core.config_io import load_settings, save_settings
-from PLIFv2.domain.settings import AppSettings
+from PLIFMix.core.config_io import load_settings, save_settings
+from PLIFMix.domain.settings import AppSettings
 
 
 @dataclass

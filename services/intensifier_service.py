@@ -7,10 +7,10 @@ import re
 import numpy as np
 import openpyxl
 
-from PLIFv2.algorithms.intensifier import apply_correction_matrix, fit_linear_gain_matrix
-from PLIFv2.core.image_io import extract_plif_signal, list_image_files, read_image, save_float_image
-from PLIFv2.core.paths import path_is_set
-from PLIFv2.domain.settings import GainCorrectionSettings
+from PLIFMix.algorithms.intensifier import apply_correction_matrix, fit_linear_gain_matrix
+from PLIFMix.core.image_io import extract_plif_signal, list_image_files, read_image, save_float_image
+from PLIFMix.core.paths import path_is_set
+from PLIFMix.domain.settings import GainCorrectionSettings
 
 GAIN_SCALE = 100
 

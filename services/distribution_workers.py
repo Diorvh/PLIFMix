@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from PLIFv2.algorithms.distribution import (
+from PLIFMix.algorithms.distribution import (
     DistributionModelFitError,
     fit_compact_elliptical_student_prepared,
     fit_elliptical_student_prepared,

@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import openpyxl
 
-from PLIFv2.algorithms.mixing import (
+from PLIFMix.algorithms.mixing import (
     ShiftSearchResult,
     calc_mixing_efficiency,
     calculate_manual_shift_search,
@@ -14,11 +14,11 @@ from PLIFv2.algorithms.mixing import (
     generate_mixing_roi_coords,
     evaluate_mixing_shift,
 )
-from PLIFv2.core.experiment_images import ExperimentTripletCache
-from PLIFv2.core.result_snapshot import ResultSnapshot
-from PLIFv2.core.safe_io import atomic_save_workbook, excel_write_session
-from PLIFv2.domain.settings import ManualMixingSettings, ShiftSearchSettings
-from PLIFv2.services.display_types import DisplayImage
+from PLIFMix.core.experiment_images import ExperimentTripletCache
+from PLIFMix.core.result_snapshot import ResultSnapshot
+from PLIFMix.core.safe_io import atomic_save_workbook, excel_write_session
+from PLIFMix.domain.settings import ManualMixingSettings, ShiftSearchSettings
+from PLIFMix.services.display_types import DisplayImage
 
 
 @dataclass

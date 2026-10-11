@@ -9,7 +9,7 @@ import time
 
 import numpy as np
 
-from PLIFv2.core.image_io import extract_plif_signal, read_image
+from PLIFMix.core.image_io import extract_plif_signal, read_image
 
 
 FramePath = str | Path

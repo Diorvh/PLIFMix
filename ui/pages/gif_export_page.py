@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, ttk
+from PLIFMix.ui import localized_dialogs as filedialog, localized_widgets as ttk
 
-from PLIFv2.tools.image_tools import export_gif
+from PLIFMix.tools.image_tools import export_gif
 
 
 class GifExportPage(ttk.Frame):

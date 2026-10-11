@@ -3,3 +3,38 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
+
+# Machine-local environments, build outputs and editor state
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+*.log
+*.tmp
+
+# Local hidden directories are not part of the published source tree
+/.*/
+!/.github/
+
+# Keep external experimental data and generated results outside the source tree
+/data/
+/outputs/
+
+# Mixing-page exports sit beside the selected image folder, including the sample.
+/f/
+/o/
+/fo/
+/f+o-fo/
+/oDf+o/
+/fDfo/
+/oDfo/
+/fo-f-o/
+/ME_oDf+o/
+/ME_fDfo/
+/ME_oDfo/
+/mix_curve/

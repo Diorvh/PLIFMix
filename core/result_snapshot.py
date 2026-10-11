@@ -6,10 +6,10 @@ from typing import Any, Iterable
 
 
 _PRESENTATION_FIELDS = frozenset({
-    "preset_path", "save_name", "output_folder", "fit_result_path",
+    "preset_path", "save_name", "output_folder", "image_save_folder", "fit_result_path",
     "gain", "auto_gain", "zoom", "line_width", "display_vmax", "analysis_radius",
 })
-_EXPORT_FIELDS = frozenset({"save_name", "output_folder", "fit_result_path"})
+_EXPORT_FIELDS = frozenset({"save_name", "output_folder", "image_save_folder", "fit_result_path"})
 
 
 def _signature(path: Path) -> tuple[int, int] | None:

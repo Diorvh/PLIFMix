@@ -106,6 +106,7 @@ class DistributionSettings:
     rotate_angle_o: int = 0
     rotate_angle_fo: int = 0
     output_folder: Path = Path()
+    image_save_folder: Path = Path()
     fit_result_path: Path = Path()
 
 

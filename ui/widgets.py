@@ -3,9 +3,9 @@ from __future__ import annotations
 import tkinter as tk
 from dataclasses import dataclass
 from pathlib import Path
-from tkinter import filedialog, ttk
+from PLIFMix.ui import localized_dialogs as filedialog, localized_widgets as ttk
 from typing import Any, Callable
-from PLIFv2.ui.task_runner import LatestTaskRunner, TaskRunner
+from PLIFMix.ui.task_runner import LatestTaskRunner, TaskRunner
 
 
 @dataclass
@@ -68,18 +68,18 @@ class BoundForm(ttk.Frame):
 class LogBox(ttk.Frame):
     def __init__(self, master: tk.Misc, height: int = 8):
         super().__init__(master)
-        self.text = tk.Text(self, height=height, wrap="word")
+        self.text = ttk.MessageText(self, height=height, wrap="word")
         self.text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scroll = ttk.Scrollbar(self, command=self.text.yview)
         scroll.pack(side=tk.RIGHT, fill=tk.Y)
         self.text.configure(yscrollcommand=scroll.set)
 
     def write(self, message: str) -> None:
-        self.text.insert(tk.END, message.rstrip() + "\n")
+        self.text.append_message(message.rstrip() + "\n")
         self.text.see(tk.END)
 
     def clear(self) -> None:
-        self.text.delete("1.0", tk.END)
+        self.text.clear_messages()
 
 
 def run_guarded(log: LogBox, action: Callable[[], str]) -> None:

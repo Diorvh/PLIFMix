@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from PLIFv2.ui.components.viewer_panel import ViewerPanel
+from PLIFMix.ui.components.viewer_panel import ViewerPanel
 
 
 class ImageDisplay(ViewerPanel):

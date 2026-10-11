@@ -3,12 +3,12 @@ from __future__ import annotations
 import tkinter as tk
 from copy import deepcopy
 from pathlib import Path
-from tkinter import filedialog, ttk
+from PLIFMix.ui import localized_dialogs as filedialog, localized_widgets as ttk
 
-from PLIFv2.application.actions import PLIFActions
-from PLIFv2.core.paths import path_is_set
-from PLIFv2.ui.components.calibration_workspace import CalibrationDiagnosticsNotebook, MatrixFitWorkspace
-from PLIFv2.ui.widgets import LogBox, run_in_background
+from PLIFMix.application.actions import PLIFActions
+from PLIFMix.core.paths import path_is_set
+from PLIFMix.ui.components.calibration_workspace import CalibrationDiagnosticsNotebook, MatrixFitWorkspace
+from PLIFMix.ui.widgets import LogBox, run_in_background
 
 
 class IntensifierPage(ttk.Frame):

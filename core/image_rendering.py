@@ -5,9 +5,9 @@ from dataclasses import dataclass, field
 import cv2
 import numpy as np
 
-from PLIFv2.algorithms.mixing import shift_image
-from PLIFv2.algorithms.visualization import blacked_jet_colormap, blue_white_red_colormap
-from PLIFv2.core.image_coordinates import quarter_turns
+from PLIFMix.algorithms.mixing import shift_image
+from PLIFMix.algorithms.visualization import blacked_jet_colormap, blue_white_red_colormap
+from PLIFMix.core.image_coordinates import quarter_turns
 
 
 Ellipse = tuple[int, int] | tuple[int, int, int, int, int]
@@ -219,6 +219,78 @@ def rotate_quarter_turns(image: np.ndarray, angle_degrees: float) -> np.ndarray:
     if turns == 3:
         return cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
     return image
+
+
+def rotation_matrix_about_point(
+    center: tuple[float, float],
+    angle_degrees: float,
+) -> np.ndarray:
+    """Return the source-to-display matrix of a rotation about a point."""
+    return cv2.getRotationMatrix2D((float(center[0]), float(center[1])), float(angle_degrees), 1.0)
+
+
+def rotate_image_about_point(
+    image: np.ndarray,
+    center: tuple[float, float],
+    angle_degrees: float,
+) -> np.ndarray:
+    """Rotate an image about a point, keeping its shape and zeroing the outside.
+
+    The angle follows the OpenCV convention: a positive value turns the shown
+    image counter-clockwise relative to the source. Shape is preserved, so the
+    corners outside the rotated field are filled with zero instead of growing
+    the canvas. A zero angle returns the input array unchanged.
+    """
+    if not angle_degrees:
+        return image
+    matrix = rotation_matrix_about_point(center, angle_degrees)
+    return cv2.warpAffine(
+        image,
+        matrix,
+        (int(image.shape[1]), int(image.shape[0])),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=0,
+    )
+
+
+def rotate_points_about_point(
+    points,
+    center: tuple[float, float],
+    angle_degrees: float,
+    shape: tuple[int, ...],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Map (row, column) overlay points with the same matrix as the image.
+
+    Out-of-frame results are dropped instead of clipped to the border, so an
+    overlay never grows a false edge along the image boundary.
+    """
+    if points is None or len(points) != 2:
+        empty = np.array([], dtype=np.int32)
+        return empty, empty
+    rows = np.asarray(points[0])
+    columns = np.asarray(points[1])
+    if rows.size == 0 or columns.size == 0:
+        empty = np.array([], dtype=np.int32)
+        return empty, empty
+    if not angle_degrees:
+        return rows.astype(np.int32, copy=False), columns.astype(np.int32, copy=False)
+
+    matrix = rotation_matrix_about_point(center, angle_degrees)
+    source_columns = columns.astype(np.float64, copy=False)
+    source_rows = rows.astype(np.float64, copy=False)
+    rotated_columns = matrix[0, 0] * source_columns + matrix[0, 1] * source_rows + matrix[0, 2]
+    rotated_rows = matrix[1, 0] * source_columns + matrix[1, 1] * source_rows + matrix[1, 2]
+    new_rows = np.rint(rotated_rows).astype(np.int32)
+    new_columns = np.rint(rotated_columns).astype(np.int32)
+    height, width = int(shape[0]), int(shape[1])
+    valid = (
+        (new_rows >= 0)
+        & (new_rows < height)
+        & (new_columns >= 0)
+        & (new_columns < width)
+    )
+    return new_rows[valid], new_columns[valid]
 
 
 def rotate_special_points_quarter_turns(special_points, angle_degrees: float, shape: tuple[int, int]):

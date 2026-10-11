@@ -7,11 +7,11 @@ from unittest.mock import patch
 
 import numpy as np
 
-from PLIFv2.algorithms.mixing import calc_result, generate_mask_coords, shift_image
-from PLIFv2.core.experiment_images import ExperimentImageTriplet
-from PLIFv2.domain.settings import ManualMixingSettings, ShiftSearchSettings
-from PLIFv2.services import mixing_service as mixing_service_module
-from PLIFv2.services.mixing_service import MixingService
+from PLIFMix.algorithms.mixing import calc_result, generate_mask_coords, shift_image
+from PLIFMix.core.experiment_images import ExperimentImageTriplet
+from PLIFMix.domain.settings import ManualMixingSettings, ShiftSearchSettings
+from PLIFMix.services import mixing_service as mixing_service_module
+from PLIFMix.services.mixing_service import MixingService
 
 
 class _ArrayTripletCache:

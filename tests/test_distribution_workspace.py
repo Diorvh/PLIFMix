@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-from PLIFv2.algorithms import distribution
+from PLIFMix.algorithms import distribution
 
 
 def _reference_prediction(parameters: np.ndarray, fit_data, compact: bool) -> np.ndarray | None:

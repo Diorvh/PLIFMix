@@ -3,30 +3,30 @@ from __future__ import annotations
 import tkinter as tk
 from copy import deepcopy
 from pathlib import Path
-from tkinter import filedialog, ttk
+from PLIFMix.ui import localized_dialogs as filedialog, localized_widgets as ttk
 
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.figure import Figure
 
-from PLIFv2.application.actions import PLIFActions
-from PLIFv2.core.image_io import write_png
-from PLIFv2.core.result_snapshot import require_current_result
-from PLIFv2.core.mixing_presets import (
+from PLIFMix.application.actions import PLIFActions
+from PLIFMix.core.image_io import write_png
+from PLIFMix.core.result_snapshot import require_current_result
+from PLIFMix.core.mixing_presets import (
     MixingPreset,
     create_mixing_presets_from_excel,
     load_mixing_presets,
     save_mixing_presets,
 )
-from PLIFv2.ui.components.experiment_group_controls import (
+from PLIFMix.ui.components.experiment_group_controls import (
     ExperimentTripletControls,
     MixingPresetControls,
     split_save_name,
 )
-from PLIFv2.ui.components.shift_search_panel import ShiftSearchPanel
-from PLIFv2.ui.image_display import ImageDisplay
-from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
-from PLIFv2.ui.settings_binding import set_dataclass_text_fields
-from PLIFv2.ui.widgets import LatestTaskRunner
+from PLIFMix.ui.components.shift_search_panel import ShiftSearchPanel
+from PLIFMix.ui.image_display import ImageDisplay
+from PLIFMix.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
+from PLIFMix.ui.settings_binding import set_dataclass_text_fields
+from PLIFMix.ui.widgets import LatestTaskRunner
 
 
 RESULT_LAYOUT = (

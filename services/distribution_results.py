@@ -4,9 +4,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from PLIFv2.algorithms.distribution import DistributionRegistrationEstimate
-from PLIFv2.core.result_snapshot import ResultSnapshot
-from PLIFv2.services.display_types import DisplayImage
+from PLIFMix.algorithms.distribution import DistributionRegistrationEstimate
+from PLIFMix.core.result_snapshot import ResultSnapshot
+from PLIFMix.services.display_types import DisplayImage
 
 
 @dataclass(frozen=True)

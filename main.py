@@ -12,13 +12,13 @@ def main() -> None:
     freeze_support()
     import tkinter as tk
 
-    from PLIFv2.ui.app_window import PLIFAppWindow
+    from PLIFMix.ui.app_window import PLIFAppWindow
 
     try:
         app = PLIFAppWindow()
     except tk.TclError as exc:
         raise SystemExit(
-            "PLIFv2 无法创建窗口。请修复或重新安装带 Tcl/Tk 组件的 Python 3.11 或更高版本。\n"
+            "PLIFMix 无法创建窗口。请修复或重新安装带 Tcl/Tk 组件的 Python 3.11 或更高版本。\n"
             f"原始错误: {exc}"
         ) from exc
     app.mainloop()

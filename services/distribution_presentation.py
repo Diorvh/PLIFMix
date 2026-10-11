@@ -5,9 +5,10 @@ from typing import Callable
 
 import numpy as np
 
-from PLIFv2.services.display_types import DisplayImage
-from PLIFv2.services.distribution_results import DistributionSummaryRow
-from PLIFv2.services.distribution_workers import SurfaceFitParameters
+from PLIFMix.core.image_rendering import rotate_image_about_point, rotate_points_about_point
+from PLIFMix.services.display_types import DisplayImage
+from PLIFMix.services.distribution_results import DistributionSummaryRow
+from PLIFMix.services.distribution_workers import SurfaceFitParameters
 
 
 @dataclass(frozen=True)
@@ -179,6 +180,8 @@ def synthesize_distribution_image(
     source_total: float,
     image_shape: tuple[int, ...],
     center_x: int,
+    center_y: int,
+    rotate_angle: float,
     fitted_point: tuple[np.ndarray, np.ndarray],
     symmetric_fitted_point: tuple[np.ndarray, np.ndarray],
     bent_img: np.ndarray | None,
@@ -187,7 +190,15 @@ def synthesize_distribution_image(
     map_center_line_points: Callable,
     unstraighten_center_line_image: Callable,
 ) -> DisplayImage:
-    if show_bent:
+    # The fitted frame rotates sampled points by +rotate_angle, so the matching
+    # display of that frame turns the image the other way about the same origin.
+    display_rotation = -float(rotate_angle)
+    if image_mode == "rot_img":
+        point_sets = [
+            rotate_points_about_point(points, (center_x, center_y), display_rotation, image_shape)
+            for points in point_sets
+        ]
+    elif show_bent:
         point_sets = [
             map_center_line_points(points, fitted_point, center_x, image_shape, inverse=False)
             for points in point_sets
@@ -214,7 +225,13 @@ def synthesize_distribution_image(
         point_sets = restored_point_sets
     special_points = _merge_special_points(point_sets)
 
-    if image_mode == "ori_img":
+    if image_mode == "rot_img":
+        shown_normalized = rotate_image_about_point(
+            norm_img,
+            (center_x, center_y),
+            display_rotation,
+        )
+    elif image_mode == "ori_img":
         assert not show_bent or bent_img is not None
         shown_normalized = bent_img if show_bent else norm_img
     elif image_mode == "fit_img":

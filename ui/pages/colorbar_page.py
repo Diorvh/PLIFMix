@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, ttk
+from PLIFMix.ui import localized_dialogs as filedialog, localized_widgets as ttk
 
 import cv2
 from PIL import Image, ImageTk
 
-from PLIFv2.tools.image_tools import create_colorbar, save_colorbar
+from PLIFMix.tools.image_tools import create_colorbar, save_colorbar
 
 class ColorbarPage(ttk.Frame):
     def __init__(self, master):

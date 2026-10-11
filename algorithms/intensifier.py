@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from PLIFv2.core.image_io import read_image, save_float_image
+from PLIFMix.core.image_io import read_image, save_float_image
 
 
 def apply_correction_matrix(

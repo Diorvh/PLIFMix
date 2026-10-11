@@ -7,13 +7,13 @@ import unittest
 import cv2
 import numpy as np
 
-from PLIFv2.algorithms.mixing import shift_image
-from PLIFv2.algorithms.visualization import blacked_jet_colormap, blue_white_red_colormap
-from PLIFv2.core.image_coordinates import (
+from PLIFMix.algorithms.mixing import shift_image
+from PLIFMix.algorithms.visualization import blacked_jet_colormap, blue_white_red_colormap
+from PLIFMix.core.image_coordinates import (
     ImageCoordinateMapping as CoreImageCoordinateMapping,
     quarter_turns as core_quarter_turns,
 )
-from PLIFv2.core.image_rendering import (
+from PLIFMix.core.image_rendering import (
     ComputedRenderOptions,
     OverlayOptions,
     RawRenderOptions,
@@ -22,11 +22,11 @@ from PLIFv2.core.image_rendering import (
     render_computed_image,
     render_raw_image,
 )
-from PLIFv2.ui.coordinate_mapping import (
+from PLIFMix.ui.coordinate_mapping import (
     ImageCoordinateMapping as UiImageCoordinateMapping,
     quarter_turns as ui_quarter_turns,
 )
-from PLIFv2.ui.components.viewer_panel import _draw_overlays_on as viewer_draw_overlays_on
+from PLIFMix.ui.components.viewer_panel import _draw_overlays_on as viewer_draw_overlays_on
 
 
 class ImageRenderingTests(unittest.TestCase):

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "average": {
-    "source_folder": "E:\\实验数据\\20250820孔径比影响-正式\\标定板",
-    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪",
+    "source_folder": ".",
+    "output_folder": ".",
     "experiment_numbers": "228",
     "use_experiment_numbers": false,
     "best_process_count": 1,
@@ -14,23 +14,23 @@
     "frame_segments": "0:3000"
   },
   "intensifier_average": {
-    "source_folder": "E:\\实验数据\\20250820孔径比影响-正式\\像增强器标定",
-    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.1-像增强器标定平均图",
+    "source_folder": ".",
+    "output_folder": ".",
     "best_process_count": 1,
     "denoise_threshold": 2.0
   },
   "gain": {
-    "image_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\1-平均图",
-    "matrix_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.2-像增强器修正矩阵",
-    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.3-修正后平均图",
+    "image_folder": ".",
+    "matrix_folder": ".",
+    "output_folder": ".",
     "matrix_path": ".",
-    "excel_path": "D:\\工作文件同步\\20250826孔径比影响\\20250820孔径比影响-正式-混合数据.xlsx",
+    "excel_path": ".",
     "experiment_column": 1,
     "gain_column": 4
   },
   "calibration": {
-    "source_folder": "D:\\工作文件同步\\20250826孔径比影响\\旧版本数据处理\\处理图像\\3.1-相增强器修正平均图\\Gain51",
-    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.2-像增强器修正矩阵\\对比旧",
+    "source_folder": ".",
+    "output_folder": ".",
     "display_vmax": 0.0,
     "analysis_radius": 200,
     "compare_folder": ".",
@@ -41,10 +41,10 @@
     "single_image_path": "."
   },
   "davis": {
-    "corrected_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.3-修正后平均图",
-    "davis_input_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\3.1-Davis输入图像",
-    "davis_export_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\3.3-Davis导出图像",
-    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\3.4-视场修正后图像"
+    "corrected_folder": ".",
+    "davis_input_folder": ".",
+    "davis_export_folder": ".",
+    "output_folder": "."
   },
   "noise": {
     "source_folder": ".",
@@ -69,37 +69,37 @@
     "process_count": 24
   },
   "manual": {
-    "image_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\4-最终图像",
-    "f_exp_no": "4",
-    "o_exp_no": "31",
-    "fo_exp_no": "17",
-    "preset_path": "E:\\Sci\\Codes\\ImpingingJet\\PLIF程序\\PLIFv2\\runtime\\presets\\20250820孔径比影响-正式-混合数据.json",
-    "save_name": "DR1.0_U30",
+    "image_folder": "样例数据",
+    "f_exp_no": "67",
+    "o_exp_no": "45",
+    "fo_exp_no": "57",
+    "preset_path": ".",
+    "save_name": "DR1.3_U25",
     "zoom": 2.0,
     "gain": 1.0,
     "auto_gain": true,
     "f_shift": 0,
     "o_shift": 0,
-    "center_xf": 642,
-    "center_yf": 430,
-    "center_xo": 642,
-    "center_yo": 430,
-    "center_xfo": 642,
-    "center_yfo": 430,
+    "center_xf": 664,
+    "center_yf": 426,
+    "center_xo": 655,
+    "center_yo": 426,
+    "center_xfo": 663,
+    "center_yfo": 419,
     "major_axis": 200,
     "minor_axis": 400,
     "line_width": 2,
-    "global_of": 1.0,
+    "global_of": 1.2786069651741294,
     "denoise_ratio": 0.01,
     "use_ellipse_region": false,
-    "output_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪 "
+    "output_folder": "outputs/sample/mixing"
   },
   "distribution": {
-    "image_folder": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\4-最终图像",
+    "image_folder": "样例数据",
     "f_exp_no": "67",
     "o_exp_no": "45",
     "fo_exp_no": "57",
-    "preset_path": "D:\\工作文件同步\\Codes\\PLIFv2\\runtime\\presets\\20250820孔径比影响-正式-混合数据.json",
+    "preset_path": ".",
     "save_name": "DR1.3_U25",
     "zoom": 1.5,
     "gain": 0.0,
@@ -118,247 +118,237 @@
     "q_center_down": 0,
     "q_center_up_f": 200,
     "q_center_down_f": 700,
-    "q_center_up_o": 50,
+    "q_center_up_o": 150,
     "q_center_down_o": 700,
     "q_center_up_fo": 100,
     "q_center_down_fo": 800,
     "max_k": 30,
     "rotate_angle_f": 4,
-    "rotate_angle_o": -1,
-    "rotate_angle_fo": 6,
-    "output_folder": ".",
-    "fit_result_path": "D:\\工作文件同步\\20250826孔径比影响\\20250820孔径比影响-正式-模型拟合.xlsx"
+    "rotate_angle_o": 0,
+    "rotate_angle_fo": 5,
+    "output_folder": "outputs/sample/distribution",
+    "image_save_folder": "outputs/sample/images",
+    "fit_result_path": "."
   },
   "ui": {
     "app": {
-      "main_tab": 4,
-      "active_page": "5 质量分布拟合",
+      "language": "zh",
+      "main_tab": 3,
+      "active_page": "4 手动调参",
       "last_tool_page": "图片播放器",
-      "last_secondary_page": "GIF导出"
+      "last_secondary_page": "图片播放器"
     },
     "pages": {
       "1 平均图": {
-        "!frame.!entry": {
-          "kind": "text",
-          "value": "E:/实验数据/20250820孔径比影响-正式/标定板"
+        "use_experiment_numbers": {
+          "kind": "variable",
+          "value": false
         },
-        "!frame.!entry2": {
-          "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪"
+        "use_frame_segments": {
+          "kind": "variable",
+          "value": false
         },
-        "!frame2.!entry": {
-          "kind": "text",
+        "vars.best_process_count": {
+          "kind": "variable",
           "value": "1"
         },
-        "!frame2.!entry2": {
-          "kind": "text",
+        "vars.denoise_threshold": {
+          "kind": "variable",
           "value": "2"
         },
-        "!labelframe.!frame.!checkbutton": {
+        "vars.experiment_numbers": {
           "kind": "variable",
-          "value": 0
-        },
-        "!labelframe.!frame.!entry": {
-          "kind": "text",
           "value": "228"
         },
-        "!labelframe.!frame2.!entry": {
-          "kind": "text",
-          "value": "0.0"
+        "vars.frame_segments": {
+          "kind": "variable",
+          "value": "0:3000"
         },
-        "!labelframe.!frame2.!entry2": {
-          "kind": "text",
-          "value": "0.0"
+        "vars.output_folder": {
+          "kind": "variable",
+          "value": "."
         },
-        "!labelframe.!frame2.!entry3": {
-          "kind": "text",
+        "vars.sample_frequency": {
+          "kind": "variable",
           "value": "500.0"
         },
-        "!labelframe.!frame2.!checkbutton": {
+        "vars.source_folder": {
           "kind": "variable",
-          "value": 0
+          "value": "."
         },
-        "!labelframe.!frame2.!entry4": {
-          "kind": "text",
-          "value": "0:3000"
+        "vars.time_end": {
+          "kind": "variable",
+          "value": "0.0"
+        },
+        "vars.time_start": {
+          "kind": "variable",
+          "value": "0.0"
         }
       },
       "2 像增强器": {
-        "!notebook": {
-          "kind": "notebook",
-          "value": 0
-        },
-        "!notebook.!frame.!frame.!frame.!labelframe.!frame.!entry": {
-          "kind": "text",
-          "value": "E:\\实验数据\\20250820孔径比影响-正式\\像增强器标定"
-        },
-        "!notebook.!frame.!frame.!frame.!labelframe.!frame.!entry2": {
-          "kind": "text",
-          "value": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.1-像增强器标定平均图"
-        },
-        "!notebook.!frame.!frame.!frame.!labelframe.!frame2.!entry": {
-          "kind": "text",
+        "average_vars.best_process_count": {
+          "kind": "variable",
           "value": "1"
         },
-        "!notebook.!frame.!frame.!frame.!labelframe.!frame2.!entry2": {
-          "kind": "text",
+        "average_vars.denoise_threshold": {
+          "kind": "variable",
           "value": "2.0"
         },
-        "!notebook.!frame.!frame.!frame.!labelframe2.!frame.!entry": {
-          "kind": "text",
-          "value": "D:\\工作文件同步\\20250826孔径比影响\\旧版本数据处理\\处理图像\\3.1-相增强器修正平均图\\Gain51"
+        "average_vars.output_folder": {
+          "kind": "variable",
+          "value": "."
         },
-        "!notebook.!frame.!frame.!frame.!labelframe2.!frame.!entry2": {
-          "kind": "text",
-          "value": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.2-像增强器修正矩阵\\对比旧"
+        "average_vars.source_folder": {
+          "kind": "variable",
+          "value": "."
         },
-        "!notebook.!frame.!frame.!frame.!labelframe2.!frame2.!entry": {
-          "kind": "text",
-          "value": "0.0"
+        "batch_vars.excel_path": {
+          "kind": "variable",
+          "value": "."
         },
-        "!notebook.!frame.!frame.!frame.!labelframe2.!frame2.!entry2": {
-          "kind": "text",
-          "value": "200"
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook": {
-          "kind": "notebook",
-          "value": 0
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry": {
-          "kind": "text",
-          "value": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\1-平均图"
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry2": {
-          "kind": "text",
-          "value": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.2-像增强器修正矩阵"
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry3": {
-          "kind": "text",
-          "value": "D:\\工作文件同步\\20250826孔径比影响\\20250820孔径比影响-正式-混合数据.xlsx"
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame.!entry4": {
-          "kind": "text",
-          "value": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.3-修正后平均图"
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame2.!entry": {
-          "kind": "text",
+        "batch_vars.experiment_column": {
+          "kind": "variable",
           "value": "1"
         },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame.!frame2.!entry2": {
-          "kind": "text",
+        "batch_vars.gain_column": {
+          "kind": "variable",
           "value": "4"
         },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame2.!frame.!entry": {
-          "kind": "text",
-          "value": ""
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame2.!frame.!entry2": {
-          "kind": "text",
-          "value": ""
-        },
-        "!notebook.!frame.!frame.!frame2.!labelframe.!notebook.!frame2.!frame.!entry3": {
-          "kind": "text",
-          "value": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.3-修正后平均图"
-        },
-        "!notebook.!frame.!labelframe2.!frame.!navigationtoolbar2tk.!checkbutton-7": {
+        "batch_vars.image_folder": {
           "kind": "variable",
-          "value": 0
+          "value": "."
         },
-        "!notebook.!frame.!labelframe2.!frame.!navigationtoolbar2tk.!checkbutton-8": {
+        "batch_vars.matrix_folder": {
           "kind": "variable",
-          "value": 0
+          "value": "."
         },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook": {
+        "batch_vars.output_folder": {
+          "kind": "variable",
+          "value": "."
+        },
+        "diagnostics": {
           "kind": "notebook",
           "value": 0
         },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame.!frame.!entry": {
-          "kind": "text",
-          "value": ""
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame.!frame.!entry2": {
-          "kind": "text",
-          "value": ""
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame.!frame.!entry3": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame.!frame.!entry4": {
-          "kind": "text",
-          "value": "5000"
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry": {
-          "kind": "text",
-          "value": ""
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry2": {
-          "kind": "text",
-          "value": ""
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry3": {
-          "kind": "text",
+        "diagnostics.compare_form.vars.compare_center_x": {
+          "kind": "variable",
           "value": "640"
         },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry4": {
-          "kind": "text",
+        "diagnostics.compare_form.vars.compare_center_y": {
+          "kind": "variable",
           "value": "600"
         },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry5": {
-          "kind": "text",
-          "value": "550"
-        },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry6": {
-          "kind": "text",
+        "diagnostics.compare_form.vars.compare_files": {
+          "kind": "variable",
           "value": ""
         },
-        "!notebook.!frame2.!calibrationdiagnosticsnotebook.!frame2.!boundform.!entry7": {
-          "kind": "text",
-          "value": "D:\\工作文件同步\\20250826孔径比影响\\处理图像-直接忽略底噪\\2.2-像增强器修正矩阵\\对比旧"
+        "diagnostics.compare_form.vars.compare_folder": {
+          "kind": "variable",
+          "value": ""
+        },
+        "diagnostics.compare_form.vars.compare_radius": {
+          "kind": "variable",
+          "value": "550"
+        },
+        "diagnostics.compare_form.vars.output_folder": {
+          "kind": "variable",
+          "value": "."
+        },
+        "diagnostics.compare_form.vars.single_image_path": {
+          "kind": "variable",
+          "value": ""
+        },
+        "diagnostics.stability_average": {
+          "kind": "variable",
+          "value": ""
+        },
+        "diagnostics.stability_end": {
+          "kind": "variable",
+          "value": "5000"
+        },
+        "diagnostics.stability_folder": {
+          "kind": "variable",
+          "value": ""
+        },
+        "diagnostics.stability_start": {
+          "kind": "variable",
+          "value": "0"
+        },
+        "fit_workspace.canvas.toolbar.message": {
+          "kind": "variable",
+          "value": ""
+        },
+        "fit_workspace.output_var": {
+          "kind": "variable",
+          "value": "."
+        },
+        "fit_workspace.radius_var": {
+          "kind": "variable",
+          "value": "200"
+        },
+        "fit_workspace.source_var": {
+          "kind": "variable",
+          "value": "."
+        },
+        "fit_workspace.vmax_var": {
+          "kind": "variable",
+          "value": "0.0"
+        },
+        "notebook": {
+          "kind": "notebook",
+          "value": 0
+        },
+        "single_image_var": {
+          "kind": "variable",
+          "value": ""
+        },
+        "single_matrix_var": {
+          "kind": "variable",
+          "value": ""
+        },
+        "single_output_var": {
+          "kind": "variable",
+          "value": "."
         }
       },
       "3 Davis 整理": {
-        "!labelframe.!boundform.!entry": {
-          "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/2.3-修正后平均图"
+        "input_form.vars.corrected_folder": {
+          "kind": "variable",
+          "value": "."
         },
-        "!labelframe.!boundform.!entry2": {
-          "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/3.1-Davis输入图像"
+        "input_form.vars.davis_input_folder": {
+          "kind": "variable",
+          "value": "."
         },
-        "!labelframe2.!boundform.!entry": {
-          "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/3.3-Davis导出图像"
+        "output_form.vars.davis_export_folder": {
+          "kind": "variable",
+          "value": "."
         },
-        "!labelframe2.!boundform.!entry2": {
-          "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/3.4-视场修正后图像"
+        "output_form.vars.output_folder": {
+          "kind": "variable",
+          "value": "."
         }
       },
       "底噪分析": {
-        "!boundform.!entry": {
-          "kind": "text",
+        "canvas.toolbar.message": {
+          "kind": "variable",
           "value": ""
         },
-        "!boundform.!entry2": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!boundform.!entry3": {
-          "kind": "text",
+        "form.vars.frame_end": {
+          "kind": "variable",
           "value": "1000"
         },
-        "!boundform.!entry4": {
-          "kind": "text",
+        "form.vars.frame_start": {
+          "kind": "variable",
+          "value": "0"
+        },
+        "form.vars.process_count": {
+          "kind": "variable",
           "value": "4"
         },
-        "!frame.!navigationtoolbar2tk.!checkbutton-9": {
+        "form.vars.source_folder": {
           "kind": "variable",
-          "value": 0
-        },
-        "!frame.!navigationtoolbar2tk.!checkbutton-10": {
-          "kind": "variable",
-          "value": 0
+          "value": ""
         }
       },
       "工具箱": {
@@ -464,7 +454,7 @@
         },
         "!notebook.!imageviewertool.!frame6.!entry": {
           "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/1-平均图/旧/实验编号2.npy"
+          "value": "."
         },
         "!notebook.!imageviewertool.!frame6.!radiobutton2": {
           "kind": "variable",
@@ -472,7 +462,7 @@
         },
         "!notebook.!imageviewertool.!frame6.!entry2": {
           "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/处理图像-直接忽略底噪/1-平均图"
+          "value": "."
         },
         "!notebook.!imageviewertool.!frame6.!entry3": {
           "kind": "text",
@@ -488,7 +478,7 @@
         },
         "!notebook.!imageplayertool.!frame.!entry": {
           "kind": "text",
-          "value": "E:/实验数据/20250820孔径比影响-正式/原始图像/实验编号2"
+          "value": "."
         },
         "!notebook.!imageplayertool.!frame2.!entry": {
           "kind": "text",
@@ -730,7 +720,7 @@
         },
         "!frame6.!entry": {
           "kind": "text",
-          "value": "E:\\实验数据\\20250820孔径比影响-正式\\原始图像\\实验编号180\\0837.PNG"
+          "value": "."
         },
         "!frame6.!radiobutton2": {
           "kind": "variable",
@@ -738,7 +728,7 @@
         },
         "!frame6.!entry2": {
           "kind": "text",
-          "value": "E:/实验数据/20250820孔径比影响-正式/原始图像/实验编号180"
+          "value": "."
         },
         "!frame6.!entry3": {
           "kind": "text",
@@ -754,85 +744,89 @@
         }
       },
       "图片播放器": {
-        "!frame.!entry": {
-          "kind": "text",
-          "value": "E:/实验数据/20250820孔径比影响-正式/原始图像/实验编号228"
+        "auto_gain": {
+          "kind": "variable",
+          "value": false
         },
-        "!frame.!entry2": {
-          "kind": "text",
+        "auto_gain_text": {
+          "kind": "variable",
+          "value": "（自动增益：-）"
+        },
+        "cache_processes": {
+          "kind": "variable",
           "value": "8"
         },
-        "!frame.!checkbutton": {
+        "cache_status": {
           "kind": "variable",
-          "value": "1"
+          "value": "缓存：空闲"
         },
-        "!frame.!entry3": {
-          "kind": "text",
-          "value": "500:4300,4500:5000"
-        },
-        "!frame2.!entry": {
-          "kind": "text",
-          "value": "60"
-        },
-        "!frame3.!entry": {
-          "kind": "text",
+        "current_frame": {
+          "kind": "variable",
           "value": "4375"
         },
-        "!frame4.!checkbutton": {
+        "denoise_threshold": {
           "kind": "variable",
-          "value": "1"
-        },
-        "!frame4.!entry": {
-          "kind": "text",
           "value": "5"
         },
-        "!frame4.!checkbutton2": {
+        "folder": {
           "kind": "variable",
-          "value": 0
+          "value": "."
         },
-        "!frame4.!entry2": {
-          "kind": "text",
-          "value": "1"
+        "frame_rate": {
+          "kind": "variable",
+          "value": "60"
         },
-        "!frame4.!entry3": {
-          "kind": "text",
-          "value": "0"
+        "frame_segments": {
+          "kind": "variable",
+          "value": "500:4300,4500:5000"
         },
-        "!frame4.!entry4": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame4.!entry5": {
-          "kind": "text",
-          "value": "0"
-        },
-        "!frame4.!entry6": {
-          "kind": "text",
+        "gain": {
+          "kind": "variable",
           "value": "5"
         },
-        "!frame5.!entry": {
-          "kind": "text",
-          "value": "542"
+        "pixel_plot.canvas.toolbar.message": {
+          "kind": "variable",
+          "value": ""
         },
-        "!frame5.!entry2": {
-          "kind": "text",
-          "value": "271"
+        "pixel_plot.fixed_y_axis": {
+          "kind": "variable",
+          "value": true
         },
-        "!frame5.!entry3": {
-          "kind": "text",
+        "pixel_top_k": {
+          "kind": "variable",
           "value": "20"
         },
-        "!frame6.!horizontaldisplaypane.!frame2.!playerpixelplot.!frame.!checkbutton": {
+        "pixel_x": {
+          "kind": "variable",
+          "value": "542"
+        },
+        "pixel_y": {
+          "kind": "variable",
+          "value": "271"
+        },
+        "pseudo": {
+          "kind": "variable",
+          "value": true
+        },
+        "relative_denoise": {
+          "kind": "variable",
+          "value": "0"
+        },
+        "rotate": {
+          "kind": "variable",
+          "value": "0"
+        },
+        "shift": {
+          "kind": "variable",
+          "value": "0"
+        },
+        "use_frame_segments": {
+          "kind": "variable",
+          "value": true
+        },
+        "zoom": {
           "kind": "variable",
           "value": "1"
-        },
-        "!frame6.!horizontaldisplaypane.!frame2.!playerpixelplot.!frame2.!navigationtoolbar2tk.!checkbutton-1": {
-          "kind": "variable",
-          "value": 0
-        },
-        "!frame6.!horizontaldisplaypane.!frame2.!playerpixelplot.!frame2.!navigationtoolbar2tk.!checkbutton-2": {
-          "kind": "variable",
-          "value": 0
         }
       },
       "4 手动调参": {
@@ -866,9 +860,9 @@
           "auto_gain": true,
           "show_crosshair": false,
           "show_contour": false,
-          "show_center_line": true,
+          "show_center_line": false,
           "show_fitted_center_line": false,
-          "image_mode": "fit_img",
+          "image_mode": "ori_img",
           "show_bent": false,
           "save_crosshair": false,
           "save_targets": {
@@ -882,11 +876,11 @@
       "GIF导出": {
         "!frame.!entry": {
           "kind": "text",
-          "value": "D:/工作文件同步/20250826孔径比影响/原始图像视频"
+          "value": "."
         },
         "!frame2.!entry": {
           "kind": "text",
-          "value": "D:\\工作文件同步\\20250826孔径比影响\\spray.gif"
+          "value": "."
         },
         "!frame3.!entry": {
           "kind": "text",
@@ -907,6 +901,24 @@
         "!frame4.!entry3": {
           "kind": "text",
           "value": "400"
+        }
+      },
+      "NPY矩阵": {
+        "k": {
+          "kind": "variable",
+          "value": "10"
+        },
+        "operation": {
+          "kind": "variable",
+          "value": "multiply"
+        },
+        "path": {
+          "kind": "variable",
+          "value": ""
+        },
+        "value": {
+          "kind": "variable",
+          "value": "1"
         }
       }
     }

@@ -6,8 +6,8 @@ from pathlib import Path
 
 import numpy as np
 
-from PLIFv2.core.image_io import extract_plif_signal, list_image_files, read_image
-from PLIFv2.domain.settings import NoiseSettings
+from PLIFMix.core.image_io import extract_plif_signal, list_image_files, read_image
+from PLIFMix.domain.settings import NoiseSettings
 
 
 @dataclass

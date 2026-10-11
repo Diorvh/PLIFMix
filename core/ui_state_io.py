@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Any
 
-from PLIFv2.domain.settings import UiStateSettings
+from PLIFMix.domain.settings import UiStateSettings
 
 
 class UIStateStore:
@@ -156,7 +156,7 @@ def _is_named_container(value: Any) -> bool:
         if "vars" in attributes or any(isinstance(item, tk.Variable) for item in attributes.values()):
             return True
     module = type(value).__module__
-    return module.startswith("PLIFv2.ui") or module == "types"
+    return module.startswith("PLIFMix.ui") or module == "types"
 
 
 def _skip_named_attribute(name: str) -> bool:

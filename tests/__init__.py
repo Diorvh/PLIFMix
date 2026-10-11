@@ -1,2 +1,2 @@
-"""PLIFv2 tests."""
+"""PLIFMix tests."""
 

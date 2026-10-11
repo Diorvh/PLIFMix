@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock
 
-from PLIFv2.ui.task_runner import LatestTaskRunner, TaskRunner, close_task_runners
+from PLIFMix.ui.task_runner import LatestTaskRunner, TaskRunner, close_task_runners
 
 
 class FakeOwner:

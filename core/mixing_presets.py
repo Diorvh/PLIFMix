@@ -7,7 +7,7 @@ from typing import Any
 
 import openpyxl
 
-from PLIFv2.core.safe_io import atomic_write_text
+from PLIFMix.core.safe_io import atomic_write_text
 
 
 PRESET_FORMAT = "plifv2.manual-mixing-presets"
@@ -45,7 +45,7 @@ def load_mixing_presets(path: str | Path) -> MixingPresetCatalog:
         raise ValueError(f"预设文件不是有效 JSON: {source}") from exc
 
     if data.get("format") != PRESET_FORMAT:
-        raise ValueError(f"不是 PLIFv2 混合预设文件: {source}")
+        raise ValueError(f"不是 PLIFMix 混合预设文件: {source}")
     if data.get("version") != PRESET_VERSION:
         raise ValueError(f"不支持的预设文件版本: {data.get('version')}")
 

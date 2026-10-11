@@ -4,22 +4,22 @@ from copy import deepcopy
 from dataclasses import replace
 from threading import current_thread, main_thread
 
-from PLIFv2.application.app_state import AppState
-from PLIFv2.core.experiment_images import ExperimentTripletCache, experiment_npy_path
-from PLIFv2.core.image_io import list_image_files
-from PLIFv2.core.result_snapshot import ResultSnapshot, require_current_result
-from PLIFv2.services.average_service import AverageImageService, AverageResult
-from PLIFv2.services.calibration_service import CalibrationService
-from PLIFv2.services.davis_service import DavisImportResult, DavisService
-from PLIFv2.services.intensifier_service import CorrectionResult, IntensifierCorrectionService, MatrixFitResult
-from PLIFv2.services.distribution_service import (
+from PLIFMix.application.app_state import AppState
+from PLIFMix.core.experiment_images import ExperimentTripletCache, experiment_npy_path
+from PLIFMix.core.image_io import list_image_files
+from PLIFMix.core.result_snapshot import ResultSnapshot, require_current_result
+from PLIFMix.services.average_service import AverageImageService, AverageResult
+from PLIFMix.services.calibration_service import CalibrationService
+from PLIFMix.services.davis_service import DavisImportResult, DavisService
+from PLIFMix.services.intensifier_service import CorrectionResult, IntensifierCorrectionService, MatrixFitResult
+from PLIFMix.services.distribution_service import (
     DistributionFitResult,
     DistributionFitService,
     DistributionRegistrationResult,
 )
-from PLIFv2.services.mixing_service import ManualDisplayResult, ManualMixingResult, MixingService
-from PLIFv2.services.noise_service import NoiseAnalysisService
-from PLIFv2.algorithms.mixing import ShiftSearchResult
+from PLIFMix.services.mixing_service import ManualDisplayResult, ManualMixingResult, MixingService
+from PLIFMix.services.noise_service import NoiseAnalysisService
+from PLIFMix.algorithms.mixing import ShiftSearchResult
 
 
 class PLIFActions:

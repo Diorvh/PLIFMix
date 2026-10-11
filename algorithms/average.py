@@ -7,7 +7,7 @@ from typing import Sequence
 
 import numpy as np
 
-from PLIFv2.core.image_io import read_image, to_float_single_channel
+from PLIFMix.core.image_io import read_image, to_float_single_channel
 
 
 class AverageSetError(RuntimeError):

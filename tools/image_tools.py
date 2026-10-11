@@ -6,8 +6,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from PLIFv2.core.image_io import list_image_files, read_image, write_tif
-from PLIFv2.core.safe_io import atomic_save_npy, atomic_write
+from PLIFMix.core.image_io import list_image_files, read_image, write_tif
+from PLIFMix.core.safe_io import atomic_save_npy, atomic_write
 
 
 def export_gif(

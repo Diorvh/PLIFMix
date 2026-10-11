@@ -1,2 +1,2 @@
-"""Data models for PLIFv2."""
+"""Data models for PLIFMix."""
 

@@ -7,15 +7,15 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
-from PLIFv2.core.config_io import load_settings, save_settings
-from PLIFv2.core.ui_state_io import UIStateStore
-from PLIFv2.domain.settings import (
+from PLIFMix.core.config_io import load_settings, save_settings
+from PLIFMix.core.ui_state_io import UIStateStore
+from PLIFMix.domain.settings import (
     SETTINGS_SCHEMA_VERSION,
     AverageSettings,
     DistributionSettings,
     UiStateSettings,
 )
-from PLIFv2.ui.settings_binding import set_dataclass_text_field, set_dataclass_text_fields
+from PLIFMix.ui.settings_binding import set_dataclass_text_field, set_dataclass_text_fields
 
 
 class SettingsPersistenceTests(unittest.TestCase):

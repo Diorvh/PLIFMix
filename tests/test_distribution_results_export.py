@@ -8,16 +8,16 @@ import unittest
 import numpy as np
 import openpyxl
 
-from PLIFv2.core.result_snapshot import ResultSnapshot
-from PLIFv2.domain.settings import DistributionSettings
-from PLIFv2.services.distribution_presentation import (
+from PLIFMix.core.result_snapshot import ResultSnapshot
+from PLIFMix.domain.settings import DistributionSettings
+from PLIFMix.services.distribution_presentation import (
     format_center_line_fit,
     format_profile_fit,
     format_surface_fits,
 )
-from PLIFv2.services.distribution_service import DistributionFitService
-from PLIFv2.services.distribution_results import DistributionFitParameters, DistributionFitResult
-from PLIFv2.services.distribution_workers import SurfaceFitParameters
+from PLIFMix.services.distribution_service import DistributionFitService
+from PLIFMix.services.distribution_results import DistributionFitParameters, DistributionFitResult
+from PLIFMix.services.distribution_workers import SurfaceFitParameters
 
 
 def _fit(image_name: str, start: float) -> DistributionFitParameters:

@@ -16,9 +16,9 @@ args = parser.parse_args()
 sys.path.insert(0, str(args.repo.parent))
 
 import numpy as np
-from PLIFv2.core.config_io import load_settings
-from PLIFv2.services.distribution_service import DistributionFitService
-from PLIFv2.services.mixing_service import MixingService
+from PLIFMix.core.config_io import load_settings
+from PLIFMix.services.distribution_service import DistributionFitService
+from PLIFMix.services.mixing_service import MixingService
 
 
 def main() -> None:

@@ -6,7 +6,7 @@ from typing import Iterable
 import cv2
 import numpy as np
 
-from PLIFv2.core.safe_io import atomic_save_npy, atomic_write_bytes
+from PLIFMix.core.safe_io import atomic_save_npy, atomic_write_bytes
 
 
 def read_image(path: str | Path) -> np.ndarray:

@@ -6,9 +6,9 @@ import unittest
 
 import numpy as np
 
-from PLIFv2.algorithms.mixing import shift_image
-from PLIFv2.ui.coordinate_mapping import ImageCoordinateMapping
-from PLIFv2.ui.pages.image_player_page import ImagePlayerPage
+from PLIFMix.algorithms.mixing import shift_image
+from PLIFMix.ui.coordinate_mapping import ImageCoordinateMapping
+from PLIFMix.ui.pages.image_player_page import ImagePlayerPage
 
 
 class _Value:

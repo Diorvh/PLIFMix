@@ -11,12 +11,12 @@ import cv2
 import numpy as np
 import openpyxl
 
-from PLIFv2.algorithms.average import average_image_sets, average_images, split_average_tasks
-from PLIFv2.application.app_state import AppState
-from PLIFv2.core.config_io import load_settings, save_settings
-from PLIFv2.core.experiment_images import load_experiment_triplet
-from PLIFv2.core.image_io import write_tif
-from PLIFv2.domain.settings import (
+from PLIFMix.algorithms.average import average_image_sets, average_images, split_average_tasks
+from PLIFMix.application.app_state import AppState
+from PLIFMix.core.config_io import load_settings, save_settings
+from PLIFMix.core.experiment_images import load_experiment_triplet
+from PLIFMix.core.image_io import write_tif
+from PLIFMix.domain.settings import (
     AppSettings,
     AverageSettings,
     CalibrationSettings,
@@ -27,16 +27,16 @@ from PLIFv2.domain.settings import (
     NoiseSettings,
     ShiftSearchSettings,
 )
-from PLIFv2.services.average_service import AverageImageService
-from PLIFv2.services.calibration_service import CalibrationService
-from PLIFv2.services.davis_service import DavisService
-from PLIFv2.services.distribution_service import DistributionFitService
-from PLIFv2.services.intensifier_service import IntensifierCorrectionService
-from PLIFv2.services.mixing_service import MixingService
-from PLIFv2.services.noise_service import NoiseAnalysisService
-from PLIFv2.tools.image_tools import create_colorbar, export_gif, top_k_values, transform_npy
-from PLIFv2.ui.image_display import ImageDisplay
-from PLIFv2.ui.app_window import DISTRIBUTION_PAGE_KEY, MANUAL_MIXING_PAGE_KEY, PLIFAppWindow
+from PLIFMix.services.average_service import AverageImageService
+from PLIFMix.services.calibration_service import CalibrationService
+from PLIFMix.services.davis_service import DavisService
+from PLIFMix.services.distribution_service import DistributionFitService
+from PLIFMix.services.intensifier_service import IntensifierCorrectionService
+from PLIFMix.services.mixing_service import MixingService
+from PLIFMix.services.noise_service import NoiseAnalysisService
+from PLIFMix.tools.image_tools import create_colorbar, export_gif, top_k_values, transform_npy
+from PLIFMix.ui.image_display import ImageDisplay
+from PLIFMix.ui.app_window import DISTRIBUTION_PAGE_KEY, MANUAL_MIXING_PAGE_KEY, PLIFAppWindow
 
 
 class WorkflowSmokeTests(unittest.TestCase):
@@ -357,7 +357,7 @@ class WorkflowSmokeTests(unittest.TestCase):
         state.settings.ui.app["active_page"] = DISTRIBUTION_PAGE_KEY
         state.save = lambda: save_settings(state.settings, self.root / "settings.json")
         try:
-            with patch("PLIFv2.ui.app_window.AppState", return_value=state):
+            with patch("PLIFMix.ui.app_window.AppState", return_value=state):
                 app = PLIFAppWindow()
         except tk.TclError:
             self.skipTest("Tk is unavailable")

@@ -4,10 +4,10 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 
-from PLIFv2.application.app_state import AppState
-from PLIFv2.core.config_io import load_settings, save_settings
-from PLIFv2.domain.settings import AppSettings
-from PLIFv2.ui.app_window import PLIFAppWindow
+from PLIFMix.application.app_state import AppState
+from PLIFMix.core.config_io import load_settings, save_settings
+from PLIFMix.domain.settings import AppSettings
+from PLIFMix.ui.app_window import PLIFAppWindow
 
 
 class UIStateIntegrationTests(unittest.TestCase):
@@ -16,7 +16,7 @@ class UIStateIntegrationTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             path = Path(directory) / "settings.json"
             state.save = lambda: save_settings(state.settings, path)
-            with patch("PLIFv2.ui.app_window.AppState", return_value=state):
+            with patch("PLIFMix.ui.app_window.AppState", return_value=state):
                 app = PLIFAppWindow()
             app.withdraw()
             try:

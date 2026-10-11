@@ -7,7 +7,7 @@ from unittest.mock import patch
 import numpy as np
 from tkinter import ttk
 
-from PLIFv2.ui.pages.image_player_page import ImagePlayerPage
+from PLIFMix.ui.pages.image_player_page import ImagePlayerPage
 
 
 class _Value:
@@ -29,7 +29,7 @@ class _Info:
 class PlayerTimerTests(unittest.TestCase):
     def test_start_restart_keeps_one_tick_chain_and_moves_one_frame_each_time(self) -> None:
         page = _make_page(frame_count=4)
-        with patch("PLIFv2.ui.pages.image_player_page.time.perf_counter", return_value=0.0):
+        with patch("PLIFMix.ui.pages.image_player_page.time.perf_counter", return_value=0.0):
             page.start(1)
             first_job = page._tick_after_id
             page.start(-1)
@@ -46,7 +46,7 @@ class PlayerTimerTests(unittest.TestCase):
         page.play_delta = 1
         clock_values = iter((10.0, 10.25))
         with patch(
-            "PLIFv2.ui.pages.image_player_page.time.perf_counter",
+            "PLIFMix.ui.pages.image_player_page.time.perf_counter",
             side_effect=lambda: next(clock_values),
         ):
             page._tick()
@@ -60,7 +60,7 @@ class PlayerTimerTests(unittest.TestCase):
         page.play_delta = 1
         clock_values = iter((10.0, 10.1))
         with patch(
-            "PLIFv2.ui.pages.image_player_page.time.perf_counter",
+            "PLIFMix.ui.pages.image_player_page.time.perf_counter",
             side_effect=lambda: next(clock_values),
         ):
             page._tick()
@@ -71,7 +71,7 @@ class PlayerTimerTests(unittest.TestCase):
 
     def test_stop_step_hide_and_destroy_cancel_pending_tick(self) -> None:
         page = _make_page(frame_count=3)
-        with patch("PLIFv2.ui.pages.image_player_page.time.perf_counter", return_value=0.0):
+        with patch("PLIFMix.ui.pages.image_player_page.time.perf_counter", return_value=0.0):
             page.start(1)
         first_job = page._tick_after_id
 
@@ -80,14 +80,14 @@ class PlayerTimerTests(unittest.TestCase):
         self.assertEqual(page._tick_after_id, None)
         self.assertEqual(page.play_delta, 0)
 
-        with patch("PLIFv2.ui.pages.image_player_page.time.perf_counter", return_value=0.0):
+        with patch("PLIFMix.ui.pages.image_player_page.time.perf_counter", return_value=0.0):
             page.start(1)
         second_job = page._tick_after_id
         page.step(1)
         self.assertEqual(page.cancelled_jobs, [first_job, second_job])
         self.assertEqual(page.play_delta, 0)
 
-        with patch("PLIFv2.ui.pages.image_player_page.time.perf_counter", return_value=0.0):
+        with patch("PLIFMix.ui.pages.image_player_page.time.perf_counter", return_value=0.0):
             page.start(1)
         third_job = page._tick_after_id
         page.on_page_hidden()

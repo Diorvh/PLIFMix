@@ -6,10 +6,10 @@ from pathlib import Path
 
 import numpy as np
 
-from PLIFv2.core.image_io import read_image, save_float_image
-from PLIFv2.core.paths import path_is_set
-from PLIFv2.core.safe_io import atomic_copy2
-from PLIFv2.domain.settings import DavisSettings
+from PLIFMix.core.image_io import read_image, save_float_image
+from PLIFMix.core.paths import path_is_set
+from PLIFMix.core.safe_io import atomic_copy2
+from PLIFMix.domain.settings import DavisSettings
 
 
 @dataclass

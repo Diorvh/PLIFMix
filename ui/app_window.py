@@ -2,26 +2,28 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import tkinter as tk
-from tkinter import ttk
+from PLIFMix.ui import localized_widgets as ttk
 
-from PLIFv2.application.actions import PLIFActions
-from PLIFv2.application.app_state import AppState
-from PLIFv2.core.plot_style import configure_matplotlib
-from PLIFv2.core.ui_state_io import UIStateStore
-from PLIFv2.ui.mpl_canvas import set_canvas_tree_active
-from PLIFv2.ui.task_runner import close_task_runners
-from PLIFv2.ui.pages.average_page import AveragePage
-from PLIFv2.ui.pages.davis_page import DavisPage
-from PLIFv2.ui.pages.distribution_page import DistributionPage
-from PLIFv2.ui.pages.intensifier_page import IntensifierPage
-from PLIFv2.ui.pages.manual_mixing_page import ManualMixingPage
-from PLIFv2.ui.pages.noise_page import NoisePage
-from PLIFv2.ui.pages.colorbar_page import ColorbarPage
-from PLIFv2.ui.pages.distribution_comparison_page import DistributionComparisonPage
-from PLIFv2.ui.pages.gif_export_page import GifExportPage
-from PLIFv2.ui.pages.image_player_page import ImagePlayerPage
-from PLIFv2.ui.pages.image_viewer_page import ImageViewerPage
-from PLIFv2.ui.pages.npy_page import NpyPage
+from PLIFMix.application.actions import PLIFActions
+from PLIFMix.application.app_state import AppState
+from PLIFMix.core.plot_style import configure_matplotlib
+from PLIFMix.core.paths import bundled_sample_folder
+from PLIFMix.core.ui_state_io import UIStateStore
+from PLIFMix.ui.localization import LanguageController
+from PLIFMix.ui.mpl_canvas import set_canvas_tree_active
+from PLIFMix.ui.task_runner import close_task_runners
+from PLIFMix.ui.pages.average_page import AveragePage
+from PLIFMix.ui.pages.davis_page import DavisPage
+from PLIFMix.ui.pages.distribution_page import DistributionPage
+from PLIFMix.ui.pages.intensifier_page import IntensifierPage
+from PLIFMix.ui.pages.manual_mixing_page import ManualMixingPage
+from PLIFMix.ui.pages.noise_page import NoisePage
+from PLIFMix.ui.pages.colorbar_page import ColorbarPage
+from PLIFMix.ui.pages.distribution_comparison_page import DistributionComparisonPage
+from PLIFMix.ui.pages.gif_export_page import GifExportPage
+from PLIFMix.ui.pages.image_player_page import ImagePlayerPage
+from PLIFMix.ui.pages.image_viewer_page import ImageViewerPage
+from PLIFMix.ui.pages.npy_page import NpyPage
 
 
 MANUAL_MIXING_PAGE_KEY = "4 手动调参"
@@ -79,15 +81,17 @@ class PLIFAppWindow(tk.Tk):
     def __init__(self):
         super().__init__()
         configure_matplotlib()
-        self.title("PLIFv2 - 互击式喷嘴混合特性处理")
         self.geometry("1180x760")
         self.minsize(960, 620)
         self.after_idle(lambda: self.state("zoomed"))
         self.state_model = AppState()
         self.ui_state = UIStateStore(self.state_model.settings.ui)
+        self._ui_language = LanguageController(self.ui_state.get_app_value("language", "zh"))
         self.actions = PLIFActions(self.state_model)
         self._setup_style()
         self._setup_ui()
+        self._ui_language.register(self)
+        self.refresh_language()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _setup_style(self) -> None:
@@ -103,7 +107,9 @@ class PLIFAppWindow(tk.Tk):
     def _setup_ui(self) -> None:
         header = ttk.Frame(self)
         header.pack(fill="x", padx=10, pady=(10, 4))
-        ttk.Label(header, text="PLIFv2", font=("Microsoft YaHei UI", 16, "bold")).pack(side="left")
+        self._language_button = ttk.Button(header, command=self._toggle_language, width=10)
+        self._language_button.pack(side="right", padx=(12, 0))
+        ttk.Label(header, text="PLIFMix", font=("Microsoft YaHei UI", 16, "bold")).pack(side="left")
         ttk.Label(header, text="平均图 -> 像增强器修正 -> Davis -> 手动调参 -> 质量分布拟合").pack(side="left", padx=16)
 
         self.workflow_specs = [
@@ -148,6 +154,22 @@ class PLIFAppWindow(tk.Tk):
         if saved_key not in self.pages:
             saved_key = self._legacy_saved_page_key()
         self.after_idle(lambda: self._show_page(saved_key))
+
+    def _toggle_language(self) -> None:
+        if getattr(self, "_closing", False):
+            return
+        language = "en" if self._ui_language.language == "zh" else "zh"
+        self._ui_language.set_language(language)
+        self.ui_state.set_app_value("language", language)
+
+    def refresh_language(self) -> None:
+        title = (
+            "PLIFMix - 正在等待当前任务结束并关闭"
+            if getattr(self, "_closing", False)
+            else "PLIFMix - 互击式喷嘴混合特性处理"
+        )
+        self.title(self._ui_language.text(title))
+        self._language_button.configure(text="English" if self._ui_language.language == "zh" else "中文")
 
     def _migrate_saved_page_keys(self) -> None:
         page_key_mapping = [
@@ -194,7 +216,14 @@ class PLIFAppWindow(tk.Tk):
                 self.pages[self.active_page_key].pack_forget()
             selected.pack(fill="both", expand=True)
             self.active_page_key = key
-        selected.ensure_loaded()
+        first_open = selected.content is None
+        content = selected.ensure_loaded()
+        if (
+            first_open
+            and key in {MANUAL_MIXING_PAGE_KEY, DISTRIBUTION_PAGE_KEY}
+            and content.settings.image_folder == bundled_sample_folder()
+        ):
+            content.process()
         is_secondary = key in {page_key for page_key, _factory in self.secondary_specs}
         self.primary_tabs.select(None if is_secondary else key)
         self.secondary_tabs.select(key if is_secondary else None)
@@ -208,7 +237,7 @@ class PLIFAppWindow(tk.Tk):
         self._closing_runners = close_task_runners(self)
         for page in self.pages.values():
             page.notify_hidden()
-        self.title("PLIFv2 - 正在等待当前任务结束并关闭")
+        self.refresh_language()
         self._finish_close()
 
     def _finish_close(self) -> None:
@@ -216,6 +245,7 @@ class PLIFAppWindow(tk.Tk):
             self.after(50, self._finish_close)
             return
         self.ui_state.set_app_value("active_page", self.active_page_key)
+        self.ui_state.set_app_value("language", self._ui_language.language)
         self.ui_state.set_app_value("last_secondary_page", self.last_secondary_key)
         if self.active_page_key in {key for key, _factory in self.workflow_specs}:
             self.ui_state.set_app_value("main_tab", [key for key, _factory in self.workflow_specs].index(self.active_page_key))

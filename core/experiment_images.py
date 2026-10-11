@@ -7,7 +7,7 @@ from threading import RLock
 
 import numpy as np
 
-from PLIFv2.core.image_io import read_image
+from PLIFMix.core.image_io import read_image
 
 
 @dataclass(frozen=True)

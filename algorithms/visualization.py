@@ -7,7 +7,7 @@ import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
-from PLIFv2.core.plot_style import configure_matplotlib
+from PLIFMix.core.plot_style import configure_matplotlib
 
 ZERO_COLOR = [128, 128, 128]
 

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import tkinter as tk
 from pathlib import Path
-from tkinter import ttk
+from PLIFMix.ui import localized_widgets as ttk
 
-from PLIFv2.core.mixing_presets import default_mixing_preset_path
+from PLIFMix.core.mixing_presets import default_mixing_preset_path
 
 
 class ExperimentTripletControls(ttk.Frame):

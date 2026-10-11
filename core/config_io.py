@@ -5,10 +5,19 @@ from dataclasses import fields, is_dataclass
 from pathlib import Path
 from typing import Any, TypeVar, get_args, get_origin, get_type_hints
 
-from PLIFv2.core.safe_io import atomic_write_text
-from PLIFv2.domain.settings import SETTINGS_SCHEMA_VERSION, AppSettings, dataclass_to_jsonable
+from PLIFMix.core.safe_io import atomic_write_text
+from PLIFMix.core.paths import bundled_sample_folder, path_is_set
+from PLIFMix.domain.settings import SETTINGS_SCHEMA_VERSION, AppSettings, dataclass_to_jsonable
 
 T = TypeVar("T")
+
+_SAMPLE_OUTPUT_PATHS = {
+    "manual": {"output_folder": Path("outputs/sample/mixing")},
+    "distribution": {
+        "output_folder": Path("outputs/sample/distribution"),
+        "image_save_folder": Path("outputs/sample/images"),
+    },
+}
 
 
 def default_config_path() -> Path:
@@ -20,6 +29,8 @@ def save_settings(settings: AppSettings, path: Path | None = None) -> Path:
     settings.schema_version = SETTINGS_SCHEMA_VERSION
     payload = dataclass_to_jsonable(settings)
     payload["schema_version"] = SETTINGS_SCHEMA_VERSION
+    if path is None:
+        _make_sample_paths_portable(payload)
     return atomic_write_text(
         config_path,
         json.dumps(payload, ensure_ascii=False, indent=2),
@@ -29,7 +40,8 @@ def save_settings(settings: AppSettings, path: Path | None = None) -> Path:
 def load_settings(path: Path | None = None) -> AppSettings:
     config_path = path or default_config_path()
     if not config_path.exists():
-        return AppSettings()
+        settings = AppSettings()
+        return _with_sample_defaults(settings, fill_missing=path is None)
     data = json.loads(config_path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError("设置文件必须是 JSON 对象")
@@ -43,7 +55,56 @@ def load_settings(path: Path | None = None) -> AppSettings:
     elif isinstance(data.get("ui"), dict):
         data["ui"] = _normalise_ui_state(data["ui"])
     data["schema_version"] = SETTINGS_SCHEMA_VERSION
-    return _from_dict(AppSettings, data)
+    settings = _from_dict(AppSettings, data)
+    return _with_sample_defaults(settings, fill_missing=path is None)
+
+
+def _with_sample_defaults(settings: AppSettings, *, fill_missing: bool) -> AppSettings:
+    sample_folder = bundled_sample_folder()
+    if not all((sample_folder / f"实验编号{number}.npy").is_file() for number in (67, 57, 45)):
+        return settings
+    defaults = None
+    using_sample = False
+    for section, output_paths in _SAMPLE_OUTPUT_PATHS.items():
+        current = getattr(settings, section)
+        if not path_is_set(current.image_folder):
+            if not fill_missing:
+                continue
+            if defaults is None:
+                defaults = json.loads((sample_folder / "parameters.json").read_text(encoding="utf-8"))
+            replacement = _from_dict(type(current), defaults[section])
+            for name in (*output_paths, "fit_result_path"):
+                value = getattr(current, name, Path())
+                if path_is_set(value):
+                    setattr(replacement, name, value)
+            current = replacement
+            setattr(settings, section, current)
+            current.image_folder = sample_folder
+        elif current.image_folder == Path(sample_folder.name):
+            current.image_folder = sample_folder
+        if current.image_folder != sample_folder:
+            continue
+        using_sample = True
+        for name, relative_path in output_paths.items():
+            value = getattr(current, name)
+            if not path_is_set(value) or value == relative_path:
+                setattr(current, name, sample_folder.parent / relative_path)
+    if using_sample and fill_missing:
+        settings.ui.app.setdefault("active_page", "4 手动调参")
+    return settings
+
+
+def _make_sample_paths_portable(payload: dict[str, Any]) -> None:
+    sample_folder = bundled_sample_folder()
+    for section, output_paths in _SAMPLE_OUTPUT_PATHS.items():
+        values = payload[section]
+        if Path(values["image_folder"]) not in {sample_folder, Path(sample_folder.name)}:
+            continue
+        if Path(values["image_folder"]) == sample_folder:
+            values["image_folder"] = sample_folder.name
+        for name, relative_path in output_paths.items():
+            if Path(values[name]) == sample_folder.parent / relative_path:
+                values[name] = relative_path.as_posix()
 
 
 def _read_schema_version(data: dict[str, Any]) -> int:

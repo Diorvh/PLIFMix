@@ -6,11 +6,11 @@ import re
 import time
 import uuid
 
-from PLIFv2.algorithms.average import AverageSetError, average_image_sets
-from PLIFv2.core.image_io import list_image_files, save_float_image
-from PLIFv2.core.paths import path_is_set
-from PLIFv2.core.safe_io import rename_path
-from PLIFv2.domain.settings import AverageSettings, IntensifierAverageSettings
+from PLIFMix.algorithms.average import AverageSetError, average_image_sets
+from PLIFMix.core.image_io import list_image_files, save_float_image
+from PLIFMix.core.paths import path_is_set
+from PLIFMix.core.safe_io import rename_path
+from PLIFMix.domain.settings import AverageSettings, IntensifierAverageSettings
 
 
 @dataclass

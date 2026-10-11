@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PLIFv2.core.image_coordinates import (
+from PLIFMix.core.image_coordinates import (
     Coordinate,
     ImageCoordinateMapping,
     _normalize_shape,

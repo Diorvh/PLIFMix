@@ -5,11 +5,11 @@ from pathlib import Path
 
 import numpy as np
 
-from PLIFv2.algorithms.intensifier import fit_linear_gain_matrix
-from PLIFv2.core.image_io import extract_plif_signal, list_image_files, read_image, save_float_image
-from PLIFv2.core.paths import path_is_set
-from PLIFv2.core.result_snapshot import ResultSnapshot
-from PLIFv2.domain.settings import CalibrationSettings
+from PLIFMix.algorithms.intensifier import fit_linear_gain_matrix
+from PLIFMix.core.image_io import extract_plif_signal, list_image_files, read_image, save_float_image
+from PLIFMix.core.paths import path_is_set
+from PLIFMix.core.result_snapshot import ResultSnapshot
+from PLIFMix.domain.settings import CalibrationSettings
 
 
 @dataclass

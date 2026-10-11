@@ -5,11 +5,11 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock
 
-from PLIFv2.application.actions import PLIFActions
-from PLIFv2.core.result_snapshot import ResultSnapshot, require_current_result
-from PLIFv2.domain.settings import AppSettings, DistributionSettings
-from PLIFv2.services.distribution_service import DistributionFitResult
-from PLIFv2.ui.pages.distribution_page import DistributionPage
+from PLIFMix.application.actions import PLIFActions
+from PLIFMix.core.result_snapshot import ResultSnapshot, require_current_result
+from PLIFMix.domain.settings import AppSettings, DistributionSettings
+from PLIFMix.services.distribution_service import DistributionFitResult
+from PLIFMix.ui.pages.distribution_page import DistributionPage
 
 
 class ResultSnapshotTests(unittest.TestCase):
@@ -20,14 +20,22 @@ class ResultSnapshotTests(unittest.TestCase):
         snapshot = ResultSnapshot.capture(self.settings, ())
         self.settings.save_name = "DR1_U40"
         self.settings.fit_result_path = Path("chosen.xlsx")
+        self.settings.image_save_folder = Path("saved-images")
         self.settings.gain = 3
         exported = snapshot.export_settings(self.settings)
         self.assertEqual(exported.save_name, "DR1_U40")
         self.assertEqual(exported.fit_result_path, Path("chosen.xlsx"))
+        self.assertEqual(exported.image_save_folder, Path("saved-images"))
         self.assertEqual(dict(snapshot.values)["save_name"], "")
         self.settings.f_exp_no = "4"
         with self.assertRaisesRegex(ValueError, "实验编号"):
             snapshot.export_settings(self.settings)
+
+    def test_single_image_save_folder_does_not_invalidate_a_result(self):
+        snapshot = ResultSnapshot.capture(self.settings, ())
+        changed = deepcopy(self.settings)
+        changed.image_save_folder = Path("another-folder")
+        snapshot.require_current(changed)
 
     def test_every_compute_field_invalidates_old_result(self):
         snapshot = ResultSnapshot.capture(self.settings, ())

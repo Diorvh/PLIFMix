@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 from copy import deepcopy
-from tkinter import ttk
+from PLIFMix.ui import localized_widgets as ttk
 
-from PLIFv2.application.actions import PLIFActions
-from PLIFv2.ui.widgets import BoundForm, FormField, LogBox, run_in_background
+from PLIFMix.application.actions import PLIFActions
+from PLIFMix.ui.widgets import BoundForm, FormField, LogBox, run_in_background
 
 
 class DavisPage(ttk.Frame):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from pathlib import Path
-from tkinter import ttk
+from PLIFMix.ui import localized_widgets as ttk
 
 import cv2
 import numpy as np
@@ -10,8 +10,8 @@ from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.figure import Figure
 from PIL import Image, ImageTk
 
-from PLIFv2.core.image_io import read_image, to_16bit_plif_signal, write_tif
-from PLIFv2.core.image_rendering import (
+from PLIFMix.core.image_io import read_image, to_16bit_plif_signal, write_tif
+from PLIFMix.core.image_rendering import (
     ComputedRenderOptions,
     OverlayOptions,
     RawRenderOptions,
@@ -25,9 +25,9 @@ from PLIFv2.core.image_rendering import (
     rotate_special_points_quarter_turns as _rotate_special_points_quarter_turns,
     scale_gray_for_display as _scale_gray_for_display,
 )
-from PLIFv2.ui.coordinate_mapping import ImageCoordinateMapping
-from PLIFv2.ui.components.display_pane import HorizontalDisplayPane
-from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
+from PLIFMix.ui.coordinate_mapping import ImageCoordinateMapping
+from PLIFMix.ui.components.display_pane import HorizontalDisplayPane
+from PLIFMix.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
 
 
 class ViewerPanel(ttk.Frame):

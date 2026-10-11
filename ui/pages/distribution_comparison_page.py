@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from tkinter import ttk
+from PLIFMix.ui import localized_widgets as ttk
 
 import numpy as np
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.figure import Figure
 
-from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
+from PLIFMix.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
 
 class DistributionComparisonPage(ttk.Frame):
     def __init__(self, master):

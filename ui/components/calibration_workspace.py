@@ -3,17 +3,17 @@ from __future__ import annotations
 import tkinter as tk
 from copy import deepcopy
 from pathlib import Path
-from tkinter import filedialog, ttk
+from PLIFMix.ui import localized_dialogs as filedialog, localized_widgets as ttk
 
 import numpy as np
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.figure import Figure
 from matplotlib.patches import Circle
 
-from PLIFv2.application.actions import PLIFActions
-from PLIFv2.core.image_io import read_image
-from PLIFv2.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
-from PLIFv2.ui.widgets import BoundForm, FormField, LogBox, run_in_background
+from PLIFMix.application.actions import PLIFActions
+from PLIFMix.core.image_io import read_image
+from PLIFMix.ui.mpl_canvas import DebouncedFigureCanvasTkAgg
+from PLIFMix.ui.widgets import BoundForm, FormField, LogBox, run_in_background
 
 
 class MatrixFitWorkspace:

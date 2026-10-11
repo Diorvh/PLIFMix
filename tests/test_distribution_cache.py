@@ -7,11 +7,11 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 
-from PLIFv2.core.experiment_images import ExperimentImageTriplet
-from PLIFv2.domain.settings import DistributionSettings
-from PLIFv2.services import distribution_service as distribution_service_module
-from PLIFv2.services.distribution_service import DistributionFitService
-from PLIFv2.services.distribution_workers import SurfaceFitParameters
+from PLIFMix.core.experiment_images import ExperimentImageTriplet
+from PLIFMix.domain.settings import DistributionSettings
+from PLIFMix.services import distribution_service as distribution_service_module
+from PLIFMix.services.distribution_service import DistributionFitService
+from PLIFMix.services.distribution_workers import SurfaceFitParameters
 
 
 class _FreshTripletCache:
