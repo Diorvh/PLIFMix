@@ -12,7 +12,6 @@ from typing import Any, Iterator
 import numpy as np
 
 
-_EXCEL_SUFFIXES = {".xlsx", ".xlsm", ".xltx", ".xltm", ".xlsb", ".xls"}
 _LOCK_ERRNOS = {errno.EACCES, errno.EBUSY, errno.EPERM}
 
 
@@ -21,8 +20,8 @@ class FileOccupiedError(PermissionError):
 
     def __init__(self, path: Path, operation: str):
         super().__init__(
-            f"Cannot {operation}: {path}. The file is locked by another application. "
-            "Close the application that is using this file and try again."
+            f"Cannot {operation}: {path}. The file is in use or write access is denied. "
+            "Save and close it in the other application, check write permissions, and try again."
         )
         self.path = path
         self.operation = operation
@@ -83,24 +82,19 @@ def rename_path(source: str | Path, destination: str | Path) -> Path:
         raise
 
 
-def close_open_excel_workbook(path: str | Path) -> bool:
-    return _close_open_excel_workbook(Path(path))
-
-
-def reopen_external_file(path: str | Path) -> None:
-    _reopen_excel_workbook(Path(path))
-
-
 @contextmanager
 def excel_write_session(path: str | Path) -> Iterator[None]:
-    """Close an open Excel workbook without saving, then reopen it on exit."""
+    """Check an existing workbook without altering it or controlling Excel."""
     target = Path(path)
-    was_open = close_open_excel_workbook(target)
     try:
-        yield
-    finally:
-        if was_open:
-            reopen_external_file(target)
+        with target.open("r+b"):
+            pass
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        raise _occupied_error(target, "write Excel workbook", exc) from exc
+    # A later lock can still appear; atomic replacement handles that separately.
+    yield
 
 
 def _is_lock_error(exc: OSError) -> bool:
@@ -126,46 +120,8 @@ def _temporary_path(target: Path) -> Path:
 
 
 def _replace_temporary(temporary: Path, target: Path, operation: str) -> Path:
-    reopened_excel = False
     try:
         os.replace(temporary, target)
     except OSError as exc:
-        if not _is_lock_error(exc) or not _close_open_excel_workbook(target):
-            raise _occupied_error(target, operation, exc) from exc
-        reopened_excel = True
-        try:
-            os.replace(temporary, target)
-        except OSError as retry_exc:
-            raise _occupied_error(target, operation, retry_exc) from retry_exc
-    if reopened_excel:
-        _reopen_excel_workbook(target)
+        raise _occupied_error(target, operation, exc) from exc
     return target
-
-
-def _close_open_excel_workbook(target: Path) -> bool:
-    if target.suffix.lower() not in _EXCEL_SUFFIXES:
-        return False
-    try:
-        from comtypes.client import GetActiveObject
-
-        excel = GetActiveObject("Excel.Application")
-        target_key = _path_key(target)
-        for index in range(1, int(excel.Workbooks.Count) + 1):
-            workbook = excel.Workbooks.Item(index)
-            if _path_key(Path(str(workbook.FullName))) == target_key:
-                workbook.Close(SaveChanges=False)
-                return True
-    except Exception:
-        return False
-    return False
-
-
-def _reopen_excel_workbook(path: Path) -> None:
-    try:
-        os.startfile(path)  # type: ignore[attr-defined]
-    except OSError:
-        pass
-
-
-def _path_key(path: Path) -> str:
-    return os.path.normcase(os.path.abspath(path))

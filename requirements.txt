@@ -4,4 +4,3 @@ openpyxl
 opencv-python
 Pillow
 scipy
-comtypes
