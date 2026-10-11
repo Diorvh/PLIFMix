@@ -1,32 +1,32 @@
-# PLIFMix User Guide
+# PLIFMix 详细使用文档
 
-[Project overview](../README.md)
+**[English version](USER_GUIDE_EN.md)** | [返回 README](../README.md)
 
-This guide covers operation rather than code architecture. English controls are paired with their Chinese names where useful. Switching language does not rename files or change settings or calculated results.
+本文介绍软件的实际使用方法，不介绍代码架构。必要时附上英文控件名称，便于对照中英文界面。语言切换不会修改文件名、处理参数或计算结果。
 
-## Contents
+## 目录
 
-1. [Install and start](#1-install-and-start)
-2. [Prepare inputs](#2-prepare-inputs)
-3. [Average experimental frames](#3-average-experimental-frames)
-4. [Correct the image intensifier response](#4-correct-the-image-intensifier-response)
-5. [Prepare and import DaVis files](#5-prepare-and-import-davis-files)
-6. [Analyze mixing](#6-analyze-mixing)
-7. [Fit intensity distributions](#7-fit-intensity-distributions)
-8. [Use the example](#8-use-the-example)
-9. [Other tools](#9-other-tools)
-10. [Troubleshooting and records](#10-troubleshooting-and-records)
+1. [安装与启动](#安装与启动)
+2. [准备输入数据](#准备输入数据)
+3. [计算实验平均图](#计算实验平均图)
+4. [像增强器修正](#像增强器修正)
+5. [DaVis 输入与输出整理](#davis-输入与输出整理)
+6. [混合特性分析](#混合特性分析)
+7. [强度分布拟合](#强度分布拟合)
+8. [使用内置样例](#使用内置样例)
+9. [其他工具](#其他工具)
+10. [常见问题与结果记录](#常见问题与结果记录)
 
-## 1. Install and Start
+## 安装与启动
 
-Use Windows with 64-bit Python 3.11 or later, including Tcl/Tk. Put the complete project in a writable folder; its name need not be `PLIFMix`. Open a terminal there:
+使用 Windows 系统和带 Tcl/Tk 组件的 64 位 Python 3.11 或更高版本。将完整项目放在可写目录，目录名不必为 `PLIFMix`。在项目目录打开终端：
 
 ```powershell
 python -m pip install -r requirements.txt
 python main.py
 ```
 
-Alternatively, use the bundled installation and startup batch files. With several Python installations, ensure both actions use the same interpreter. For an isolated environment, use its interpreter explicitly:
+也可以使用 `安装依赖.bat` 和 `启动PLIFMix.bat`。如果安装了多个 Python，请确保安装依赖和启动时使用同一个解释器。需要独立虚拟环境时，可以显式调用其中的解释器：
 
 ```powershell
 python -m venv .venv
@@ -34,179 +34,179 @@ python -m venv .venv
 .\.venv\Scripts\python.exe main.py
 ```
 
-The batch files use `py`, or fall back to `python`; they do not automatically select this `.venv`.
+两个批处理文件优先使用 `py`，找不到时使用 `python`，不会自动选择上述 `.venv`。
 
-The window opens maximized. A fresh download opens **5 Distribution / 5 质量分布拟合** and automatically displays the bundled F67 / FO57 / O45 images. No folder selection is needed for this first view. Switch English/Chinese at the upper right. Both rows of page buttons remain available; the second row contains tools, not subordinate processing steps.
+程序默认最大化。首次下载启动时，直接进入 **5 质量分布拟合 / 5 Distribution**，自动显示内置 F67 / FO57 / O45 样例，无需先选择目录。右上角可切换中英文。上下两行页面按钮始终可用；第二行是工具页面，不是第一行的子步骤。
 
-On normal exit, parameters and page state are saved in `runtime/settings.json`; language changes are saved immediately. Subsequent launches restore the saved page and language instead of forcing the sample page. Keep that file to retain your configuration. External paths may need to be selected again after moving computers; bundled sample paths resolve relative to the application.
+正常退出时，参数和页面状态保存在 `runtime/settings.json`；语言切换会立即保存。以后启动恢复已保存的页面和语言，不会强制进入样例页。请保留该文件以保留个人设置。换电脑后，外部数据路径可能需要重新选择；样例路径随项目目录解析。
 
-## 2. Prepare Inputs
+## 准备输入数据
 
-For new experiments, average frames, correct the intensifier response, perform geometric correction in DaVis, and import the final images. Both Mixing and Distribution then use these final images. If they are already available, start directly at either analysis page.
+新实验的处理顺序为：计算平均图、修正像增强器响应、在 DaVis 中进行几何修正、导入最终图像。手动调参和质量分布拟合都读取这些最终图像；如果已经有最终图像，可以直接进入这两个页面。
 
-| Input | Organization |
+| 输入类型 | 组织方式 |
 | --- | --- |
-| Raw experiments | Folders such as `实验编号67`, each containing PNG, TIF/TIFF, or BMP frames directly. The averaging page also accepts a single folder with any name. |
-| Raw calibration | A root containing `Gain43`, `Gain50`, etc.; each gain folder contains exposure folders such as `500ns` and `10000ns`, each holding its frames. |
-| Calibration averages | Exposure-named arrays inside a gain folder, for example `Gain43/500ns.npy`. |
-| Correction matrices | `Gain43.npy`, `Gain50.npy`, etc., matching camera gains. |
-| Final images | Same-sized, finite, two-dimensional arrays such as `实验编号67.npy`, `实验编号57.npy`, and `实验编号45.npy`. |
+| 实验原始图像 | 例如 `实验编号67` 文件夹，直接存放 PNG、TIF/TIFF 或 BMP 帧。平均图页面也支持任意名称的单个文件夹。 |
+| 标定原始图像 | 根目录下为 `Gain43`、`Gain50` 等文件夹，每个 Gain 下为 `500ns`、`10000ns` 等曝光文件夹，各自存放图像帧。 |
+| 标定平均图 | 每个 Gain 文件夹中保存以曝光命名的数组，例如 `Gain43/500ns.npy`。 |
+| 修正矩阵 | 例如 `Gain43.npy`、`Gain50.npy`，与对应增益匹配。 |
+| 最终图像 | 尺寸一致、数值有限的二维数组，例如 `实验编号67.npy`、`实验编号57.npy`、`实验编号45.npy`。 |
 
-F is the F-only image, O the O-only image, and FO the combined image for the same condition. The application cannot infer their physical roles from brightness. The `实验编号` prefix is a file convention even in English; enter only the number in ID fields. Use `.xlsx` for workbook inputs; convert legacy `.xls` files first.
+F、O 分别为同一工况下单独拍摄的两种组分图像，FO 为同时拍摄的图像。程序不会根据亮度判断组分角色。即使使用英文界面，文件名仍保留 `实验编号` 前缀，编号输入框只填数字。工作簿使用 `.xlsx`，旧 `.xls` 文件请先转换。
 
-### Common controls
+### 通用控件
 
-| Control | Meaning |
+| 控件 | 含义 |
 | --- | --- |
-| `...` beside a path | Select the folder or file for that row. |
-| Enter in a field | Apply edited values on interactive pages. Wait for completion before exporting. |
-| Gain / Auto | Display brightness. Auto maps the current maximum to the display maximum; it is not intensifier calibration. |
-| Downscale / 缩小倍数 | Display-size divisor: 1 = native size, 2 = half-size, 0.5 = double-size. Analysis arrays are not resized. |
-| Absolute threshold / 去噪阈值 | Before averaging, values at or below this threshold become zero in each frame. Enter 8-bit values for 8-bit images; higher-bit-depth averaging inputs use their native intensity scale. |
-| Relative threshold / 相对去噪阈值 | Fraction of an image's maximum: 0.01 means 1%, not an absolute gray value. This affects mixing/fitting data. |
-| X / Y | Zero-based pixel column/row. Check the on-image readout when selecting coordinates. |
+| 路径右侧的 `...` | 选择对应文件夹或文件。 |
+| 输入后按回车 | 在交互页面应用修改；导出前应等待计算完成。 |
+| 增益 / 自动 | 调整显示亮度；自动增益将当前最大值映射到显示最大值，不是像增强器标定。 |
+| 缩小倍数 / Downscale | 显示尺寸的除数：1 为原始尺寸，2 为一半，0.5 为两倍。不改变分析数组的尺寸。 |
+| 去噪阈值 / Absolute threshold | 求平均前，每帧中小于等于阈值的值归零。8 位图像按 8 位数值输入；平均图功能对更高位深输入使用其原始强度尺度。 |
+| 相对去噪阈值 / Relative threshold | 相对于图像最大值的比例；0.01 表示 1%，不是绝对灰度值。会影响混合和拟合数据。 |
+| X / Y | 从 0 开始的像素列号和行号，选择位置时可参考图像上的坐标读数。 |
 
-Color-image averaging uses the green channel. Eight-bit inputs are represented on a 16-bit intensity scale in processing outputs by multiplying by 256. Do not apply this factor again to an existing processed NPY. Keep numerical arrays separate from rendered exports.
+彩色图像求平均使用绿色通道。8 位输入在处理输出中乘以 256，转到 16 位强度尺度；已有处理结果 NPY 不应再次乘以该系数。请区分数值数组和渲染图片。
 
-## 3. Average Experimental Frames
+## 计算实验平均图
 
-Open **1 Average / 1 平均图**.
+打开 **1 平均图 / 1 Average**。
 
-1. Select **Raw image root / 原始图像根目录** and **Average output / 平均图输出目录**.
-2. Set **Optimal workers / 最佳进程数** and **Threshold / 去噪阈值**. Optimal workers is the preferred count for one experiment; folder count and local logical CPUs also determine allocation.
-3. Choose an input mode below.
-4. Click **计算平均图**. The log lists experiments, frame counts, output paths, and image-computation time. This time excludes preparation and final exports.
+1. 选择“原始图像根目录”和“平均图输出目录”。
+2. 设置“最佳进程数”和“去噪阈值”。最佳进程数表示单个实验目录适合使用的进程数；实际分配还会考虑目录数量和本机逻辑线程数。
+3. 按下面的说明选择输入模式。
+4. 点击“计算平均图”。日志会列出实验、帧数、输出位置及图像计算时间；该时间不包括准备和最终导出。
 
-**Experiment-ID mode:** check **Experiment ID / 实验编号**, select the common root, and enter IDs such as `2,16,30`. All experiments use the same range. Set Start/s, End/s, and Sampling/Hz; 2 to 10 seconds at 500 Hz selects indices 1000 through 4999.
+**实验编号模式：**勾选“实验编号”，选择共同的上级目录，输入 `2,16,30` 等编号。所有实验使用同一计算范围。设置开始时间、结束时间和采样频率，例如 500 Hz 下的 2 到 10 秒，对应索引 1000 到 4999。
 
-Alternatively, check **Non-contiguous intervals / 非连续区间** and enter `200:600,3200:3700`. These are zero-based sequence positions, start inclusive and end exclusive. Time settings are ignored in this mode. Avoid overlapping intervals: overlapping positions would be counted repeatedly.
+也可以勾选“非连续区间”，输入 `200:600,3200:3700`。这是从 0 开始的序列位置，包含起点、不包含终点；勾选后不再使用时间范围。避免区间重叠，否则重叠位置会重复计入。
 
-**Single-folder mode:** uncheck Experiment ID and select the image folder itself. All supported images directly in it are averaged. Time/interval controls are disabled and the output uses the folder's name.
+**单文件夹模式：**取消“实验编号”勾选，直接选择图像所在文件夹。程序计算该目录下所有支持的图像，禁用时间和区间控件，输出以文件夹名称命名。
 
-**Source-file warning:** sequence checking is automatic. If names are not already `0000`, `0001`, etc. in the detected order, the application renames them in place. Work on copies if original names must be retained.
+**源文件提示：**序列检查自动进行。如果检测顺序下的名称不是 `0000`、`0001` 等连续编号，程序会直接重命名源文件。需要保留原文件名时，应在副本上操作。
 
-Output normally includes an NPY, a 16-bit TIFF, and a brightness-scaled `-GAIN...tif`. Use the NPY for subsequent quantitative processing. All-zero results do not produce an additional gain-scaled image.
+输出通常包含 NPY、16 位 TIFF 和带 `-GAIN...tif` 后缀的亮度放大图。后续定量处理应使用 NPY。全零结果不会额外生成增益放大图。
 
-## 4. Correct the Image Intensifier Response
+## 像增强器修正
 
-Open **2 Intensifier / 2 像增强器**, then **Workflow / 处理流程**.
+打开 **2 像增强器 / 2 Intensifier**，进入“处理流程”。
 
-### A. Calibration averages
+### A. 计算标定平均图
 
-1. Select **Calibration root / 像增强器标定根目录**, containing all `Gainxx` folders.
-2. Select **Calibration output root / 标定平均图根目录**.
-3. Set Optimal workers and Threshold, then click **计算标定平均图**.
+1. “像增强器标定根目录”选择包含全部 `Gainxx` 文件夹的目录。
+2. 设置“标定平均图根目录”。
+3. 设置最佳进程数、去噪阈值，点击“计算标定平均图”。
 
-All frames in every gain/exposure folder are averaged. Output mirrors the gain level, for example `calibration-averages/Gain43/500ns.npy`. There is no time-range selection here. The source-sequence renaming warning from step 3 also applies.
+每个 Gain 下每个曝光目录中的所有帧分别求平均。输出保留 Gain 层级，例如 `calibration-averages/Gain43/500ns.npy`。此处不选择时间范围，同样会进行源图像序列检查及必要的重命名。
 
-### B. Matrix fitting
+### B. 拟合修正矩阵
 
-1. Select one gain's **Calibration averages / 标定平均图目录**, such as `calibration-averages/Gain43`, not the parent containing several gains.
-2. Set **Matrix output / 修正矩阵输出目录** to the common matrix destination.
-3. Click **Fit and analyze / 拟合并分析**. The plots show the largest-exposure image, a relative-error map, and a pointwise fit.
-4. Click the left or middle plot to inspect that pixel's measured-versus-fitted response on the right.
-5. Optionally set **ROI radius / 区域分析半径** and click **计算区域平均误差**. The error color limit affects only the plot; 0 selects automatic scaling.
-6. Click **Save matrix / 保存修正矩阵**. Repeat for other gains. The source folder name supplies the matrix name, such as `Gain43.npy`.
+1. “标定平均图目录”选择一个 Gain 的目录，例如 `calibration-averages/Gain43`，不要选择包含多个 Gain 的上级目录。
+2. “修正矩阵输出目录”选择统一的矩阵保存位置。
+3. 点击“拟合并分析”。三个图分别显示最大曝光图像、相对误差图和单个像素的拟合情况。
+4. 点击左图或中图，在右图查看该像素的测量值与拟合值。
+5. 如需区域诊断，设置“区域分析半径”，点击“计算区域平均误差”。误差颜色上限只控制显示；0 表示自动设置。
+6. 点击“保存修正矩阵”。对其他 Gain 重复操作。矩阵名称取自源文件夹，例如 `Gain43.npy`。
 
-Exposure names must contain their intended numeric value. Do not mix exposure units or unrelated files in a gain's average folder.
+曝光名称必须包含正确的数值。同一个 Gain 目录内不要混用曝光单位，也不要放入无关文件。
 
-### C. Experimental correction
+### C. 修正实验图像
 
-Use either tab in **Experimental image correction / 实验图像修正**:
+在“实验图像修正”区域选择一种模式：
 
-- **Excel batch / 按 Excel 批量修正:** select the average folder, matrix folder, gain workbook, and output folder. Enter ID/Gain column numbers starting at 1 (A = 1). The active sheet is read. Gain values are multiplied by 100 when matching matrix names: 0.43 selects `Gain43.npy`. Click Excel batch. Only `.npy` inputs are processed. Unmatched IDs are logged as skipped; missing matrices and duplicate output names produce errors.
-- **Single image / 单张修正:** select one NPY image, one NPY matrix, and an output folder; click **Correct image / 修正所选图像**.
+- **按 Excel 批量修正：**选择平均图目录、修正矩阵目录、增益工作簿和输出目录。实验编号列、Gain 列按从 1 开始的列号填写，A = 1。程序读取活动工作表；Gain 数值乘以 100 后匹配矩阵名，例如 0.43 对应 `Gain43.npy`。只处理 `.npy` 输入。没有匹配编号的图像会记录为跳过；缺失矩阵或重复输出名称会报错。
+- **单张修正：**选择一张 NPY 图像、一个 NPY 矩阵和输出目录，点击“修正所选图像”。
 
-Correction multiplies the image by the matrix; dimensions must match. Keep the corrected NPY and gain-scaled TIFF.
+修正过程是图像与矩阵逐元素相乘，两者尺寸必须一致。请保留修正后的 NPY 和增益 TIFF。
 
-**Advanced diagnostics / 高级诊断** is optional. Average check plots raw-frame pixel fluctuations; matrix comparison inspects variation among gain matrices. Neither is required to apply an existing matrix.
+“高级诊断”不是必需步骤。其中平均图检验用于查看原始帧的像素波动，矩阵对比用于检查不同 Gain 矩阵的差异。直接使用已有矩阵时无需这些操作。
 
-## 5. Prepare and Import DaVis Files
+## DaVis 输入与输出整理
 
-Open **3 Davis I/O / 3 Davis 整理**.
+打开 **3 Davis 整理 / 3 Davis I/O**。
 
-### Prepare input
+### 准备输入
 
-1. Select **Corrected image folder / 像增强器修正后目录** and a separate **Davis input folder / Davis 输入目录**.
-2. Click **Prepare Davis input / 准备 Davis 输入**. TIFFs containing `GAIN` in their names are collected into that folder; duplicate names are rejected.
-3. Perform geometric correction in external DaVis. PLIFMix does not run or configure DaVis.
+1. 选择“像增强器修正后目录”和独立的“Davis 输入目录”。
+2. 点击“准备 Davis 输入”，收集文件名含 `GAIN` 的 TIFF；遇到重复名称会拒绝处理。
+3. 在外部 DaVis 中进行几何修正。PLIFMix 不会启动或配置 DaVis。
 
-### Import output
+### 整理输出
 
-1. Export corrected images from DaVis, keeping the experiment ID and `GAIN` value in each filename.
-2. Select **Davis export folder / Davis 导出目录** and **Output folder / 整理输出目录**.
-3. Click **Import Davis output / 整理 Davis 输出**.
+1. 从 DaVis 导出修正图像，并在文件名中保留实验编号和 `GAIN` 数值。
+2. 选择“Davis 导出目录”和“整理输出目录”。
+3. 点击“整理 Davis 输出”。
 
-The importer divides each export by its filename's gain and produces a new NPY, TIFF, and gain-scaled TIFF. It does not copy the original unprocessed image. Do not divide by the gain manually beforehand.
+程序将导出图像除以文件名中的增益，生成新的 NPY、TIFF 和增益 TIFF，不复制原始未处理图像。导入前不要再次手动除以增益。
 
-Provide one export per experiment. A flat folder is supported; for subfolders, only the first supported file in each immediate subfolder is used. Do not put several different exports in one subfolder. Missing gain values and duplicate experiment IDs are rejected. The final NPY folder feeds both analysis pages below.
+每个实验只提供一份输出。可以直接放在同一目录；使用子目录时，每个直接子目录只读取第一个支持的文件，不要在同一子目录放多份不同结果。缺少增益值或实验编号重复会报错。最终 NPY 目录用于下面两个分析页面。
 
-## 6. Analyze Mixing
+## 混合特性分析
 
-Open **4 Mixing / 4 手动调参**.
+打开 **4 手动调参 / 4 Mixing**。
 
-### Select and adjust
+### 选择图像并调整参数
 
-1. Set **Image folder / 图像文件夹** to the final NPY folder.
-2. Enter **F**, **FO**, and **O** IDs. All three images are required.
-3. Enter **DR** and **U** for the output name, such as `DR1.3_U25`. These labels do not replace the Global O/F setting.
-4. Set **Global O/F / 全局 O/F**, relative threshold, and F/O horizontal shifts. Press Enter to apply edits and update results.
+1. “图像文件夹”选择最终 NPY 目录。
+2. 输入 F、FO、O 编号，三张图像缺一不可。
+3. 输入用于保存名称的 DR 和 U，例如 `DR1.3_U25`。它们是命名标签，不能替代全局 O/F。
+4. 设置全局 O/F、相对去噪阈值和 F/O 横向平移量。修改后按回车更新结果。
 
-Optionally load a **Preset group / 预设数据组** JSON. Previous group, Next group, or a typed group number fills IDs, DR, U, and global O/F. Presets do not contain images; the IDs must exist in the selected folder. The Distribution page provides the same group selection.
+可以加载“预设数据组”JSON，用上一组、下一组或手动组号填充编号、DR、U 和全局 O/F。预设不包含图像，对应编号必须存在于选定目录中。质量分布拟合页也提供组选择。
 
-**Excel to preset / Excel 转预设** requires a specific layout in the first sheet: numeric IDs in A, Df/Do in B/C, F/FO/O role in E, F speed in M, and global O/F in U. Every three numeric-ID rows must form a complete group. It is not an arbitrary-workbook importer.
+“Excel 转预设”要求第一张工作表遵循特定格式：A 列为数字编号，B/C 为 Df/Do，E 为 F/FO/O 角色，M 为 F 速度，U 为全局 O/F。每三个带数字编号的行必须组成完整的一组，并非任意格式 Excel 都可导入。
 
-### Inspect results
+### 查看结果
 
-- Use Pseudocolor, Gain/Auto, and Downscale for viewing.
-- F/O/FO have separate crosshair coordinates. **Copy F center / 一键填充** copies the F coordinates to the other fields.
-- Drawing an ellipse and restricting analysis to it are separate choices. Check **Ellipse ROI only / 仅椭圆区域计算混合效率** to use that region; otherwise the full image is used.
-- The first summary row shows measured O/F and the sum of absolute differences. The second reports total-calibrated efficiencies; the third reports efficiencies without total calibration. Both still use the current threshold and shifts.
-- **绘图使用标定总量** chooses calibrated or uncalibrated data for plots and exports, without removing the other numeric summary.
+- 使用伪彩图、增益/自动和缩小倍数调整显示。
+- F、O、FO 分别具有十字线坐标；“一键填充”将 F 的坐标复制到另外两组。
+- 绘制椭圆和限定椭圆计算区域是两个独立选项。勾选“仅椭圆区域计算混合效率”后才限制分析范围，否则使用整幅图像。
+- 第一行显示实拍 O/F 和差绝对值和；第二行显示总量标定后的混合效率；第三行显示不进行总量标定的混合效率。两种结果都使用当前阈值和平移量。
+- “绘图使用标定总量”决定图像和导出使用标定数据还是未标定数据，不会取消另一组数值结果。
 
-The result area shows F/O/FO, sum/difference maps, three mixing-fraction maps, their ME maps, and `mix_curve`. ME maps show weighted deviation contributions to the efficiency calculation; they are not an independent local-efficiency scale.
+结果区包括 F/O/FO、和与差图、三张混合分数图、对应 ME 图以及 `mix_curve`。ME 图表示参与混合效率计算的加权偏差贡献，不是独立的局部混合效率标度。
 
-### Search shifts
+### 搜索平移量
 
-Open **Shift search / 平移搜索**, enter F/O bounds and worker count, and click **Search shifts / 搜索平移量**. Three 3D plots show absolute differences, efficiency range, and mean efficiency. Inspect them and manually enter your chosen shifts in the main controls.
+进入“平移搜索”，设置 F/O 搜索上下界和进程数，点击“搜索平移量”。三个 3D 图分别显示差绝对值、混合效率极差和平均混合效率。查看后，在主界面手动填写选定的平移量。
 
-### Save
+### 保存
 
-In **Save selected / 一键保存**, tick the images and choose whether saved overlays include crosshairs/ellipse. Wait for completion before saving.
+在“一键保存”中勾选需要的图像，并选择保存时是否绘制十字线和椭圆。等待计算完成后再保存。
 
-Exports are 8-bit color PNGs in result-named folders beside the input folder. If the input is `study/final-images`, an F export is `study/f/DR1.3_U25-降噪0.01.png`. Selecting `mix_curve` writes curve data as Excel under `study/mix_curve`, not a screenshot. The calibrated-display choice also controls this curve export. Use distinct names to retain multiple parameter variants.
+输出为 8 位彩色 PNG，按结果名称保存到输入目录同级的文件夹中。例如输入为 `study/final-images`，F 图保存为 `study/f/DR1.3_U25-降噪0.01.png`。选择 `mix_curve` 时，在 `study/mix_curve` 下保存 Excel 曲线数据，而不是截图。“绘图使用标定总量”也控制该曲线导出。不同参数结果请使用不同名称保存。
 
-## 7. Fit Intensity Distributions
+## 强度分布拟合
 
-Open **5 Distribution / 5 质量分布拟合** and select the final folder and F/FO/O IDs. Each thresholded image is independently normalized. This page does not use global O/F total calibration or calculate mixing efficiency.
+打开 **5 质量分布拟合 / 5 Distribution**，选择最终图像目录和 F/FO/O 编号。每张图像经阈值去噪后分别归一化；本页不进行全局 O/F 总量标定，也不计算混合效率。
 
-### Origins and centerlines
+### 原点与中心线
 
-1. Set the relative threshold and F/O shifts.
-2. Set **Crosshair X/Y**, **Upper/Lower row / 中心线上界/下界**, and an integer **Angle / 旋转角度** above each image separately.
-3. Set **Top K / 最大值个数**, the number of bright points used for centerline extraction, not the player's Top-K frame list.
-4. Optionally click **自动原点和偏转角**, then visually inspect and correct the proposed values.
-5. Inspect **Centerline / 中心线** or **Fitted centerline / 拟合中心线**, which are mutually exclusive. Upper/lower bounds select the fitting data; they do not crop the displayed image to those rows.
+1. 设置相对去噪阈值和 F/O 平移量。
+2. 在三张图上方分别设置十字线 X/Y、中心线拟合上界/下界，以及整数旋转角度。
+3. 设置“最大值个数”，它表示中心线提取使用的亮点数量，不是播放器中的 Top-K 帧列表。
+4. 可点击“自动原点和偏转角”，但必须查看图像并按需要修正自动结果。
+5. 选择“中心线”或“拟合中心线”查看，两者互斥。上下界只限定中心线拟合的数据来源，不会把显示图像裁切到这个区间。
 
-Crosshair, Contour, and centerlines are overlays. Line width controls their appearance. **Contour ratio / 轮廓比例** specifies the enclosed intensity fraction used to find a contour, not a peak-brightness fraction. **Reset / 还原** clears overlays and returns to the unstraightened original view; it does not reset all numeric inputs.
+十字线、轮廓和中心线属于覆盖件，线宽控制其显示宽度。“轮廓比例”是寻找轮廓所使用的包围强度占比，不是峰值亮度比例。“还原”会清除覆盖件并回到未掰直原图，不会重置所有数值输入。
 
-### Fit and compare
+### 拟合与比较
 
-Choose **Original / 原图**, **Rotate / 旋转**, **Fit / 拟合**, or **|Fit - original| / 拟合-原图绝对值**. **Straighten / 掰直** is a separate option and is unavailable in the rotation-only preview.
+图像数据可以选择“原图”“旋转”“拟合”或“拟合-原图绝对值”。“掰直”是独立勾选项，在仅旋转预览模式下不可用。
 
-Select Fit to calculate transverse, axial, and both two-dimensional fits. The table shows the pure elliptical Student and compact-support models side by side. The fitted rendering uses the compact-support model when available, otherwise the pure elliptical model. Inspect warnings rather than assuming a partial fit is complete.
+选择“拟合”后，计算横向、纵向和两种二维分布拟合。结果表并列显示纯椭圆 Student 与紧支撑模型。拟合图优先使用紧支撑结果，否则使用纯椭圆结果；出现警告时应查看原因，不应默认部分结果等于全部拟合成功。
 
-With Straighten enabled, compare fits directly with the straightened original. The difference view is computed in that frame and can be mapped back to a curved view. Mapped-back fits follow the symmetric fitted centerline and are not new raw measurements.
+勾选“掰直”后，可以直接在掰直坐标下比较原图和拟合图。差值也在该坐标下计算，可以还原为弯曲视图。还原后的拟合图沿对称的拟合中心线分布，不是新的原始测量图像。
 
-Returning to Original retains valid fitted results for reuse. Threshold, origin, alignment, row bounds, or angle changes can require recalculation. Wait for completion before saving.
+切回“原图”会保留有效拟合结果，以便再次使用。修改阈值、原点、对齐量、上下界或角度后可能需要重新计算。导出前请等待完成。
 
-### Save images and fit data
+### 保存图片和拟合数据
 
-- **Individual Save / 保存:** select **Image output folder / 图像保存目录**, then Save above F, O, or FO. This saves the rendered PNG with a view/overlay suffix, not a floating-point prediction array.
-- **Save selected / 一键保存:** select F/O/FO and/or **Fit data / 拟合数据**. The destination is the configured distribution output folder, or `distribution_results` beside the input folder when unconfigured. Fit data creates `*-fit-results.xlsx` and fit-curve PNGs; no existing measurement workbook is needed.
-- **Write fit results / 写入拟合结果:** select an existing `.xlsx` in **Results workbook / 拟合结果写入文件**. Save/close it in Excel first and keep a backup. This updates experiment rows rather than creating a generic table.
+- **单张保存：**选择“图像保存目录”，点击 F、O 或 FO 上方“保存”。输出包含视图及覆盖件后缀的渲染 PNG，不是浮点预测数组。
+- **一键保存：**选择 F/O/FO 和/或“拟合数据”。使用已配置的分布结果目录；没有配置时使用输入目录同级的 `distribution_results`。拟合数据生成 `*-fit-results.xlsx` 和拟合曲线 PNG，不需要已有实验工作簿。
+- **写入拟合结果：**在“拟合结果写入文件”中选择已有 `.xlsx`，先在 Excel 中保存并关闭，保留备份后再写入。此功能更新实验对应行，不是生成任意格式的新表。
 
-For the existing-table writer, each requested ID must occur exactly once in column A. Sheet `测量数据` is used when present, otherwise the active sheet. Row 1, columns T:AR, must have these exact headers:
+写入已有表格时，每个目标编号必须在 A 列且只出现一次。优先使用名为 `测量数据` 的工作表，否则使用活动表。第 1 行 T:AR 列必须依次具有以下表头：
 
 ```text
 中心x, 中心y, 旋转角度, 上界, 下界,
@@ -217,63 +217,63 @@ sx, sy, m, R2,
 sx, sy, m, R, R2
 ```
 
-Headers are unchanged in English mode. Without this layout, use Save selected with Fit data. Prefer plain `.xlsx` files over macro-enabled or feature-rich originals. Spatial fit coordinates and length parameters are in pixels; display labels do not convert them to millimetres or x/D.
+英文界面也不改变这些表头。没有这种布局时，请通过“一键保存”的“拟合数据”生成独立工作簿。优先使用普通 `.xlsx`，不要直接使用含宏或复杂功能的原始表格。空间拟合坐标和长度参数以像素为单位，显示标签不会自动转换为毫米或 x/D。
 
-## 8. Use the Example
+## 使用内置样例
 
-`样例数据` contains final **F67 / FO57 / O45** images for **DR1.3_U25**, global O/F **1.2786069651741294**. No raw sequences, calibration images, or DaVis inputs are supplied.
+`样例数据` 包含 **F67 / FO57 / O45** 三张最终图像，工况为 **DR1.3_U25**，全局 O/F 为 **1.2786069651741294**。未提供原始序列、标定图像或 DaVis 输入文件。
 
-With the supplied settings, startup opens Distribution and displays the sample originals automatically. If the settings file is absent, the same page and sample processing inputs are used. Unconfigured Mixing/Distribution pages select the sample automatically. If settings point elsewhere, select `样例数据` and the IDs manually. Changing folders does not discard your other parameters.
+随仓库提供的设置会在启动时打开质量分布拟合页并显示样例原图。设置文件缺失时，也使用同一页面和样例处理参数。没有配置图像目录的手动调参和拟合页会自动选择样例；已有个人目录时，请手动选择 `样例数据` 和对应编号。更换目录不会清除其他输入参数。
 
-1. On Mixing, set DR = 1.3, U = 25, relative threshold = 0.01, F/O shifts = 0, and the global O/F above. Inspect both result rows.
-2. On Distribution, use the same IDs, threshold = 0.01, shifts = 0, and Top K = 30. The supplied per-image inputs are:
+1. 在质量分布拟合页，确认编号对应，阈值为 0.01，F/O 平移量为 0，最大值个数为 30。随样例提供的逐图参数如下。
 
-| Image | X | Y | Upper row | Lower row | Angle (degrees) |
+| 图像 | X | Y | 上界 | 下界 | 旋转角度（度） |
 | --- | --- | --- | --- | --- | --- |
 | F67 | 664 | 426 | 200 | 700 | 4 |
 | O45 | 655 | 426 | 150 | 700 | -1 |
 | FO57 | 663 | 419 | 100 | 800 | 6 |
 
-3. Select Fit. Inspect Fit and |Fit - original| with Straighten enabled, then compare the curved views.
-4. Save only the needed items. Sample distribution exports use `outputs/sample/distribution`, and individual image saves use `outputs/sample/images`. Mixing follows the sibling-folder convention in step 6, even though its settings also contain an output-folder field.
+2. 选择“拟合”，在勾选“掰直”时对比拟合和差值图，再查看还原后的弯曲视图。
+3. 只勾选需要保存的结果。样例分布结果输出到 `outputs/sample/distribution`，单张图片输出到 `outputs/sample/images`。
+4. 需要查看混合特性时，切换到手动调参页，使用 DR = 1.3、U = 25、相对阈值 0.01、F/O 平移量 0 和上述全局 O/F，查看两组效率结果。混合导出遵循前述同级目录规则，即使设置中也有输出目录字段。
 
-The complete sample inputs are in `样例数据/parameters.json`. These are example choices, not universal defaults. There is no sample measurement workbook; use Fit data to generate a standalone workbook.
+完整样例参数在 `样例数据/parameters.json` 中。这些是示例选值，不是通用默认值。样例不包含实验测量工作簿，可通过“拟合数据”生成独立工作簿。
 
-The default JSON preset under `runtime/presets` contains only F67/FO57/O45. Its original filename is retained for compatibility. Previous/Next group therefore stays on this one group until you load a different preset. Create or select your own JSON for a larger series of experiments.
+`runtime/presets` 下的默认 JSON 预设只包含 F67/FO57/O45；为兼容现有读取方式保留了原文件名。在加载其他预设前，上一组/下一组仍会停留在这一组。处理更大实验序列时，请创建或选择自己的 JSON。
 
-## 9. Other Tools
+## 其他工具
 
-| Page | Use |
+| 页面 | 使用方法 |
 | --- | --- |
-| Image viewer / 图像查看器 | Choose an Image, or Folder plus ID for `实验编号N.npy`. Selection/Enter refreshes it; Previous/Next changes the numbered file. Drag the divider beside the histogram and use its Matplotlib toolbar. Save view exports the rendering; Batch TIF export accepts `0800-0850`, inclusive, from the image's directory. |
-| Image player / 图片播放器 | Select a folder and cache workers; wait for caching. Set FPS and Play/Reverse/Pause, or enter a frame and press Enter. Slow rendering reduces speed rather than intentionally skipping frames. Click a pixel or enter X/Y to update its intensity-versus-frame plot and Top-K list; it does not redraw every playback frame. |
-| Noise analysis / 底噪分析 | Select raw frames and an interval; calculate the frame-maximum trend. Images are not modified. |
-| NPY tools / NPY矩阵 | Inspect statistics/Top K and save multiplication, addition, maximum normalization, or reciprocal results to another NPY. |
-| GIF export / GIF导出 | Choose the folder/output GIF, first/last frame, gain, interval in milliseconds, and maximum width. Numeric names 800 to 850 select `0800` through `0850`, inclusive. Source RGB appearance is retained; grayscale sources stay grayscale. Viewer pseudocolor settings are not inherited. |
-| Colorbar | Set dimensions and limits, preview, and save a labeled colorbar. |
-| Distributions / 分布对比 | Plot standard symmetric distributions; this does not fit experimental data. |
+| 图像查看器 | 选择图片，或选择文件夹并输入编号读取 `实验编号N.npy`。选择后或按回车刷新；上一张/下一张切换编号。可拖动直方图分隔条，使用 Matplotlib 工具栏。保存当前显示导出渲染图；批量 TIF 导出接受 `0800-0850`，包含终点，读取当前图片目录。 |
+| 图片播放器 | 选择目录和缓存进程数，等待缓存完成。设置帧率，播放、反向播放或暂停；也可输入帧号并按回车。渲染较慢时降低实际速度，不主动跳帧。点击像素或输入 X/Y，更新像素时序曲线及 Top-K 列表；右图不随每一帧重绘。 |
+| 底噪分析 | 选择原始图像和区间，计算每帧最大值的变化，不修改图像。 |
+| NPY矩阵 | 查看统计量和最大值列表，将乘法、加法、按最大值归一化或倒数结果保存为另一 NPY。 |
+| GIF导出 | 设置目录、输出 GIF、起止编号、增益、帧间隔毫秒数和最大宽度。800 到 850 对应 `0800` 到 `0850`，包含终点。保留原 RGB 外观，灰度源仍为灰度；不会继承查看器的伪彩图设置。 |
+| Colorbar | 设置尺寸和上下限，预览并保存带标签的颜色条。 |
+| 分布对比 | 绘制常见对称分布，不拟合实验数据。 |
 
-The player's **Threshold (8-bit)** is an absolute threshold even when values display on the 16-bit scale. Non-contiguous intervals use `start:end,start:end`, end exclusive, and only affect the right trace: excluded positions become zero, without reloading the cache. They do not limit caching or playback. The plot can use Y = 0-65535 or automatic limits.
+播放器的去噪阈值按 8 位绝对数值输入，即使显示值使用 16 位尺度。“非连续区间”采用 `start:end,start:end`、不含终点的格式，只影响右侧曲线，区间外位置归零，不重新读取缓存，也不限制缓存或播放范围。纵轴可固定为 0-65535，或使用自动范围。
 
-Viewer/player rotations preserve the full extent for quarter turns and currently accept only multiples of 90 degrees. This differs from integer-angle correction on Distribution.
+查看器和播放器旋转时保留 90 度倍数旋转后的完整图像范围，目前只接受 90 度的整数倍。这与质量分布拟合页的整数角度修正不同。
 
-## 10. Troubleshooting and Records
+## 常见问题与结果记录
 
-| Symptom | Action |
+| 问题 | 处理方法 |
 | --- | --- |
-| Missing Python module | Install requirements with the interpreter used for startup; keep the whole project together. |
-| Tcl/Tk window error | Repair/install Python with Tcl/Tk and use a desktop session. |
-| No averaging frames | Check the ID checkbox, direct folder contents, sampling frequency, and end-exclusive bounds. Single-folder mode uses all frames. |
-| No GIF frames | Choose the frame directory, not its parent. Numeric filename ranges include the end, unlike averaging intervals. |
-| Blank/dark/saturated display | Check Gain/Auto, threshold, and pixel readout before concluding the NPY values are incorrect. |
-| Missing F/O/FO image | Check exact filenames, all IDs, folder, and equal dimensions. |
-| No intensity after thresholding | Lower the relative threshold. A blank image cannot yield a meaningful fit. |
-| Poor centerline/fit | Review each origin, angle, bounds, threshold, and overlays. Automatic origins require visual inspection. |
-| Excel layout error | Check unique IDs in A and exact T:AR headers, or use standalone Fit data export. |
-| File in use / access denied | Save and close it in the other application, check permissions, and retry. PLIFMix does not control Excel or discard edits. |
-| Saving blocked after edits | Wait for the calculation matching the new inputs to finish. |
-| Slow fit or caching | Processing can take time. Caching needs memory for the folder; reduce worker count if memory is constrained. An FPS entry is a target, not a guarantee. |
+| 缺少 Python 模块 | 用启动时的同一解释器安装依赖，并保留完整项目目录。 |
+| 无法创建 Tcl/Tk 窗口 | 修复或安装含 Tcl/Tk 的 Python，并在桌面会话中运行。 |
+| 平均图找不到帧 | 检查实验编号勾选状态、目录内文件、采样频率和不含终点的区间。单目录模式读取全部帧。 |
+| GIF 找不到帧 | 选择直接存放图像的目录，而不是上级目录。编号范围包含终点，与平均图区间不同。 |
+| 显示空白、过暗或饱和 | 先检查增益/自动、阈值和像素读数，不要立即判断 NPY 数据有误。 |
+| 缺少 F/O/FO 图像 | 检查文件名、三个编号、目录和尺寸是否一致。 |
+| 去噪后没有强度 | 降低相对阈值；全零图像无法得到有意义的拟合结果。 |
+| 中心线或拟合不合理 | 检查各图原点、角度、上下界、阈值和覆盖件；自动原点也需要人工查看。 |
+| Excel 布局报错 | 检查 A 列唯一编号和 T:AR 表头，或使用独立拟合数据导出。 |
+| 文件占用或拒绝访问 | 在其他程序中保存并关闭文件，检查权限后重试。PLIFMix 不控制 Excel 或丢弃修改。 |
+| 修改参数后不能保存 | 等待与新参数对应的计算完成。 |
+| 拟合或缓存较慢 | 等待处理。缓存需要足够内存，内存紧张时减少进程数。输入帧率是目标值，不是速度保证。 |
 
-For reproducibility, retain numeric inputs, software release/commit, Python/dependency versions, parameters, and numeric exports. A pseudocolor image alone is insufficient. Keep camera gains, geometric/physical calibration, and intensity-to-mass assumptions with the experiment; liquid density differences are not inferred from IDs.
+为保证可追溯性，应保留数值输入、软件版本或提交编号、Python 与依赖版本、参数设置和数值输出。仅有伪彩图不足以重现结果。相机增益、几何及物理标定、强度到质量的假设应与实验记录一同保存；程序不会从编号推断液体密度差异。
 
-Back up sources and important workbooks. Exports can replace same-named files, and a multi-file operation may save earlier items before a later failure. Resolve the error and inspect the output paths before repeating it. When asking for help, include the page, exact error, environment, and parameters, without uploading private raw data by default.
+请备份源数据和重要工作簿。导出可能覆盖同名文件；一次多文件操作可能先保存部分文件，再因后续错误停止。处理错误后应查看输出目录再决定是否重做。反馈问题时，请提供页面、完整报错、运行环境和有关参数，不要默认上传私人原始数据。

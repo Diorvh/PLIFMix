@@ -1,83 +1,85 @@
 # PLIFMix
 
-PLIFMix is a Windows desktop application for processing planar laser-induced fluorescence (PLIF) images of impinging jets. It supports image averaging, image-intensifier correction, external DaVis processing, mixing analysis, and spatial intensity-distribution fitting.
+**[English version](README_EN.md)**
 
-**Start with the included example:** a fresh download opens the **5 Distribution / 5 质量分布拟合** page and displays three processed sample images automatically. No raw image sequence, Excel workbook, or DaVis installation is needed to try the fitting workflow.
+PLIFMix 是用于互击式喷嘴平面激光诱导荧光（PLIF）图像处理的 Windows 桌面程序，支持平均图计算、像增强器修正、外部 DaVis 处理前后的文件整理、混合特性分析和强度分布拟合。
 
-## 1. Install and Start
+**下载后可直接使用内置样例：**首次启动默认进入 **5 质量分布拟合** 页面，自动显示三张已经处理好的样例图像。体验拟合功能不需要原始图像序列、实验 Excel 表格或 DaVis 软件。
 
-Use **64-bit Python 3.11 or later with Tcl/Tk** on Windows. Download the repository ZIP and extract the complete folder to a writable location, or clone the repository. Do not run it from inside the ZIP.
+## 1. 安装与启动
 
-Open a terminal in the extracted project folder:
+使用 Windows 系统和带 Tcl/Tk 组件的 **64 位 Python 3.11 或更高版本**。下载仓库 ZIP 并完整解压到可写目录，或通过 Git 克隆仓库。不要直接在压缩包内运行。
+
+在项目目录打开终端，依次执行：
 
 ```powershell
 python -m pip install -r requirements.txt
 python main.py
 ```
 
-Alternatively, double-click `安装依赖.bat` to install dependencies, then `启动PLIFMix.bat` to launch. Installation and startup must use the same Python interpreter. In VS Code, open the project folder, select that interpreter, and run `main.py`.
+也可以先双击 `安装依赖.bat`，完成后双击 `启动PLIFMix.bat`。安装依赖和启动程序必须使用同一个 Python 解释器。在 VS Code 中，打开项目文件夹，选择该解释器，再运行 `main.py` 即可。
 
-Keep the full folder together, including `样例数据`. A downloaded folder name such as `PLIFMix-main` is supported.
+请保留完整项目目录，包括 `样例数据` 文件夹。下载后的目录名可以是 `PLIFMix-main`，不必手动改名。
 
-## 2. Fit the Included Images
+## 2. 使用内置样例进行拟合
 
-On first launch, the distribution-fitting page (**5 Distribution**) loads these files from `样例数据`:
+首次启动时，**5 质量分布拟合** 页面自动读取 `样例数据` 中的文件：
 
-| Input | Experiment ID | File |
+| 图像角色 | 实验编号 | 文件 |
 | --- | --- | --- |
-| F-only | 67 | `样例数据/实验编号67.npy` |
-| Combined FO | 57 | `样例数据/实验编号57.npy` |
-| O-only | 45 | `样例数据/实验编号45.npy` |
+| 单独 F 图像 | 67 | `样例数据/实验编号67.npy` |
+| F、O 同时拍摄的 FO 图像 | 57 | `样例数据/实验编号57.npy` |
+| 单独 O 图像 | 45 | `样例数据/实验编号45.npy` |
 
-The example is **DR = 1.3, U = 25**. The supplied image files total approximately 26 MiB; processing parameters are recorded in `样例数据/parameters.json`.
+该组工况为 **DR = 1.3、U = 25**。三张图像合计约 26 MiB；配套处理参数记录在 `样例数据/parameters.json` 中。
 
-1. Wait for the three original images to appear. Their IDs, origins, angles, and fitting bounds are already populated.
-2. Use the button at the upper right to switch between **English and Chinese**. The selection is saved immediately and restored next time.
-3. Select **Fit / 拟合** in the image-data row. Wait for the fit to finish; the result table contains transverse, axial, pure elliptical Student, and compact-support fits.
-4. Enable **Straighten / 掰直** to view the fitted distribution in straightened coordinates. Select **Original / 原图** or **|Fit - original| / 拟合-原图绝对值** to compare the source and fitted images. The fit view uses the compact-support model when available.
-5. Adjust gain or enable Auto for display brightness. Press Enter after editing numerical fields. Changes to processing inputs may require a new fit; returning to Original alone retains the fitted-result cache.
+1. 等待三张原图显示。实验编号、原点、旋转角度和中心线拟合范围已经填入，无需先选择目录。
+2. 右上角按钮可切换中英文界面。语言选择会立即保存，下次启动仍使用所选语言。
+3. 在“图像数据”一行选择 **拟合**，等待计算完成。结果表中会显示横向、纵向、纯椭圆 Student 和紧支撑模型的拟合结果。
+4. 勾选 **掰直**，可在掰直坐标下查看拟合图；切换 **原图** 或 **拟合-原图绝对值** 进行对比。拟合图优先显示紧支撑模型，若不可用则使用纯椭圆模型。
+5. 使用增益或“自动”调整显示亮度。修改数值后按回车应用。处理参数发生变化时可能重新拟合；仅切换回原图不会清除有效的拟合缓存。
 
-This page normalizes each thresholded image independently. It does **not** apply global O/F total calibration or calculate mixing efficiency.
+此页面会分别对每张去噪后的图像进行归一化，**不进行全局 O/F 总量标定，也不计算混合效率**。
 
-### Save results
+### 保存结果
 
-- **One image:** choose **Image output folder / 图像保存目录**, then use **Save / 保存** above the F, O, or FO image. This saves the rendered PNG, including the current view and overlays.
-- **Images and fitting data:** select F/O/FO and/or **Fit data / 拟合数据** in **Save selected / 一键保存**, then click its button. Fit data creates a standalone Excel workbook and fit-curve images.
-- **An existing experiment table:** select it in **Results workbook / 拟合结果写入文件**, then click **Write fit results / 写入拟合结果**. This requires the column layout described in the detailed guide; no such workbook is needed for the sample.
+- **保存单张图像：**选择“图像保存目录”，再点击 F、O 或 FO 图像上方的“保存”。保存的是当前渲染的 PNG，包括当前视图和覆盖线条。
+- **保存图像及拟合数据：**在右侧“一键保存”区域勾选 F/O/FO 和/或“拟合数据”，再点击“一键保存”。拟合数据会生成独立的 Excel 工作簿和拟合曲线图。
+- **写入已有实验表格：**选择“拟合结果写入文件”，再点击“写入拟合结果”。目标表格必须符合详细文档中的列布局；使用样例时不需要这类表格。
 
-Default sample output locations are `outputs/sample/images` for individual images and `outputs/sample/distribution` for fitted-result exports. Use distinct output names to avoid replacing previous results.
+样例的单张图片默认保存到 `outputs/sample/images`，拟合结果默认保存到 `outputs/sample/distribution`。需要保留不同参数的结果时，请使用不同文件名，避免覆盖。
 
-## 3. Inspect Mixing or Use Your Own Data
+## 3. 查看混合特性或处理自己的数据
 
-Open **4 Mixing / 4 手动调参** to inspect the same sample's mixing-fraction maps and efficiencies. The supplied global O/F is **1.2786069651741294**. This value is used by mixing analysis, not by the Distribution page.
+打开 **4 手动调参**，可以查看同一组样例的混合分数分布和混合效率。样例的全局 O/F 为 **1.2786069651741294**；该参数用于混合特性分析，不用于质量分布拟合页面。
 
-For your own final processed images, select their folder and enter the F, FO, and O IDs. Files must follow the `实验编号<ID>.npy` naming convention and contain same-sized, finite, two-dimensional arrays. Review the threshold, origins, shifts, angles, and fitting bounds for each new condition; sample parameters are not universal defaults.
+使用自己的最终图像时，选择图像目录并输入 F、FO、O 编号。文件应命名为 `实验编号<编号>.npy`，内容为尺寸一致、数值有限的二维数组。应根据实际工况检查去噪阈值、原点、平移量、旋转角度和拟合范围，不能把样例参数视为通用默认值。
 
-For processing from raw frames, follow the full workflow:
+从原始拍摄图像开始处理时，完整流程为：
 
-| Page | Action |
+| 页面 | 操作 |
 | --- | --- |
-| **1 Average / 平均图** | Select raw frame folders, a range, and a noise threshold; calculate averaged images. |
-| **2 Intensifier / 像增强器** | Average calibration frames, fit correction matrices, and apply them to experimental averages. |
-| **3 Davis I/O / Davis 整理** | Prepare TIFF inputs for external DaVis geometric correction, then import its exported images. |
-| **4 Mixing / 手动调参** | Adjust alignment, inspect mixing maps and efficiencies, and export selected results. |
-| **5 Distribution / 质量分布拟合** | Set image origins and centerlines, fit intensity distributions, and export results. |
+| **1 平均图** | 选择原始图像目录、计算范围和去噪阈值，计算各实验的平均图。 |
+| **2 像增强器** | 计算标定平均图，拟合修正矩阵，再对实验平均图进行修正。 |
+| **3 Davis 整理** | 整理外部 DaVis 所需的 TIFF 输入；在 DaVis 完成几何修正后，导入其输出图像。 |
+| **4 手动调参** | 调整对齐参数，查看混合分数与混合效率，并导出所选结果。 |
+| **5 质量分布拟合** | 设置原点和中心线，拟合强度分布并导出结果。 |
 
-Mixing and Distribution both read final processed images; fitting does not require PNGs exported from Mixing. All normal pages remain available. The included example contains only final images, not raw acquisition or calibration sequences, and cannot reproduce the upstream workflow by itself. DaVis is separate software and is not included.
+手动调参和质量分布拟合都直接读取最终处理图像，拟合不需要读取手动调参导出的 PNG。程序保留所有正常页面。内置样例只包含最终图像，不包含原始拍摄序列和标定序列，因此不能仅凭样例重建上游处理流程。DaVis 为外部软件，不包含在本项目中。
 
-The additional tools provide an image viewer and histogram, a cached image player with pixel-history plots, noise analysis, NPY operations, color GIF export, colorbar generation, and comparison of standard distributions.
+其他工具包括图像查看器及直方图、带像素时序曲线的图片播放器、底噪分析、NPY 矩阵操作、彩色 GIF 导出、Colorbar 生成和常见分布对比。
 
-## 4. Settings and Precautions
+## 4. 设置与注意事项
 
-- After normal exit, the next launch restores your last page, paths, and parameters from `runtime/settings.json`. Language changes are saved immediately. User-selected folders are not replaced by the sample on every launch.
-- The bundled sample paths are portable with the project. External data paths may need to be selected again on another computer.
-- Work on copies of raw images: averaging can rename source frames into a numbered sequence.
-- Keep floating-point NPY arrays for quantitative processing. Rendered PNGs and GIFs are display exports, not replacements for the input arrays.
-- Save and close Excel workbooks before writing to them. The application reports access errors rather than closing Excel or discarding edits.
-- Retain the software release or commit ID, source files, settings, and numerical exports together when reporting results in a paper.
+- 正常关闭后，程序通过 `runtime/settings.json` 记住上次的页面、目录和参数；语言切换会立即保存。后续启动不会强制覆盖用户选择的目录或切回样例。
+- 样例路径随项目目录解析，可整体移动。外部数据路径在换电脑后可能需要重新选择。
+- 计算平均图前建议复制原始数据，因为程序可能将源图像重命名为连续编号。
+- 定量处理应保留浮点 NPY 数组。PNG、GIF 等渲染结果不能替代原始数值数组。
+- 写入 Excel 前先保存并关闭该工作簿。程序遇到文件占用会报错，不会关闭 Excel 或丢弃未保存的修改。
+- 论文结果应同时保留软件版本或提交编号、输入文件、参数设置和数值导出结果，便于追溯。
 
-If startup reports a missing module, install requirements using the same interpreter used to launch the application. A Tcl/Tk error requires a Python installation with Tk support. Full GUI operation outside Windows has not been established.
+启动时若提示缺少模块，请使用启动程序的同一解释器安装依赖。若出现 Tcl/Tk 错误，需要修复或安装带 Tk 组件的 Python。尚未确认 Windows 以外系统的完整 GUI 兼容性。
 
-## Detailed Documentation
+## 详细使用文档
 
-See **[the detailed user guide](docs/USER_GUIDE.md)** at **`docs/USER_GUIDE.md`** for page-by-page controls, input organization, interval formats, Excel column requirements, output naming, and troubleshooting.
+完整操作说明见 **[详细使用文档](docs/USER_GUIDE.md)**，文件位置为 **`docs/USER_GUIDE.md`**，包含各页面控件、输入组织方式、区间格式、Excel 列要求、输出命名及常见问题。
