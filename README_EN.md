@@ -39,7 +39,7 @@ The example is **DR = 1.3, U = 25**. The supplied image files total approximatel
 4. Enable **Straighten / 掰直** to view the fitted distribution in straightened coordinates. Select **Original / 原图** or **|Fit - original| / 拟合-原图绝对值** to compare the source and fitted images. The fit view uses the compact-support model when available.
 5. Adjust gain or enable Auto for display brightness. Press Enter after editing numerical fields. Changes to processing inputs may require a new fit; returning to Original alone retains the fitted-result cache.
 
-This page normalizes each thresholded image independently. It does **not** apply global O/F total calibration or calculate mixing efficiency.
+This page normalizes each thresholded image independently.
 
 ### Save results
 
@@ -51,7 +51,7 @@ Default sample output locations are `outputs/sample/images` for individual image
 
 ## 3. Inspect Mixing or Use Your Own Data
 
-Open **4 Mixing / 4 手动调参** to inspect the same sample's mixing-fraction maps and efficiencies. The supplied global O/F is **1.2786069651741294**. This value is used by mixing analysis, not by the Distribution page.
+Open **4 Mixing / 4 手动调参** to inspect the same sample's mixing-fraction maps and efficiencies. The supplied global O/F is **1.28**. This value is used by mixing analysis, not by the Distribution page.
 
 For your own final processed images, select their folder and enter the F, FO, and O IDs. Files must follow the `实验编号<ID>.npy` naming convention and contain same-sized, finite, two-dimensional arrays. Review the threshold, origins, shifts, angles, and fitting bounds for each new condition; sample parameters are not universal defaults.
 
@@ -61,7 +61,7 @@ For processing from raw frames, follow the full workflow:
 | --- | --- |
 | **1 Average / 平均图** | Select raw frame folders, a range, and a noise threshold; calculate averaged images. |
 | **2 Intensifier / 像增强器** | Average calibration frames, fit correction matrices, and apply them to experimental averages. |
-| **3 Davis I/O / Davis 整理** | Prepare TIFF inputs for external DaVis geometric correction, then import its exported images. |
+| **3 Davis I/O / Davis 整理** | Prepare TIFF inputs for correcting the tilted field of view in external DaVis, then import its exported images. |
 | **4 Mixing / 手动调参** | Adjust alignment, inspect mixing maps and efficiencies, and export selected results. |
 | **5 Distribution / 质量分布拟合** | Set image origins and centerlines, fit intensity distributions, and export results. |
 

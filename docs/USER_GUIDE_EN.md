@@ -221,7 +221,7 @@ Headers are unchanged in English mode. Without this layout, use Save selected wi
 
 ## 8. Use the Example
 
-`样例数据` contains final **F67 / FO57 / O45** images for **DR1.3_U25**, global O/F **1.2786069651741294**. No raw sequences, calibration images, or DaVis inputs are supplied.
+`样例数据` contains final **F67 / FO57 / O45** images for **DR1.3_U25**, global O/F **1.28**. No raw sequences, calibration images, or DaVis inputs are supplied.
 
 With the supplied settings, startup opens Distribution and displays the sample originals automatically. If the settings file is absent, the same page and sample processing inputs are used. Unconfigured Mixing/Distribution pages select the sample automatically. If settings point elsewhere, select `样例数据` and the IDs manually. Changing folders does not discard your other parameters.
 

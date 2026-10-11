@@ -89,7 +89,7 @@
     "major_axis": 200,
     "minor_axis": 400,
     "line_width": 2,
-    "global_of": 1.2786069651741294,
+    "global_of": 1.28,
     "denoise_ratio": 0.01,
     "use_ellipse_region": false,
     "output_folder": "outputs/sample/mixing"
