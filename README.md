@@ -43,6 +43,8 @@ The `样例数据` folder contains three final processed NPY images, approximate
 
 The example is labeled **DR = 1.3**, **U = 25**, with **global O/F = 1.2786069651741294**. Its processing inputs are stored in `样例数据/parameters.json`.
 
+The bundled group preset contains only this example. To process other experiment groups, select your own preset file or enter the IDs and conditions manually.
+
 1. Start the application and switch to English if needed.
 2. Open **4 Mixing**. Unconfigured image folders default to the example; previously selected user folders are preserved. Check F = 67, FO = 57, and O = 45.
 3. Inspect the mixing maps and calibrated/uncalibrated efficiency rows. Press Enter after changing an input.

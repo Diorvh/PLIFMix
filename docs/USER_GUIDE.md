@@ -239,6 +239,8 @@ Unconfigured Mixing/Distribution pages select the sample automatically. If setti
 
 The complete sample inputs are in `样例数据/parameters.json`. These are example choices, not universal defaults. There is no sample measurement workbook; use Fit data to generate a standalone workbook.
 
+The default JSON preset under `runtime/presets` contains only F67/FO57/O45. Its original filename is retained for compatibility. Previous/Next group therefore stays on this one group until you load a different preset. Create or select your own JSON for a larger series of experiments.
+
 ## 9. Other Tools
 
 | Page | Use |
